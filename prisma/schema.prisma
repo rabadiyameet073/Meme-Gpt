@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Meme {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  dialogue    String
+  explanation String
+  keywords    String   // JSON array stored as string
+  videoRef    String?
+  gifRef      String?
+  viralScore  Float    @default(0)
+  usageCount  Int      @default(0)
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  votes     MemeVote[]
+  usageLogs MemeUsage[]
+
+  @@index([category])
+  @@index([name])
+  @@index([usageCount])
+  @@index([viralScore])
+}
+
+model MemeVote {
+  id        String   @id @default(cuid())
+  memeId    String
+  meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  vote      Int      // 1 = up, -1 = down
+  sessionId String
+  createdAt DateTime @default(now())
+
+  @@unique([memeId, sessionId])
+  @@index([sessionId])
+}
+
+model MemeUsage {
+  id        String   @id @default(cuid())
+  memeId    String
+  meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  query     String
+  score     Float
+  createdAt DateTime @default(now())
+
+  @@index([memeId])
+  @@index([createdAt])
+}
+
+model SearchLog {
+  id        String   @id @default(cuid())
+  query     String
+  resultCount Int
+  latencyMs Int
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
