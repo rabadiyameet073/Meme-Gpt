@@ -1,0 +1,25 @@
+name: Pull Request Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Test Python API
+        run: |
+          cd services/api
+          pip install -r requirements.txt
+          pytest
+
+      - name: Lint Next.js App
+        run: |
+          cd apps/web
+          npm ci
+          npm run lint

@@ -1,0 +1,48 @@
+name: Deploy MemeGPT Services
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-api:
+    name: Deploy FastAPI Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          cd services/api
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          cd services/api
+          pytest
+
+  deploy-web:
+    name: Deploy Next.js Web App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & Build
+        run: |
+          cd apps/web
+          npm ci
+          npm run build
