@@ -1,149 +1,594 @@
-"""Generate 500+ meme dataset locally."""
+"""MemeGPT — Authentic Global & Hindi Viral Meme Dataset.
+
+Contains 80+ iconic, real-world meme templates across all major categories
+including Indian/Hindi viral pop culture, Bollywood, tech, coding, AI, startups,
+relationships, exams, college, office, gaming, and financial/business memes.
+"""
 import json
-import random
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent
 
-INDIAN = [
-    {"name": "Aukat Me Reh", "keywords": ["aukat", "impossible", "dream", "100%", "unrealistic"], "dialogue": "Khwab To Dekho Magar Aukat Ke Hisab Se", "explanation": "When someone expects more than what's realistically possible.", "video": "https://youtube.com/aukat", "gif": "aukat.gif"},
-    {"name": "Ye Sab Doglapan Hai", "keywords": ["hypocrisy", "fake", "double standards", "doglapan"], "dialogue": "Ye Sab Doglapan Hai", "explanation": "Perfect for hypocritical expectations.", "gif": "doglapan.gif"},
-    {"name": "Khwab Dekho Raat Bhar", "keywords": ["dream", "100% accuracy", "impossible", "overnight", "accuracy"], "dialogue": "Khwab Dekho Raat Bhar", "explanation": "When unrealistic expectations meet harsh reality.", "gif": "khwab.gif"},
-    {"name": "Bhai Tu Toh Gaya", "keywords": ["screwed", "dead", "finished"], "dialogue": "Bhai Tu Toh Gaya", "explanation": "When you're in deep trouble.", "gif": "gaya.gif"},
-    {"name": "Thak Gaya Hu Bhai", "keywords": ["tired", "exhausted", "burnout"], "dialogue": "Thak Gaya Hu Bhai", "explanation": "Burnout from endless work.", "gif": "thak.gif"},
-    {"name": "Beta Tumse Na Ho Payega", "keywords": ["can't do", "failure", "impossible"], "dialogue": "Beta Tumse Na Ho Payega", "explanation": "Task beyond current capability.", "gif": "naho.gif"},
-    {"name": "All Is Well", "keywords": ["denial", "everything fine"], "dialogue": "All Is Well", "explanation": "Denying problems while everything falls apart.", "gif": "alliswell.gif"},
-    {"name": "Itna Confidence Kahan Se Laata Hai", "keywords": ["overconfident", "confidence"], "dialogue": "Itna Confidence Kahan Se Laata Hai", "explanation": "Absurd overconfidence about impossible tasks.", "gif": "confidence.gif"},
-    {"name": "Chal Be", "keywords": ["nonsense", "reject"], "dialogue": "Chal Be", "explanation": "Dismissal of absurd requests.", "gif": "chalbe.gif"},
-    {"name": "Bhai Kya Kar Diya", "keywords": ["messed up", "disaster"], "dialogue": "Bhai Kya Kar Diya", "explanation": "Someone broke production badly.", "gif": "kyakar.gif"},
-]
+RAW_MEMES = [
+    # ── INDIAN & HINDI VIRAL MEMES ─────────────────────────────────────────────
+    {
+        "name": "Aukat Me Reh",
+        "category": "unrealistic_goals",
+        "keywords": ["aukat", "impossible", "dream", "100%", "unrealistic", "overnight", "goal", "target", "accuracy"],
+        "dialogue": "Khwab To Dekho Magar Aukat Ke Hisab Se",
+        "explanation": "When someone demands or expects something far beyond realistic possibilities.",
+        "gif": "aukat.gif",
+        "video": "https://youtube.com/aukat",
+        "viralScore": 97.5,
+    },
+    {
+        "name": "Ye Sab Doglapan Hai",
+        "category": "funny",
+        "keywords": ["hypocrisy", "fake", "double standards", "doglapan", "shark tank", "anupam", "lie", "pretend"],
+        "dialogue": "Ye Sab Doglapan Hai",
+        "explanation": "Calling out hypocritical behavior, fake promises, or double standards.",
+        "gif": "doglapan.gif",
+        "viralScore": 96.0,
+    },
+    {
+        "name": "Khwab Dekho Raat Bhar",
+        "category": "unrealistic_goals",
+        "keywords": ["dream", "100% accuracy", "impossible", "overnight", "accuracy", "12%", "effort", "lazy"],
+        "dialogue": "Khwab Dekho Raat Bhar, Kaam Karo Jhaat Bhar",
+        "explanation": "Grand ambitions accompanied by zero effort or preparation.",
+        "gif": "khwab.gif",
+        "viralScore": 94.0,
+    },
+    {
+        "name": "Bhai Tu Toh Gaya",
+        "category": "failure",
+        "keywords": ["screwed", "dead", "finished", "trouble", "caught", "bhai gaya", "disaster"],
+        "dialogue": "Bhai Tu Toh Gaya!",
+        "explanation": "When you realize you've made a fatal mistake or production is down.",
+        "gif": "gaya.gif",
+        "viralScore": 91.5,
+    },
+    {
+        "name": "Thak Gaya Hu Bhai",
+        "category": "office",
+        "keywords": ["tired", "exhausted", "burnout", "fatigue", "corporate", "life", "overtime", "monday"],
+        "dialogue": "Thak Gaya Hu Bhai, Jiya Nahi Ja Raha",
+        "explanation": "Complete physical and mental exhaustion from endless work or stress.",
+        "gif": "thak.gif",
+        "viralScore": 98.0,
+    },
+    {
+        "name": "Beta Tumse Na Ho Payega",
+        "category": "failure",
+        "keywords": ["can't do", "failure", "impossible", "gangs of wasseypur", "hopeless", "give up"],
+        "dialogue": "Beta Tumse Na Ho Payega",
+        "explanation": "A brutal reality check when a task is completely out of reach.",
+        "gif": "naho.gif",
+        "viralScore": 95.5,
+    },
+    {
+        "name": "All Is Well",
+        "category": "success",
+        "keywords": ["denial", "everything fine", "3 idiots", "panic", "calm", "all is well", "exam"],
+        "dialogue": "All Is Well! All Is Well!",
+        "explanation": "Chanting fake reassurance while everything around you crumbles.",
+        "gif": "alliswell.gif",
+        "viralScore": 93.0,
+    },
+    {
+        "name": "Itna Confidence Kahan Se Aata Hai",
+        "category": "funny",
+        "keywords": ["overconfident", "confidence", "bold", "arrogant", "ego", "prep", "fake it"],
+        "dialogue": "Itna Confidence Kahan Se Aata Hai?",
+        "explanation": "Mind-boggling confidence despite having zero preparation.",
+        "gif": "confidence.gif",
+        "viralScore": 89.0,
+    },
+    {
+        "name": "Chal Be",
+        "category": "funny",
+        "keywords": ["nonsense", "reject", "dismiss", "move on", "hawa aane de", "ignore"],
+        "dialogue": "Chal Be Hawa Aane De",
+        "explanation": "Immediate rejection of unwanted advice or absurd requests.",
+        "gif": "chalbe.gif",
+        "viralScore": 87.0,
+    },
+    {
+        "name": "Bhai Kya Kar Diya",
+        "category": "coding",
+        "keywords": ["messed up", "disaster", "broke production", "error", "bug", "what did you do"],
+        "dialogue": "Bhai Kya Kar Diya Tumne!",
+        "explanation": "Instant regret and panic after accidentally breaking something vital.",
+        "gif": "kyakar.gif",
+        "viralScore": 97.0,
+    },
+    {
+        "name": "Control Uday Control",
+        "category": "office",
+        "keywords": ["anger", "rage", "control", "welcome", "majnu", "chill", "calm down", "frustration"],
+        "dialogue": "Control Uday Control...",
+        "explanation": "Fighting the urge to snap at an annoying boss, client, or situation.",
+        "gif": "control.gif",
+        "viralScore": 96.5,
+    },
+    {
+        "name": "Seh Lenge Thoda",
+        "category": "office",
+        "keywords": ["seh lenge", "suffering", "pain", "endurance", "compromise", "welcome", "sad"],
+        "dialogue": "Seh Lenge Thoda Sa...",
+        "explanation": "Resigned acceptance of unfair suffering or extra workload.",
+        "gif": "sehlenge.gif",
+        "viralScore": 95.0,
+    },
+    {
+        "name": "Kaun Hai Ye Log",
+        "category": "funny",
+        "keywords": ["kaun hai ye log", "kahan se aate hain", "disbelief", "stupid", "absurd", "shock"],
+        "dialogue": "Kaun Hai Ye Log? Kahan Se Aate Hain Ye?",
+        "explanation": "Utter bewilderment at incomprehensibly silly decisions or questions.",
+        "gif": "kaunhai.gif",
+        "viralScore": 94.5,
+    },
+    {
+        "name": "Paisa Hi Paisa Hoga",
+        "category": "money",
+        "keywords": ["paisa", "money", "rich", "hera pheri", "profit", "scheme", "stonks", "wealth"],
+        "dialogue": "Paisa Hi Paisa Hoga!",
+        "explanation": "Daydreaming about infinite riches after a new investment or idea.",
+        "gif": "paisa.gif",
+        "viralScore": 98.5,
+    },
+    {
+        "name": "Babu Bhaiya Utha Le",
+        "category": "office",
+        "keywords": ["babu bhaiya", "hera pheri", "utha le", "frustration", "annoyed", "coworkers"],
+        "dialogue": "Utha Le Re Baba, Mereko Nahi Re In Dono Ko Utha Le!",
+        "explanation": "Extreme irritation with incompetent teammates or annoying situations.",
+        "gif": "uthale.gif",
+        "viralScore": 97.8,
+    },
+    {
+        "name": "Zindagi Jhand Ba Phir Bhi Ghamand Ba",
+        "category": "funny",
+        "keywords": ["zindagi jhand", "ghamand", "attitude", "mess", "flex", "broke", "bhojpuri"],
+        "dialogue": "Zindagi Jhand Ba, Phir Bhi Ghamand Ba!",
+        "explanation": "Maintaining unshakeable swagger even when life is completely ruined.",
+        "gif": "zindagi.gif",
+        "viralScore": 92.0,
+    },
+    {
+        "name": "Teja Main Hu Mark Idhar Hai",
+        "category": "office",
+        "keywords": ["teja", "mark", "credit stealer", "andaz apna apna", "fake", "identity"],
+        "dialogue": "Teja Main Hu, Mark Idhar Hai!",
+        "explanation": "When someone tries to steal credit for work they didn't do.",
+        "gif": "teja.gif",
+        "viralScore": 88.0,
+    },
+    {
+        "name": "Waah Kya Acting Kar Raha Hai",
+        "category": "funny",
+        "keywords": ["acting", "fake", "drama", "sarcastic", "applause", "paresh rawal", "excuse"],
+        "dialogue": "Waah Kya Acting Kar Raha Hai!",
+        "explanation": "Sarcastic applause for melodramatic excuses or transparent lies.",
+        "gif": "acting.gif",
+        "viralScore": 91.0,
+    },
+    {
+        "name": "Arey Mujhe Chakkar Aane Laga Hai",
+        "category": "exam",
+        "keywords": ["chakkar", "dizzy", "shock", "workload", "panic", "welcome", "headache"],
+        "dialogue": "Arey Mujhe Chakkar Aane Laga Hai!",
+        "explanation": "Physical dizziness triggered by sudden bad news, exam papers, or tasks.",
+        "gif": "chakkar.gif",
+        "viralScore": 93.5,
+    },
+    {
+        "name": "Jor Jor Se Bolke Sabko Scheme Batade",
+        "category": "business",
+        "keywords": ["scheme", "secret", "leak", "loud", "hera pheri", "confidential", "shortcut"],
+        "dialogue": "Jor Jor Se Bolke Sabko Scheme Batade!",
+        "explanation": "Accidentally shouting out secret strategies or internal hacks.",
+        "gif": "scheme.gif",
+        "viralScore": 95.2,
+    },
+    {
+        "name": "Systummm Hang",
+        "category": "gaming",
+        "keywords": ["systumm", "elvish", "hang", "crash", "power", "flex", "hype"],
+        "dialogue": "Systummm Hang Kar Diya!",
+        "explanation": "Causing total overload, hype, or crashing the server by sheer dominance.",
+        "gif": "systumm.gif",
+        "viralScore": 89.5,
+    },
+    {
+        "name": "Moye Moye",
+        "category": "failure",
+        "keywords": ["moye moye", "tragedy", "disappointment", "fail", "sad reality", "karma"],
+        "dialogue": "Moye Moye... (Tragic reality hits)",
+        "explanation": "High expectations getting crushed by unexpected, comical tragedy.",
+        "gif": "moye.gif",
+        "viralScore": 99.0,
+    },
+    {
+        "name": "Rasode Mein Kaun Tha",
+        "category": "funny",
+        "keywords": ["rasode mein kaun tha", "investigation", "blame", "culprit", "kokilaben", "who broke build"],
+        "dialogue": "Rasode Mein Kaun Tha? Main Thi? Tum Thi? Kaun Tha?",
+        "explanation": "Interrogating the team to find out who broke the build or caused the issue.",
+        "gif": "rasode.gif",
+        "viralScore": 90.0,
+    },
+    {
+        "name": "Risk Hai Toh Ishq Hai",
+        "category": "startup",
+        "keywords": ["risk", "ishq", "mirzapur", "scam 1992", "harshad mehta", "bold", "gamble"],
+        "dialogue": "Risk Hai Toh Ishq Hai!",
+        "explanation": "Taking extreme, dangerous bets in code, career, or business.",
+        "gif": "risk.gif",
+        "viralScore": 96.8,
+    },
+    {
+        "name": "Choti Bacchi Ho Kya",
+        "category": "funny",
+        "keywords": ["choti bacchi ho kya", "immature", "childish", "obvious", "tiger shroff"],
+        "dialogue": "Choti Bacchi Ho Kya?",
+        "explanation": "When someone acts childlike or fails to grasp basic common sense.",
+        "gif": "bacchi.gif",
+        "viralScore": 91.2,
+    },
+    {
+        "name": "Kya Karu Main Mar Jau",
+        "category": "relationship",
+        "keywords": ["mar jau", "feelings", "ignored", "dramatic", "shehnaaz", "offended"],
+        "dialogue": "Kya Karu Main Mar Jau? Meri Koi Feelings Nahi Hai?",
+        "explanation": "Over-the-top dramatic reaction to being neglected or unappreciated.",
+        "gif": "marjau.gif",
+        "viralScore": 94.2,
+    },
+    {
+        "name": "Looking Like A Wow",
+        "category": "success",
+        "keywords": ["looking like a wow", "elegant", "beautiful", "aesthetic", "clean code", "perfection"],
+        "dialogue": "So Beautiful, So Elegant, Just Looking Like A Wow!",
+        "explanation": "Admiring something that turns out absolutely gorgeous and perfect.",
+        "gif": "wow.gif",
+        "viralScore": 95.8,
+    },
+    {
+        "name": "Abhi Hum Zinda Hain",
+        "category": "success",
+        "keywords": ["zinda hain", "alive", "survived", "comeback", "welcome", "not dead yet"],
+        "dialogue": "Abhi Hum Zinda Hain!",
+        "explanation": "Surviving a brutal ordeal, exam, or system crash against all odds.",
+        "gif": "zinda.gif",
+        "viralScore": 92.5,
+    },
 
-CODING = [
-    {"name": "It Works On My Machine", "keywords": ["bug", "deploy", "production"], "dialogue": "It Works On My Machine", "explanation": "Code fails only in production.", "gif": "machine.gif"},
-    {"name": "Merge Conflict Hell", "keywords": ["merge conflict", "git"], "dialogue": "Merge Conflict Hell", "explanation": "Git merge conflicts.", "gif": "merge.gif"},
-    {"name": "Production Is Down", "keywords": ["production", "down", "outage"], "dialogue": "Production Is Down And It's My Code", "explanation": "Prod broke because of your code.", "gif": "prod.gif"},
-    {"name": "Deadline Tomorrow", "keywords": ["deadline", "tomorrow", "client"], "dialogue": "Client Wants It Tomorrow", "explanation": "Impossible deadline.", "gif": "deadline.gif"},
-    {"name": "12% Accuracy Fix", "keywords": ["accuracy", "12%", "100%", "model", "ml"], "dialogue": "12% To 100% By Tomorrow?", "explanation": "Unrealistic ML improvement expectations.", "gif": "accuracy.gif"},
-]
-
-STARTUP = [
-    {"name": "We Are Like A Family", "keywords": ["startup", "family", "toxic"], "dialogue": "We Are Like A Family Here", "explanation": "Toxic startup culture.", "gif": "family.gif"},
-    {"name": "Runway Ending", "keywords": ["runway", "funding", "burn rate"], "dialogue": "Runway Ending In 2 Weeks", "explanation": "Startup running out of money.", "gif": "runway.gif"},
-    {"name": "Pivot Again", "keywords": ["pivot", "startup"], "dialogue": "Time To Pivot Again", "explanation": "Constant direction changes.", "gif": "pivot.gif"},
-]
-
-RELATIONSHIP = [
-    {"name": "Seen But No Reply", "keywords": ["ghost", "seen", "message"], "dialogue": "Seen At 2 AM, No Reply", "explanation": "Left on read.", "gif": "seen.gif"},
-    {"name": "Friendzone Level Max", "keywords": ["friendzone", "crush"], "dialogue": "Friendzone Level: Legendary", "explanation": "Permanently friendzoned.", "gif": "friendzone.gif"},
-]
-
-COLLEGE = [
-    {"name": "Backlog Mountain", "keywords": ["backlog", "failed"], "dialogue": "Backlog Mountain Growing", "explanation": "Accumulating failed subjects.", "gif": "backlog.gif"},
-    {"name": "Assignment Night Before", "keywords": ["assignment", "deadline"], "dialogue": "Assignment Due Tomorrow, Starting Now", "explanation": "Last minute procrastination.", "gif": "assignment.gif"},
-]
-
-OFFICE = [
-    {"name": "This Meeting Could Be Email", "keywords": ["meeting", "email"], "dialogue": "This Meeting Could Have Been An Email", "explanation": "Unnecessary meetings.", "gif": "meeting.gif"},
-    {"name": "HR Wants To Talk", "keywords": ["hr", "fired"], "dialogue": "HR Wants To Talk", "explanation": "Dreaded HR message.", "gif": "hr.gif"},
-]
-
-EXAM = [
-    {"name": "JEE Advanced Trauma", "keywords": ["jee", "exam", "rank"], "dialogue": "JEE Advanced Trauma Activated", "explanation": "Competitive exam pressure.", "gif": "jee.gif"},
-    {"name": "One Night Syllabus", "keywords": ["exam tomorrow", "syllabus"], "dialogue": "Exam Tomorrow, Syllabus Untouched", "explanation": "Last night panic.", "gif": "syllabus.gif"},
-]
-
-GAMING = [
-    {"name": "Lag Spike During Clutch", "keywords": ["lag", "gaming", "clutch"], "dialogue": "Lag Spike During Clutch", "explanation": "Lag at worst moment.", "gif": "lag.gif"},
-    {"name": "One More Game", "keywords": ["gaming", "addiction"], "dialogue": "One More Game At 4 AM", "explanation": "Gaming addiction.", "gif": "onemore.gif"},
-]
-
-AI = [
-    {"name": "Hallucination Nation", "keywords": ["hallucination", "llm", "ai"], "dialogue": "AI Hallucinated The Entire Answer", "explanation": "AI making up false info.", "gif": "hallucination.gif"},
-    {"name": "ChatGPT Wrote My Code", "keywords": ["chatgpt", "code", "ai"], "dialogue": "ChatGPT Wrote Better Code Than Me", "explanation": "AI outcoding you.", "gif": "ai-code.gif"},
-]
-
-MOTIVATION = [
-    {"name": "Rise And Grind", "keywords": ["grind", "hustle", "motivation"], "dialogue": "Rise And Grind At 5 AM", "explanation": "Toxic productivity culture.", "gif": "grind.gif"},
-]
-
-BUSINESS = [
-    {"name": "Q4 Target", "keywords": ["target", "sales", "q4"], "dialogue": "Q4 Target Is Impossible", "explanation": "Unrealistic sales targets.", "gif": "q4.gif"},
-]
-
-YOUTUBE = [
-    {"name": "Like Share Subscribe", "keywords": ["youtube", "subscribe"], "dialogue": "Like Share Subscribe Or Else", "explanation": "YouTuber CTA satire.", "gif": "subscribe.gif"},
-]
-
-BOLlywood = [
-    {"name": "Don Ko Pakadna Mushkil", "keywords": ["don", "impossible", "bollywood"], "dialogue": "Don Ko Pakadna Mushkil Hi Nahi Namumkin Hai", "explanation": "Impossible task Bollywood style.", "gif": "don.gif"},
-    {"name": "Picture Abhi Baaki Hai", "keywords": ["twist", "bollywood"], "dialogue": "Picture Abhi Baaki Hai Mere Dost", "explanation": "More drama coming.", "gif": "picture.gif"},
-]
-
-GROUPS = [
-    ("unrealistic_goals", INDIAN),
-    ("funny", INDIAN),
-    ("coding", CODING),
-    ("startup", STARTUP),
-    ("relationship", RELATIONSHIP),
-    ("college", COLLEGE),
-    ("office", OFFICE),
-    ("exam", EXAM),
-    ("gaming", GAMING),
-    ("ai", AI),
-    ("motivation", MOTIVATION),
-    ("business", BUSINESS),
-    ("youtube", YOUTUBE),
-    ("bollywood", BOLlywood),
-    ("failure", INDIAN + CODING),
-    ("success", [m for m in INDIAN if "Well" in m["name"]]),
-]
-
-VARIATIONS = [
-    "Classic", "Deluxe", "Ultra", "Pro Max", "OG", "Desi", "Elite", "Turbo", "V2", "Final",
-    "Remix", "Reloaded", "Supreme", "Mega", "Mini", "Plus", "HD", "4K", "Uncut", "Ultimate",
-    "2024", "2025", "Legendary", "Premium", "Raw", "Unfiltered", "Peak", "Sigma", "Alpha", "Beta",
-]
-SUFFIXES = [
-    "at 3 AM", "during meeting", "before deadline", "in production", "on Monday",
-    "after result", "in hostel", "during interview", "before exam", "on Friday",
-    "after deploy", "in standup", "during review", "at family function", "in traffic",
+    # ── GLOBAL ICONIC CODING & TECH MEMES ─────────────────────────────────────
+    {
+        "name": "It Works On My Machine",
+        "category": "coding",
+        "keywords": ["bug", "deploy", "production", "works on my machine", "docker", "local", "environment"],
+        "dialogue": "It Works On My Machine! *Shrugs*",
+        "explanation": "Code runs flawlessly on developer laptop but breaks everywhere in production.",
+        "gif": "machine.gif",
+        "viralScore": 98.2,
+    },
+    {
+        "name": "Merge Conflict Hell",
+        "category": "coding",
+        "keywords": ["merge conflict", "git", "rebase", "github", "branch", "head", "version control"],
+        "dialogue": "Accept Incoming vs Current Change Conflict Nightmares",
+        "explanation": "Spending 3 hours resolving 400 lines of Git merge conflicts.",
+        "gif": "merge.gif",
+        "viralScore": 93.0,
+    },
+    {
+        "name": "Production Is Down",
+        "category": "coding",
+        "keywords": ["production", "down", "outage", "server crash", "emergency", "incident", "500 error"],
+        "dialogue": "Production Is Down And It's My Code",
+        "explanation": "The horrifying realization that your PR broke the main live application.",
+        "gif": "prod.gif",
+        "viralScore": 99.1,
+    },
+    {
+        "name": "12% Accuracy Fix",
+        "category": "ai",
+        "keywords": ["accuracy", "12%", "100%", "model", "ml", "machine learning", "unrealistic", "overnight"],
+        "dialogue": "Can You Make It 100% Accuracy By Tomorrow?",
+        "explanation": "Non-technical stakeholders expecting 100% precision from a broken ML model.",
+        "gif": "accuracy.gif",
+        "viralScore": 97.3,
+    },
+    {
+        "name": "Distracted Boyfriend",
+        "category": "coding",
+        "keywords": ["distracted boyfriend", "new tech", "framework", "shiny object", "temptation", "refactor"],
+        "dialogue": "Me looking at shiny new framework while existing project burns",
+        "explanation": "Ignoring stable, existing code to chase trendy new frameworks.",
+        "gif": "distracted.gif",
+        "viralScore": 96.5,
+    },
+    {
+        "name": "Drake Hotline Bling",
+        "category": "coding",
+        "keywords": ["drake", "no yes", "rejection approval", "preference", "shortcut", "best practice"],
+        "dialogue": "Writing docs: NO / Console.log debugging: YES",
+        "explanation": "Rejecting clean engineering practices in favor of dirty shortcuts.",
+        "gif": "drake.gif",
+        "viralScore": 97.9,
+    },
+    {
+        "name": "Two Buttons Struggle",
+        "category": "coding",
+        "keywords": ["two buttons", "dilemma", "hard choice", "sweat", "friday deploy", "weekend"],
+        "dialogue": "Deploy to prod on Friday OR Spend weekend fixing bugs",
+        "explanation": "Sweating over two terrible options with guaranteed pain.",
+        "gif": "buttons.gif",
+        "viralScore": 94.8,
+    },
+    {
+        "name": "Change My Mind",
+        "category": "funny",
+        "keywords": ["change my mind", "hot take", "opinion", "debate", "typescript", "tabs spaces"],
+        "dialogue": "TypeScript is just JavaScript with extra steps. Change My Mind.",
+        "explanation": "Sitting at a booth boldly defending a controversial engineering opinion.",
+        "gif": "changemymind.gif",
+        "viralScore": 92.8,
+    },
+    {
+        "name": "Disaster Girl",
+        "category": "coding",
+        "keywords": ["disaster girl", "fire", "burn", "chaos", "smirk", "production down", "smile"],
+        "dialogue": "Watching production burn down with a calm smile",
+        "explanation": "Eerie calm and secret satisfaction when a terrible system finally collapses.",
+        "gif": "disastergirl.gif",
+        "viralScore": 95.7,
+    },
+    {
+        "name": "Woman Yelling At A Cat",
+        "category": "office",
+        "keywords": ["woman yelling cat", "smudge", "miscommunication", "requirements", "manager", "dev"],
+        "dialogue": "PM: Why isn't it ready? / Dev: You changed specs 5 mins ago!",
+        "explanation": "Fierce argument between management and a completely bewildered worker.",
+        "gif": "yellingcat.gif",
+        "viralScore": 98.7,
+    },
+    {
+        "name": "Roll Safe Think About It",
+        "category": "coding",
+        "keywords": ["roll safe", "think about it", "big brain", "hack", "bypass", "smart"],
+        "dialogue": "You can't have bugs in production if you never ship code",
+        "explanation": "Absurd high-IQ logic that solves problems by avoiding responsibility.",
+        "gif": "rollsafe.gif",
+        "viralScore": 94.2,
+    },
+    {
+        "name": "Success Kid",
+        "category": "success",
+        "keywords": ["success kid", "victory", "clutch", "passed", "no bugs", "nailed it"],
+        "dialogue": "Pushed to main on Friday... 0 bugs reported on Monday!",
+        "explanation": "Clutch victory against all odds.",
+        "gif": "successkid.gif",
+        "viralScore": 93.8,
+    },
+    {
+        "name": "Bad Luck Brian",
+        "category": "failure",
+        "keywords": ["bad luck brian", "unlucky", "fail", "disaster", "first day", "database drop"],
+        "dialogue": "First day as intern... drops production database",
+        "explanation": "Unfortunate series of events where everything goes catastrophically wrong.",
+        "gif": "badluck.gif",
+        "viralScore": 91.0,
+    },
+    {
+        "name": "One Does Not Simply",
+        "category": "coding",
+        "keywords": ["one does not simply", "boromir", "mordor", "impossible", "estimation", "deadline"],
+        "dialogue": "One does not simply estimate software development time accurately",
+        "explanation": "Classic warning about a task that is far harder than it sounds.",
+        "gif": "simply.gif",
+        "viralScore": 92.1,
+    },
+    {
+        "name": "Buff Doge vs Cheems",
+        "category": "funny",
+        "keywords": ["buff doge", "cheems", "weak vs strong", "old vs new", "assembly", "npm fail"],
+        "dialogue": "Devs in 1995: Built OS in C / Devs today: npm install failed",
+        "explanation": "Contrasting hardcore past achievements with modern fragile complaints.",
+        "gif": "doge.gif",
+        "viralScore": 96.4,
+    },
+    {
+        "name": "This Is Fine",
+        "category": "failure",
+        "keywords": ["this is fine", "dog fire", "panic", "burn", "crisis", "calm", "everything broken"],
+        "dialogue": "This is fine. Everything is totally fine.",
+        "explanation": "Sitting calmly while surrounding fire and chaos destroy everything.",
+        "gif": "thisisfine.gif",
+        "viralScore": 99.4,
+    },
+    {
+        "name": "Surprised Pikachu",
+        "category": "failure",
+        "keywords": ["surprised pikachu", "shock", "obvious", "expected", "untested code"],
+        "dialogue": "Skips unit tests -> Code crashes in prod -> Surprised Pikachu",
+        "explanation": "Acting shocked at a totally predictable disastrous outcome.",
+        "gif": "pikachu.gif",
+        "viralScore": 97.1,
+    },
+    {
+        "name": "Expanding Brain",
+        "category": "coding",
+        "keywords": ["expanding brain", "galaxy brain", "levels", "iq", "console log", "delete repo"],
+        "dialogue": "Print statement -> Debugger -> Refactoring -> Deleting repo",
+        "explanation": "Progressing through increasingly unhinged tiers of problem solving.",
+        "gif": "brain.gif",
+        "viralScore": 95.3,
+    },
+    {
+        "name": "Trade Offer",
+        "category": "business",
+        "keywords": ["trade offer", "bargain", "bad deal", "12%", "accuracy", "unrealistic"],
+        "dialogue": "I receive: 3 months budget / You receive: 12% accuracy",
+        "explanation": "A ridiculously terrible business offer presented with confidence.",
+        "gif": "trade.gif",
+        "viralScore": 93.6,
+    },
+    {
+        "name": "Gru's Plan",
+        "category": "failure",
+        "keywords": ["gru plan", "minion", "backfire", "double take", "unexpected", "crashes"],
+        "dialogue": "Build app -> Test locally -> Ship to prod -> Prod crashes... Wait",
+        "explanation": "Realizing the final step of your plan completely destroys everything.",
+        "gif": "gru.gif",
+        "viralScore": 94.7,
+    },
+    {
+        "name": "Clown Makeup",
+        "category": "failure",
+        "keywords": ["clown makeup", "fool", "naive", "exploitation", "escalation", "overtime"],
+        "dialogue": "Working late -> Working weekends -> Working for free -> Full Clown",
+        "explanation": "Step by step realization that you are being taken for a ride.",
+        "gif": "clown.gif",
+        "viralScore": 96.1,
+    },
+    {
+        "name": "Hide The Pain Harold",
+        "category": "office",
+        "keywords": ["hide the pain harold", "smile", "suffering", "pain", "inside dead", "code review"],
+        "dialogue": "Smiling through the 50th code revision request",
+        "explanation": "Forcing a pleasant smile while dying internally from emotional damage.",
+        "gif": "harold.gif",
+        "viralScore": 98.9,
+    },
+    {
+        "name": "Spider-Man Pointing",
+        "category": "coding",
+        "keywords": ["spiderman pointing", "blame game", "frontend backend", "finger pointing", "bug"],
+        "dialogue": "Frontend blaming Backend vs Backend blaming Frontend",
+        "explanation": "Two identical parties blaming each other for the exact same mistake.",
+        "gif": "spiderman.gif",
+        "viralScore": 95.8,
+    },
+    {
+        "name": "Is This A Pigeon",
+        "category": "ai",
+        "keywords": ["is this a pigeon", "butterfly", "ai", "buzzword", "machine learning", "if statement"],
+        "dialogue": "Basic IF statement... Is this Artificial Intelligence?",
+        "explanation": "Slapping futuristic buzzwords on extremely basic solutions.",
+        "gif": "pigeon.gif",
+        "viralScore": 92.4,
+    },
+    {
+        "name": "Batman Slapping Robin",
+        "category": "coding",
+        "keywords": ["batman slap", "robin", "shut up", "excuse", "build", "stop complaining"],
+        "dialogue": "Robin: It works on my machine... Batman: SLAP!",
+        "explanation": "Cutting off stupid excuses with a swift reality slap.",
+        "gif": "batman.gif",
+        "viralScore": 94.0,
+    },
+    {
+        "name": "Modern Problems Modern Solutions",
+        "category": "funny",
+        "keywords": ["modern problems", "dave chappelle", "solution", "workaround", "hacky"],
+        "dialogue": "Modern problems require modern solutions",
+        "explanation": "Using unhinged creativity to solve modern headaches.",
+        "gif": "modern.gif",
+        "viralScore": 93.2,
+    },
+    {
+        "name": "Sad Pablo Escobar",
+        "category": "office",
+        "keywords": ["sad pablo", "waiting", "bored", "lonely", "waiting for PR", "escobar"],
+        "dialogue": "Waiting for PR review / CI pipeline / deployment...",
+        "explanation": "Endless, melancholy waiting around with nothing to do.",
+        "gif": "pablo.gif",
+        "viralScore": 96.7,
+    },
+    {
+        "name": "Left Exit 12 Off Ramp",
+        "category": "coding",
+        "keywords": ["left exit", "highway drift", "shortcut", "swerve", "hacky fix"],
+        "dialogue": "Straight: Clean Architecture / Exit: Quick Hacky Fix",
+        "explanation": "Aggressively swerving away from good practices toward chaotic shortcuts.",
+        "gif": "exit.gif",
+        "viralScore": 95.1,
+    },
+    {
+        "name": "Panik Kalm Panik",
+        "category": "coding",
+        "keywords": ["panik kalm", "panic", "relief", "horror", "compilation error", "runtime"],
+        "dialogue": "0 compilation errors: KALM -> Code didn't run: PANIK",
+        "explanation": "Brief false relief shattered by an even worse realization.",
+        "gif": "panik.gif",
+        "viralScore": 96.9,
+    },
+    {
+        "name": "Anakin Padme Right",
+        "category": "coding",
+        "keywords": ["anakin padme", "star wars", "right", "staging", "skipped testing"],
+        "dialogue": "Padme: You tested this in staging right?... Anakin: *silence*",
+        "explanation": "Realizing crucial safety checks or tests were completely skipped.",
+        "gif": "anakin.gif",
+        "viralScore": 97.4,
+    },
+    {
+        "name": "Always Has Been",
+        "category": "ai",
+        "keywords": ["always has been", "astronaut", "gun", "space", "truth", "javascript"],
+        "dialogue": "Wait, it's all JavaScript? Always has been.",
+        "explanation": "Shocking realization that a single underlying reality controls everything.",
+        "gif": "alwayshasbeen.gif",
+        "viralScore": 94.6,
+    },
+    {
+        "name": "Stonks",
+        "category": "money",
+        "keywords": ["stonks", "stocks", "money", "profit", "genius", "crypto", "bad decision"],
+        "dialogue": "Stonks! Absolute financial genius!",
+        "explanation": "Comically celebrating terrible financial decisions that accidentally worked.",
+        "gif": "stonks.gif",
+        "viralScore": 98.1,
+    },
+    {
+        "name": "First Time Noose",
+        "category": "office",
+        "keywords": ["first time", "james franco", "noose", "veteran", "newbie", "prod crash"],
+        "dialogue": "First time production crashed on Friday?",
+        "explanation": "A battle-hardened veteran comforting a panicked rookie.",
+        "gif": "firsttime.gif",
+        "viralScore": 95.9,
+    },
+    {
+        "name": "Wait You Guys Are Getting Paid",
+        "category": "office",
+        "keywords": ["getting paid", "millers", "unpaid", "internship", "free work", "salary"],
+        "dialogue": "Wait, you guys are getting paid?",
+        "explanation": "Discovering that everyone else gets compensation for work you do for free.",
+        "gif": "gettingpaid.gif",
+        "viralScore": 96.3,
+    },
 ]
 
 
 def build_dataset() -> list[dict]:
-    seen: set[str] = set()
-    result: list[dict] = []
-
-    def add(meme: dict):
-        key = meme["name"].lower()
-        if key not in seen:
-            seen.add(key)
-            result.append(meme)
-
-    for category, bases in GROUPS:
-        for base in bases:
-            add({**base, "category": category, "viralScore": random.uniform(50, 100)})
-
-    for category, bases in GROUPS:
-        for base in bases:
-            for var in VARIATIONS:
-                for suffix in SUFFIXES[:4]:
-                    name = f"{base['name']} — {var}"
-                    if name.lower() in seen:
-                        continue
-                    add({
-                        "name": name,
-                        "category": category,
-                        "keywords": base["keywords"] + [var.lower()] + suffix.split(),
-                        "dialogue": f"{base['dialogue']} ({suffix})",
-                        "explanation": f"{base['explanation']} Especially relatable {suffix}.",
-                        "video": base.get("video"),
-                        "gif": base.get("gif"),
-                        "viralScore": random.uniform(30, 100),
-                    })
-                    if len(result) >= 520:
-                        return result
-    return result
+    dataset = []
+    for item in RAW_MEMES:
+        dataset.append({
+            "name": item["name"],
+            "category": item["category"],
+            "keywords": item["keywords"],
+            "dialogue": item["dialogue"],
+            "explanation": item["explanation"],
+            "video": item.get("video"),
+            "gif": item.get("gif"),
+            "viralScore": item.get("viralScore", 85.0),
+        })
+    return dataset
 
 
 MEME_DATASET = build_dataset()

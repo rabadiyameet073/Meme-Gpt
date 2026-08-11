@@ -47,6 +47,9 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized.")
 
+    from app.core.cache import query_cache
+    query_cache.clear()
+
     # Load ML models in background thread so startup is non-blocking
     import threading
     def _async_load():
