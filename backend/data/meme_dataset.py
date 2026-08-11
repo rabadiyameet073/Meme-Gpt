@@ -576,6 +576,28 @@ RAW_MEMES = [
 
 
 def build_dataset() -> list[dict]:
+    json_path = DATA_DIR / "memes.json"
+    if json_path.exists():
+        try:
+            items = json.loads(json_path.read_text(encoding="utf-8"))
+            if isinstance(items, list) and len(items) > 0:
+                res = []
+                for item in items:
+                    res.append({
+                        "name": item["name"],
+                        "category": item["category"],
+                        "keywords": item.get("keywords", []),
+                        "dialogue": item.get("dialogue", f"{item['name']} Reaction"),
+                        "explanation": item.get("explanation", f"Meme for {item['category']}"),
+                        "image": item.get("image"),
+                        "video": item.get("video"),
+                        "gif": item.get("gif"),
+                        "viralScore": item.get("viralScore", 85.0),
+                    })
+                return res
+        except Exception as e:
+            print(f"Error reading memes.json: {e}")
+
     dataset = []
     for item in RAW_MEMES:
         dataset.append({
@@ -584,6 +606,7 @@ def build_dataset() -> list[dict]:
             "keywords": item["keywords"],
             "dialogue": item["dialogue"],
             "explanation": item["explanation"],
+            "image": item.get("image"),
             "video": item.get("video"),
             "gif": item.get("gif"),
             "viralScore": item.get("viralScore", 85.0),

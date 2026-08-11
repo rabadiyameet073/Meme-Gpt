@@ -166,14 +166,22 @@ def _build_result(item: dict, intent: dict, emotion: dict) -> dict:
     formats = cdn_service.resolve_formats(meme)
     slug = meme.get("slug") or meme.get("name", "meme").lower().replace(" ", "-")
 
-    # Build explanation text
-    tag_str = ", ".join(intent.get("keywords", [])[:4]) or "general vibe"
+    # Build situation-specific AI explanation text
+    keywords_str = ", ".join(intent.get("keywords", [])[:4]) or "the situation"
     category = meme.get("category", "general")
     base_explanation = meme.get("explanation", "")
-    explanation = (
-        f"{base_explanation} This meme fits because your situation aligns with "
-        f"the '{category.replace('_', ' ')}' context ({tag_str})."
-    )
+    situation_summary = intent.get("situation", "").strip()
+
+    if situation_summary:
+        explanation = (
+            f"{base_explanation} When dealing with '{situation_summary}', "
+            f"this '{category.replace('_', ' ')}' meme captures the exact mood ({keywords_str})."
+        )
+    else:
+        explanation = (
+            f"{base_explanation} This meme fits because your situation aligns with "
+            f"the '{category.replace('_', ' ')}' context ({keywords_str})."
+        )
 
     return {
         "id": meme.get("id", item.get("id", "")),

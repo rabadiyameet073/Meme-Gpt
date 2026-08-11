@@ -28,6 +28,7 @@ def seed():
                 dialogue=item["dialogue"],
                 explanation=item["explanation"],
                 keywords=json.dumps(item["keywords"]),
+                image_ref=item.get("image"),
                 video_ref=item.get("video"),
                 gif_ref=item.get("gif"),
                 viral_score=item.get("viralScore", random.uniform(30, 100)),
