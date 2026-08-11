@@ -85,7 +85,18 @@ async def recommend(
         top_k=15,
     )
 
-    # ── 6b. Fallback: if vector search returns too few, use DB memes ──────
+    # ── 6b. Enrich candidates with full meme data from DB ──────────────────
+    #   Local search only returns id+score with empty payloads (embeddings.json
+    #   has no metadata). Map each result back to the full DB meme record.
+    if memes_from_db:
+        db_lookup = {m["id"]: m for m in memes_from_db}
+        for candidate in candidates:
+            if not candidate.get("meme") or not candidate["meme"].get("name"):
+                db_meme = db_lookup.get(candidate.get("id"))
+                if db_meme:
+                    candidate["meme"] = db_meme
+
+    # ── 6c. Fallback: if vector search returns too few, use DB memes ──────
     if len(candidates) < 3 and memes_from_db:
         logger.info("Vector search returned few results, augmenting with DB memes")
         candidates = _augment_from_db(candidates, memes_from_db, query_vector)
