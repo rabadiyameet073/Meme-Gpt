@@ -36,6 +36,8 @@ prisma/*.db
 prisma/*.db-journal
 *.sqlite
 *.db
+*.db-shm
+*.db-wal
 
 # Testing & Coverage
 coverage/

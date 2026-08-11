@@ -7,61 +7,119 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Meme ──────────────────────────────────────────────────────────────────────
 model Meme {
-  id          String   @id @default(cuid())
-  name        String
-  category    String
-  dialogue    String
-  explanation String
-  keywords    String   // JSON array stored as string
-  videoRef    String?
-  gifRef      String?
-  viralScore  Float    @default(0)
-  usageCount  Int      @default(0)
-  upvotes     Int      @default(0)
-  downvotes   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  category        String   @default("general")
+  dialogue        String   @default("")
+  explanation     String   @default("")
+  keywords        String   @default("[]")   // JSON array stored as string
+  emotions        String   @default("[]")   // JSON array stored as string
+  imageUrl        String?  @map("image_url")
+  gifUrl          String?  @map("gif_url")
+  mp4Url          String?  @map("mp4_url")
+  thumbUrl        String?  @map("thumb_url")
+  videoRef        String?  @map("video_ref")
+  gifRef          String?  @map("gif_ref")
+  source          String   @default("manual")
+  nsfw            Boolean  @default(false)
+  viralScore      Float    @default(0.0)    @map("viral_score")
+  usageCount      Int      @default(0)      @map("usage_count")
+  upvotes         Int      @default(0)
+  downvotes       Int      @default(0)
+  downloadCount   Int      @default(0)      @map("download_count")
+  popularityScore Float    @default(0.0)    @map("popularity_score")
+  createdAt       DateTime @default(now())  @map("created_at")
+  updatedAt       DateTime @updatedAt       @map("updated_at")
 
   votes     MemeVote[]
   usageLogs MemeUsage[]
+  feedback  Feedback[]
+  savedBy   SavedMeme[]
 
   @@index([category])
   @@index([name])
+  @@index([slug])
   @@index([usageCount])
   @@index([viralScore])
+  @@index([popularityScore])
+  @@map("memes")
 }
 
+// ── MemeVote ──────────────────────────────────────────────────────────────────
 model MemeVote {
   id        String   @id @default(cuid())
-  memeId    String
+  memeId    String   @map("meme_id")
   meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
   vote      Int      // 1 = up, -1 = down
-  sessionId String
-  createdAt DateTime @default(now())
+  sessionId String   @map("session_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([memeId, sessionId])
   @@index([sessionId])
+  @@map("meme_votes")
 }
 
+// ── MemeUsage ─────────────────────────────────────────────────────────────────
 model MemeUsage {
-  id        String   @id @default(cuid())
-  memeId    String
-  meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
-  query     String
-  score     Float
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  memeId     String   @map("meme_id")
+  meme       Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  query      String
+  score      Float
+  sessionId  String   @default("anonymous") @map("session_id")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([memeId])
   @@index([createdAt])
+  @@map("meme_usage")
 }
 
-model SearchLog {
+// ── Feedback ──────────────────────────────────────────────────────────────────
+// Valid actions: view | click | copy | download | share | thumbs_up | thumbs_down | skip
+model Feedback {
   id        String   @id @default(cuid())
-  query     String
-  resultCount Int
-  latencyMs Int
-  createdAt DateTime @default(now())
+  sessionId String?  @map("session_id")
+  memeId    String   @map("meme_id")
+  meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  queryText String?  @map("query_text")
+  queryId   String?  @map("query_id")
+  action    String   // view | click | copy | download | share | thumbs_up | thumbs_down | skip
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([memeId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("feedback")
+}
+
+// ── SavedMeme ─────────────────────────────────────────────────────────────────
+model SavedMeme {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  memeId         String   @map("meme_id")
+  meme           Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  collectionName String   @default("Favorites") @map("collection_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, memeId])
+  @@index([userId])
+  @@map("saved_memes")
+}
+
+// ── SearchLog ─────────────────────────────────────────────────────────────────
+model SearchLog {
+  id          String   @id @default(cuid())
+  queryHash   String   @map("query_hash")   // MD5 of query — no raw PII
+  resultCount Int      @map("result_count")
+  topMemeId   String?  @map("top_meme_id")
+  latencyMs   Int      @map("latency_ms")
+  cacheHit    Boolean  @default(false) @map("cache_hit")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
+  @@index([queryHash])
+  @@map("search_logs")
 }

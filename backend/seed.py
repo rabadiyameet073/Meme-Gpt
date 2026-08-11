@@ -11,7 +11,7 @@ from data.meme_dataset import MEME_DATASET
 
 
 def seed():
-    init_db()
+    init_db(drop_all=True)
     db = SessionLocal()
     db.query(MemeVote).delete()
     db.query(MemeUsage).delete()

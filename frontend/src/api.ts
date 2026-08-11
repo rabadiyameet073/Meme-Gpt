@@ -1,8 +1,16 @@
 /* ── Types ─────────────────────────────────────────────────── */
 
+export interface MemeFormats {
+  gif?: string;
+  image?: string;
+  video?: string;
+  webp?: string;
+}
+
 export interface MemeMatch {
   id: string;
   name: string;
+  slug?: string;
   category: string;
   dialogue: string;
   explanation: string;
@@ -11,6 +19,10 @@ export interface MemeMatch {
   gifRef?: string | null;
   viralScore: number;
   usageCount: number;
+  upvotes?: number;
+  downvotes?: number;
+  formats?: MemeFormats;
+  share_url?: string;
 }
 
 export interface MemeSearchResult {
@@ -28,6 +40,21 @@ export interface MemeRecord extends MemeMatch {
   keywords: string[];
   upvotes: number;
   downvotes: number;
+}
+
+export interface MemeListResponse {
+  items: MemeRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface StatsResponse {
+  totalMemes: number;
+  totalSearches: number;
+  totalVotes: number;
+  totalUsage: number;
+  avgLatencyMs: number;
 }
 
 /* ── HTTP client ────────────────────────────────────────────── */
@@ -52,16 +79,28 @@ export const api = {
   analyze: (query: string) =>
     request<MemeSearchResult>("/analyze", { method: "POST", body: JSON.stringify({ query }) }),
 
-  searchMemes: (q = "", category = "") => {
-    const p = new URLSearchParams({ limit: "100" });
+  searchMemes: async (q = "", category = "", page = 1, limit = 50): Promise<MemeListResponse> => {
+    const p = new URLSearchParams({ limit: limit.toString(), page: page.toString() });
     if (q) p.set("q", q);
     if (category) p.set("category", category);
-    return request<MemeRecord[]>(`/memes?${p}`);
+    return request<MemeListResponse>(`/memes?${p}`);
   },
+
+  getMeme: (id: string) => request<MemeRecord>(`/memes/${id}`),
 
   trending: () => request<MemeRecord[]>("/trending"),
 
   categories: () => request<string[]>("/categories"),
+
+  stats: () => request<StatsResponse>("/stats"),
+
+  favorites: (sessionId: string) => request<MemeRecord[]>(`/favorites?sessionId=${encodeURIComponent(sessionId)}`),
+
+  toggleFavorite: (memeId: string, sessionId: string) =>
+    request<{ isFavorite: boolean }>("/favorites/toggle", {
+      method: "POST",
+      body: JSON.stringify({ memeId, sessionId }),
+    }),
 
   createMeme: (data: {
     name: string;
@@ -82,13 +121,19 @@ export const api = {
       body: JSON.stringify({ memeId, vote, sessionId }),
     }),
 
+  sendFeedback: (meme_id: string, signal: "copy" | "download" | "upvote" | "downvote", format = "image") =>
+    request<{ status: string }>("/v1/feedback", {
+      method: "POST",
+      body: JSON.stringify({ meme_id, signal, format, session_id: getSessionId() }),
+    }),
+
   export: (query: string, format: string, result: MemeSearchResult) =>
     request<{ content: string; filename: string }>("/export", {
       method: "POST",
       body: JSON.stringify({ query, format, result }),
     }),
 
-  health: () => request<{ status: string; memeCount: number }>("/health"),
+  health: () => request<{ status: string; service: string; version: string; memeCount: number }>("/health"),
 };
 
 /* ── Utilities ──────────────────────────────────────────────── */

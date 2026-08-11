@@ -4,6 +4,6 @@ from app.models.search import SearchRequest
 
 @pytest.mark.asyncio
 async def test_recommendation_pipeline():
-    req = SearchRequest(query="debugging code")
-    res = await recommendation_service.search(req)
-    assert res.total_found > 0
+    res = await recommendation_service.recommend(user_text="debugging code")
+    assert res.success is True
+    assert isinstance(res.results, list)

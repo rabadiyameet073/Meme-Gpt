@@ -1,6 +1,37 @@
+# MemeGPT Backend — Python Dependencies
+# Matches specification from 02_TECH_STACK_AND_MODELS.md
+
+# ── Web Framework ──────────────────────────────────────────
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
-sqlalchemy>=2.0.36
 pydantic>=2.10.0
+pydantic-settings>=2.3.0
 python-multipart>=0.0.17
-sentence-transformers>=3.3.0
+python-dotenv>=1.0.1
+
+# ── Database ───────────────────────────────────────────────
+sqlalchemy>=2.0.36
+
+# ── AI / ML Models (all free, CPU-friendly) ────────────────
+sentence-transformers>=3.3.0         # MiniLM-L6-v2 text embeddings (80MB)
+transformers>=4.41.0                 # Emotion classifier (DistilRoBERTa)
+torch>=2.3.0                        # PyTorch CPU runtime
+
+# ── LLM API ────────────────────────────────────────────────
+groq>=0.9.0                          # Groq API for Llama 3.1 intent parsing
+
+# ── Vector Database ────────────────────────────────────────
+qdrant-client>=1.9.1                 # Qdrant vector search
+
+# ── Cache ──────────────────────────────────────────────────
+redis>=5.0.4                         # Upstash Redis cache
+
+# ── HTTP Client ────────────────────────────────────────────
+httpx>=0.27.0                        # Async HTTP for external APIs
+
+# ── Image Processing (for data pipeline) ───────────────────
+Pillow>=10.3.0                       # Image manipulation
+
+# ── Testing ────────────────────────────────────────────────
+pytest>=8.2.0
+pytest-asyncio>=0.23.0

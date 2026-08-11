@@ -7,7 +7,9 @@
     "dev:frontend": "npm run dev -w frontend",
     "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000",
     "build": "npm run build -w frontend",
-    "setup": "cd backend && pip install -r requirements.txt && python seed.py",
+    "setup": "python scripts/setup.py",
+    "check": "python scripts/check_env.py",
+    "test": "cd backend && python -m pytest tests/ -v",
     "seed": "cd backend && python seed.py",
     "embeddings": "cd backend && python generate_embeddings.py"
   },

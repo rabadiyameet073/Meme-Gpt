@@ -1,0 +1,223 @@
+import { useState, useEffect } from "react";
+import { api, getSessionId, MemeMatch } from "../api";
+import { Icon } from "./Icon";
+
+const SESSION_ID = getSessionId();
+
+export interface MemeCardProps {
+  meme: MemeMatch;
+  primary?: boolean;
+  showConfidence?: boolean;
+  isFav?: boolean;
+  onToggleFav?: (id: string) => void;
+  onToast?: (msg: string) => void;
+}
+
+export function MemeCard({
+  meme,
+  primary,
+  showConfidence,
+  isFav,
+  onToggleFav,
+  onToast,
+}: MemeCardProps) {
+  const [vote, setVote] = useState<1 | -1 | null>(null);
+  const [fav, setFav] = useState<boolean>(!!isFav);
+  const [selectedFormat, setSelectedFormat] = useState<"gif" | "image" | "video" | "webp">("image");
+
+  useEffect(() => {
+    setFav(!!isFav);
+  }, [isFav]);
+
+  const doVote = async (v: 1 | -1) => {
+    if (vote === v) return;
+    setVote(v);
+    try {
+      await api.vote(meme.id, v, SESSION_ID);
+      await api.sendFeedback(meme.id, v === 1 ? "upvote" : "downvote");
+      onToast?.(v === 1 ? "Upvoted match" : "Downvoted match");
+    } catch {
+      /* non-critical */
+    }
+  };
+
+  const toggleFav = async () => {
+    const next = !fav;
+    setFav(next);
+    try {
+      await api.toggleFavorite(meme.id, SESSION_ID);
+      onToggleFav?.(meme.id);
+      onToast?.(next ? "Saved to favorites" : "Removed from favorites");
+    } catch {
+      setFav(!next);
+    }
+  };
+
+  const copyMemeToClipboard = async () => {
+    const shareUrl = meme.share_url || `https://memegpt.com/m/${meme.id}`;
+    const textToCopy = `"${meme.dialogue}" — ${meme.name}\n${shareUrl}`;
+
+    try {
+      if (meme.formats?.image) {
+        const resp = await fetch(meme.formats.image);
+        const blob = await resp.blob();
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        await api.sendFeedback(meme.id, "copy", "image");
+        onToast?.("Meme image copied to clipboard");
+        return;
+      }
+    } catch {
+      /* Fallback to text copy */
+    }
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      await api.sendFeedback(meme.id, "copy", "text");
+      onToast?.("Meme text & link copied");
+    } catch {
+      onToast?.("Could not copy to clipboard");
+    }
+  };
+
+  const downloadMeme = (format: "gif" | "image" | "video" | "webp") => {
+    const formats = meme.formats || {};
+    const targetUrl = formats[format] || meme.gifRef || meme.videoRef || "#";
+    const ext = format === "image" ? "png" : format;
+    const slug = meme.slug || meme.id;
+    const filename = `${slug}.${ext}`;
+
+    const link = document.createElement("a");
+    link.href = targetUrl;
+    link.download = filename;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    api.sendFeedback(meme.id, "download", format);
+    onToast?.(`Downloaded .${ext} file`);
+  };
+
+  const pct = meme.confidence !== undefined ? Math.round(meme.confidence * 100) : null;
+
+  return (
+    <div className={`meme-card ${primary ? "primary" : ""}`}>
+      <div className="meme-header">
+        <div className="meme-name">{meme.name}</div>
+        <div className="meme-badges">
+          <span className="badge badge-category">{meme.category.replace(/_/g, " ")}</span>
+          {showConfidence && pct !== null && (
+            <span className="badge badge-confidence">
+              <Icon name="sparkles" size={12} /> {pct}% match
+            </span>
+          )}
+          {meme.viralScore !== undefined && meme.viralScore > 0 && (
+            <span className="badge badge-viral">
+              <Icon name="trending" size={12} /> viral
+            </span>
+          )}
+        </div>
+      </div>
+
+      {showConfidence && pct !== null && (
+        <div className="confidence-bar" title={`Match Confidence: ${pct}%`}>
+          <div className="confidence-fill" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+
+      <div
+        className="meme-dialogue"
+        title="Click to copy dialogue"
+        onClick={copyMemeToClipboard}
+        style={{ cursor: "pointer" }}
+      >
+        "{meme.dialogue}"
+      </div>
+      <div className="meme-explanation">{meme.explanation}</div>
+
+      <div className="format-selector-row" style={{ display: "flex", gap: "6px", margin: "12px 0 8px", flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "4px" }}>Format:</span>
+        {(["image", "gif", "video", "webp"] as const).map((fmt) => (
+          <button
+            key={fmt}
+            className={`btn-fmt ${selectedFormat === fmt ? "active" : ""}`}
+            onClick={() => setSelectedFormat(fmt)}
+            style={{
+              padding: "3px 9px",
+              fontSize: "0.74rem",
+              fontWeight: 600,
+              borderRadius: "5px",
+              border: selectedFormat === fmt ? "1px solid var(--text-primary)" : "1px solid var(--border)",
+              background: selectedFormat === fmt ? "#27272a" : "transparent",
+              color: selectedFormat === fmt ? "#ffffff" : "var(--text-secondary)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {fmt.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {(meme.videoRef || meme.gifRef || meme.usageCount !== undefined) && (
+        <div className="meme-meta">
+          {meme.usageCount !== undefined && (
+            <span>
+              <Icon name="bar-chart" size={13} /> {meme.usageCount} uses
+            </span>
+          )}
+          {meme.videoRef && (
+            <span>
+              <Icon name="video" size={13} />{" "}
+              <a href={meme.videoRef} target="_blank" rel="noopener noreferrer">
+                Video reference
+              </a>
+            </span>
+          )}
+          {meme.gifRef && (
+            <span>
+              <Icon name="film" size={13} />{" "}
+              <a href={meme.gifRef} target="_blank" rel="noopener noreferrer">
+                GIF reference
+              </a>
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="vote-row">
+        <button
+          className={`btn-vote up ${vote === 1 ? "voted" : ""}`}
+          onClick={() => doVote(1)}
+          title="Upvote match"
+        >
+          <Icon name="thumb-up" size={14} /> Spot on
+        </button>
+        <button
+          className={`btn-vote down ${vote === -1 ? "voted" : ""}`}
+          onClick={() => doVote(-1)}
+          title="Downvote match"
+        >
+          <Icon name="thumb-down" size={14} /> Not quite
+        </button>
+
+        <button
+          className={`btn-action ${fav ? "active" : ""}`}
+          onClick={toggleFav}
+          title={fav ? "Remove from Favorites" : "Add to Favorites"}
+          style={{ marginLeft: "auto" }}
+        >
+          <Icon name={fav ? "heart-filled" : "heart"} size={14} /> {fav ? "Saved" : "Favorite"}
+        </button>
+
+        <button className="btn-action" onClick={copyMemeToClipboard} title="Copy meme">
+          <Icon name="copy" size={14} /> Copy
+        </button>
+
+        <button className="btn-action primary-action" onClick={() => downloadMeme(selectedFormat)} title="Download meme file">
+          <Icon name="download" size={14} /> Download
+        </button>
+      </div>
+    </div>
+  );
+}
