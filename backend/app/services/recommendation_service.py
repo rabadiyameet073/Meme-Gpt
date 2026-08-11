@@ -26,9 +26,11 @@ from app.services import llm_service
 from app.services import search_service
 from app.services import rerank_service
 from app.services import cdn_service
+from app.services import giphy_service
 from app.core.cache import query_cache
 
 logger = logging.getLogger("memegpt.recommendation")
+
 
 
 def _make_cache_key(user_text: str, format_pref: str, nsfw: bool = False) -> str:
@@ -128,12 +130,21 @@ async def recommend(
     top_five = [_build_result(r, intent, emotion) for r in final_results[:5]]
     alternatives = [_build_result(r, intent, emotion) for r in final_results[1:]]
 
-    # Collect GIF URLs
-    gifs = [
+    # Fetch live Giphy GIFs and Global Meme Stream
+    primary_category = (intent.get("categories") or ["funny"])[0]
+    live_data = giphy_service.get_global_gifs_and_memes(
+        query=user_text,
+        category=primary_category,
+        limit=10,
+    )
+
+    # Collect GIF URLs (combining local GIF refs + live Giphy GIFs)
+    local_gifs = [
         r["meme"].get("gifRef") or r["meme"].get("gif_ref")
         for r in final_results[:5]
         if r["meme"].get("gifRef") or r["meme"].get("gif_ref")
     ]
+    gifs = list(dict.fromkeys(local_gifs + live_data.get("gif_urls", [])))
 
     response = {
         "success": True,
@@ -145,7 +156,7 @@ async def recommend(
         "detectedCategories": intent.get("categories", []),
         "detectedTags": intent.get("keywords", []),
         "gifs": gifs,
-        "viralSuggestions": [],
+        "viralSuggestions": live_data.get("memes", []),
         "latencyMs": elapsed_ms,
         "cached": False,
     }
