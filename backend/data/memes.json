@@ -499,15 +499,275 @@
     "viralScore": 92.5
   },
   {
+    "name": "Babu Rao Deviprasad Ghar Pe Hai",
+    "category": "funny",
+    "keywords": [
+      "babu rao",
+      "hera pheri",
+      "deviprasad",
+      "wrong number",
+      "call",
+      "miscommunication",
+      "pehle lagaya aisa",
+      "hindi"
+    ],
+    "dialogue": "Deviprasad Ghar Pe Hai?... Pehle Lagaya Aisa, Toh Main Bola Aisa!",
+    "explanation": "Hilarious confusion over wrong numbers, miscommunication, or bad phone calls.",
+    "gif": "deviprasad.gif",
+    "viralScore": 99.5
+  },
+  {
+    "name": "Babu Rao Ye Babu Rao Ka Style Hai",
+    "category": "funny",
+    "keywords": [
+      "babu rao",
+      "hera pheri",
+      "style",
+      "swagger",
+      "flex",
+      "kutriya",
+      "confidence",
+      "attitude",
+      "hindi"
+    ],
+    "dialogue": "Kutriya... Ye Babu Rao Ka Style Hai!",
+    "explanation": "Unapologetic swagger and chaotic flex in front of everyone.",
+    "gif": "style.gif",
+    "viralScore": 99.2
+  },
+  {
+    "name": "Babu Rao Khopdi Tod Saale Ka",
+    "category": "funny",
+    "keywords": [
+      "babu rao",
+      "hera pheri",
+      "khopdi tod",
+      "rage",
+      "anger",
+      "slap",
+      "destroy",
+      "annoyed",
+      "hindi"
+    ],
+    "dialogue": "Saala Khopdi Tod Re Khopdi Tod Saale Ka!",
+    "explanation": "Extreme urge to physically smack someone who asks a incredibly stupid question.",
+    "gif": "khopditod.gif",
+    "viralScore": 99.8
+  },
+  {
+    "name": "Babu Rao Mast Joke Mara Re",
+    "category": "funny",
+    "keywords": [
+      "babu rao",
+      "hera pheri",
+      "mast joke",
+      "halka cut",
+      "laughing",
+      "sarcastic",
+      "hahas",
+      "joke",
+      "hindi"
+    ],
+    "dialogue": "Mast Joke Mara Re Hahahaha Ha... Yeh Has Re Halka Cut!",
+    "explanation": "Bursting into uncontrollable laughter at a terrible or sarcastic joke.",
+    "gif": "mastjoke.gif",
+    "viralScore": 98.9
+  },
+  {
+    "name": "Babu Rao Dhak Dhak Horela Hai",
+    "category": "exam",
+    "keywords": [
+      "babu rao",
+      "hera pheri",
+      "dhak dhak",
+      "panic",
+      "anxiety",
+      "scared",
+      "heartbeat",
+      "deadline",
+      "hindi"
+    ],
+    "dialogue": "Arey Mere Ko To Aisa Dhak Dhak Horela Hai!",
+    "explanation": "Severe anxiety and heart palpitations before exam results, prod deploys, or interview.",
+    "gif": "dhakdhak.gif",
+    "viralScore": 99.7
+  },
+  {
+    "name": "Raju 25 Din Mein Paisa Double",
+    "category": "money",
+    "keywords": [
+      "raju",
+      "hera pheri",
+      "paisa double",
+      "scam",
+      "scheme",
+      "investment",
+      "crypto",
+      "stonks",
+      "get rich quick",
+      "hindi"
+    ],
+    "dialogue": "25 Din Mein Paisa Double!",
+    "explanation": "Shady financial schemes promising instant doubling of money.",
+    "gif": "paisadouble.gif",
+    "viralScore": 99.1
+  },
+  {
+    "name": "Kachra Seth 150 Rupiya Dega",
+    "category": "money",
+    "keywords": [
+      "kachra seth",
+      "hera pheri",
+      "150 rupiya",
+      "lowball",
+      "cheap",
+      "negotiation",
+      "budget",
+      "freelance",
+      "hindi"
+    ],
+    "dialogue": "150 Rupiya Dega!",
+    "explanation": "Insultingly low price offer during budget talks or client negotiations.",
+    "gif": "150rupiya.gif",
+    "viralScore": 98.6
+  },
+  {
+    "name": "Munna Bhai Circuit Bhai Ne Bola Karne Ka",
+    "category": "office",
+    "keywords": [
+      "munna bhai",
+      "circuit",
+      "bhai ne bola",
+      "loyalty",
+      "boss order",
+      "blind follow",
+      "do it",
+      "hindi"
+    ],
+    "dialogue": "Bhai Ne Bola Karne Ka... Toh Karne Ka!",
+    "explanation": "Blindly following a senior's or boss's bizarre command without questioning.",
+    "gif": "bhai-ne-bola.gif",
+    "viralScore": 97.4
+  },
+  {
+    "name": "Circuit Jadu Ki Jhappi",
+    "category": "funny",
+    "keywords": [
+      "circuit",
+      "munna bhai",
+      "jadu ki jhappi",
+      "hug",
+      "comfort",
+      "wholesome",
+      "friendship",
+      "hindi"
+    ],
+    "dialogue": "Mamu Jadu Ki Jhappi De Na!",
+    "explanation": "Offering warm emotional comfort to a stressed-out friend or teammate.",
+    "gif": "jhappi.gif",
+    "viralScore": 95.8
+  },
+  {
+    "name": "Dekh Raha Hai Binod",
+    "category": "office",
+    "keywords": [
+      "dekh raha hai binod",
+      "panchayat",
+      "binod",
+      "scam",
+      "fooled",
+      "corporate english",
+      "manipulation",
+      "hindi"
+    ],
+    "dialogue": "Dekh Raha Hai Binod, Kaise Angrezi Mein Humko Bewakoof Banaya Ja Raha Hai!",
+    "explanation": "Watching someone use fancy jargon or English to scam or fool people.",
+    "gif": "binod.gif",
+    "viralScore": 98.4
+  },
+  {
+    "name": "Crime Master Gogo Gotiyan Khelunga",
+    "category": "funny",
+    "keywords": [
+      "crime master gogo",
+      "andaz apna apna",
+      "gotiyan",
+      "threat",
+      "scary",
+      "comedy villain",
+      "gogo",
+      "hindi"
+    ],
+    "dialogue": "Aankhein Nikal Kar Gotiyan Khelunga!",
+    "explanation": "Comical villainous threats when someone tampers with your stuff.",
+    "gif": "gogo.gif",
+    "viralScore": 96.2
+  },
+  {
+    "name": "Vasooli Bhai Paisa Kab Dega",
+    "category": "money",
+    "keywords": [
+      "vasooli bhai",
+      "golmaal",
+      "paisa kab dega",
+      "debt",
+      "salary late",
+      "payment overdue",
+      "chillar",
+      "hindi"
+    ],
+    "dialogue": "Aaye Raka! Paisa Kab Dega Vasooli?!",
+    "explanation": "Demanding long-overdue payments, salary, or splitwise dues.",
+    "gif": "vasooli.gif",
+    "viralScore": 97.1
+  },
+  {
+    "name": "Jethalal Chai Piyo Biskut Khao",
+    "category": "funny",
+    "keywords": [
+      "jethalal",
+      "tmkoc",
+      "chai piyo",
+      "biskut khao",
+      "chill",
+      "break",
+      "tea time",
+      "taarak mehta",
+      "hindi"
+    ],
+    "dialogue": "Chai Piyo Biskut Khao... Nonsense!",
+    "explanation": "Taking a peaceful tea break while refusing to deal with chaotic drama.",
+    "gif": "jethalal.gif",
+    "viralScore": 98.7
+  },
+  {
+    "name": "Faizal Badla Lega Re",
+    "category": "failure",
+    "keywords": [
+      "faizal",
+      "wasseypur",
+      "badla",
+      "revenge",
+      "payback",
+      "gangs of wasseypur",
+      "never forget",
+      "hindi"
+    ],
+    "dialogue": "Baap Ka, Dada Ka, Bhai Ka... Sabka Badla Lega Re Tera Faizal!",
+    "explanation": "Planning grand vengeance against bugs, exes, or rival teams.",
+    "gif": "faizal.gif",
+    "viralScore": 97.9
+  },
+  {
     "name": "Drake Hotline Bling",
     "category": "coding",
     "keywords": [
+      "reaction",
+      "coding",
+      "viral",
       "bling",
       "meme",
-      "coding",
       "drake",
-      "viral",
-      "reaction",
       "hotline"
     ],
     "dialogue": "Nah / Yeah Drake Reaction",
@@ -520,12 +780,12 @@
     "name": "Two Buttons",
     "category": "coding",
     "keywords": [
-      "meme",
-      "coding",
-      "buttons",
-      "viral",
       "reaction",
-      "two"
+      "two",
+      "coding",
+      "viral",
+      "buttons",
+      "meme"
     ],
     "dialogue": "Sweating over two impossible choices",
     "explanation": "The classic 'Two Buttons' meme template, perfect for coding scenarios.",
@@ -537,12 +797,12 @@
     "name": "Distracted Boyfriend",
     "category": "relationship",
     "keywords": [
-      "relationship",
-      "meme",
+      "reaction",
+      "boyfriend",
       "distracted",
       "viral",
-      "reaction",
-      "boyfriend"
+      "meme",
+      "relationship"
     ],
     "dialogue": "Distracted by new shiny options",
     "explanation": "The classic 'Distracted Boyfriend' meme template, perfect for relationship scenarios.",
@@ -554,17 +814,17 @@
     "name": "Bernie I Am Once Again Asking For Your Support",
     "category": "money",
     "keywords": [
-      "again",
-      "your",
-      "money",
-      "meme",
-      "once",
-      "asking",
-      "support",
-      "for",
-      "viral",
       "reaction",
-      "bernie"
+      "viral",
+      "your",
+      "bernie",
+      "again",
+      "money",
+      "asking",
+      "once",
+      "meme",
+      "for",
+      "support"
     ],
     "dialogue": "Bernie I Am Once Again Asking For Your Support Reaction",
     "explanation": "The classic 'Bernie I Am Once Again Asking For Your Support' meme template, perfect for money scenarios.",
@@ -576,13 +836,13 @@
     "name": "UNO Draw 25 Cards",
     "category": "unrealistic_goals",
     "keywords": [
-      "meme",
-      "unrealistic_goals",
-      "uno",
-      "draw",
-      "viral",
       "reaction",
-      "cards"
+      "viral",
+      "unrealistic_goals",
+      "meme",
+      "cards",
+      "draw",
+      "uno"
     ],
     "dialogue": "UNO Draw 25 Cards Reaction",
     "explanation": "The classic 'UNO Draw 25 Cards' meme template, perfect for unrealistic goals scenarios.",
@@ -594,13 +854,13 @@
     "name": "Left Exit 12 Off Ramp",
     "category": "coding",
     "keywords": [
-      "meme",
-      "coding",
-      "ramp",
-      "viral",
       "reaction",
-      "left",
+      "ramp",
+      "coding",
       "exit",
+      "viral",
+      "left",
+      "meme",
       "off"
     ],
     "dialogue": "Left Exit 12 Off Ramp Reaction",
@@ -613,13 +873,13 @@
     "name": "Always Has Been",
     "category": "funny",
     "keywords": [
-      "been",
-      "meme",
-      "funny",
-      "has",
-      "viral",
       "reaction",
-      "always"
+      "been",
+      "viral",
+      "always",
+      "meme",
+      "has",
+      "funny"
     ],
     "dialogue": "Always Has Been Reaction",
     "explanation": "The classic 'Always Has Been' meme template, perfect for funny scenarios.",
@@ -631,13 +891,13 @@
     "name": "Anakin Padme 4 Panel",
     "category": "funny",
     "keywords": [
-      "meme",
-      "anakin",
-      "funny",
-      "panel",
-      "viral",
       "reaction",
-      "padme"
+      "panel",
+      "anakin",
+      "viral",
+      "meme",
+      "padme",
+      "funny"
     ],
     "dialogue": "Anakin Padme 4 Panel Reaction",
     "explanation": "The classic 'Anakin Padme 4 Panel' meme template, perfect for funny scenarios.",
@@ -649,12 +909,12 @@
     "name": "Epic Handshake",
     "category": "success",
     "keywords": [
-      "success",
-      "meme",
-      "handshake",
-      "viral",
       "reaction",
-      "epic"
+      "success",
+      "viral",
+      "meme",
+      "epic",
+      "handshake"
     ],
     "dialogue": "Epic Handshake Reaction",
     "explanation": "The classic 'Epic Handshake' meme template, perfect for success scenarios.",
@@ -666,13 +926,13 @@
     "name": "Sad Pablo Escobar",
     "category": "office",
     "keywords": [
+      "reaction",
       "office",
-      "sad",
+      "pablo",
+      "viral",
       "meme",
       "escobar",
-      "viral",
-      "reaction",
-      "pablo"
+      "sad"
     ],
     "dialogue": "Sad Pablo Escobar Reaction",
     "explanation": "The classic 'Sad Pablo Escobar' meme template, perfect for office scenarios.",
@@ -684,13 +944,13 @@
     "name": "Running Away Balloon",
     "category": "funny",
     "keywords": [
-      "meme",
+      "reaction",
+      "running",
       "away",
-      "funny",
       "balloon",
       "viral",
-      "reaction",
-      "running"
+      "meme",
+      "funny"
     ],
     "dialogue": "Running Away Balloon Reaction",
     "explanation": "The classic 'Running Away Balloon' meme template, perfect for funny scenarios.",
@@ -702,12 +962,12 @@
     "name": "Gru's Plan",
     "category": "failure",
     "keywords": [
+      "reaction",
       "failure",
-      "plan",
-      "meme",
-      "gru",
       "viral",
-      "reaction"
+      "meme",
+      "plan",
+      "gru"
     ],
     "dialogue": "Gru's Plan Reaction",
     "explanation": "The classic 'Gru's Plan' meme template, perfect for failure scenarios.",
@@ -719,12 +979,12 @@
     "name": "Change My Mind",
     "category": "coding",
     "keywords": [
-      "change",
-      "mind",
-      "meme",
+      "reaction",
       "coding",
       "viral",
-      "reaction"
+      "meme",
+      "mind",
+      "change"
     ],
     "dialogue": "Sitting at the table... Change My Mind!",
     "explanation": "The classic 'Change My Mind' meme template, perfect for coding scenarios.",
@@ -736,12 +996,12 @@
     "name": "Waiting Skeleton",
     "category": "ai",
     "keywords": [
-      "waiting",
+      "reaction",
       "skeleton",
-      "meme",
-      "ai",
       "viral",
-      "reaction"
+      "ai",
+      "meme",
+      "waiting"
     ],
     "dialogue": "Waiting Skeleton Reaction",
     "explanation": "The classic 'Waiting Skeleton' meme template, perfect for ai scenarios.",
@@ -753,10 +1013,10 @@
     "name": "Disaster Girl",
     "category": "coding",
     "keywords": [
-      "meme",
+      "reaction",
       "coding",
       "viral",
-      "reaction",
+      "meme",
       "disaster",
       "girl"
     ],
@@ -770,13 +1030,13 @@
     "name": "Marked Safe From",
     "category": "funny",
     "keywords": [
-      "marked",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
+      "safe",
+      "viral",
       "from",
-      "safe"
+      "meme",
+      "marked",
+      "funny"
     ],
     "dialogue": "Marked Safe From Reaction",
     "explanation": "The classic 'Marked Safe From' meme template, perfect for funny scenarios.",
@@ -788,12 +1048,12 @@
     "name": "Trade Offer",
     "category": "unrealistic_goals",
     "keywords": [
-      "trade",
-      "unrealistic_goals",
-      "meme",
-      "viral",
       "reaction",
-      "offer"
+      "viral",
+      "offer",
+      "meme",
+      "unrealistic_goals",
+      "trade"
     ],
     "dialogue": "I receive... You receive...",
     "explanation": "The classic 'Trade Offer' meme template, perfect for unrealistic goals scenarios.",
@@ -805,15 +1065,15 @@
     "name": "Bernie Sanders Once Again Asking",
     "category": "money",
     "keywords": [
-      "sanders",
+      "reaction",
+      "viral",
+      "bernie",
       "again",
       "money",
-      "meme",
-      "once",
       "asking",
-      "viral",
-      "reaction",
-      "bernie"
+      "once",
+      "sanders",
+      "meme"
     ],
     "dialogue": "Bernie Sanders Once Again Asking Reaction",
     "explanation": "The classic 'Bernie Sanders Once Again Asking' meme template, perfect for money scenarios.",
@@ -825,11 +1085,11 @@
     "name": "X, X Everywhere",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
       "everywhere",
       "meme",
-      "funny",
-      "reaction",
-      "viral"
+      "funny"
     ],
     "dialogue": "X, X Everywhere Reaction",
     "explanation": "The classic 'X, X Everywhere' meme template, perfect for funny scenarios.",
@@ -841,12 +1101,12 @@
     "name": "Ancient Aliens",
     "category": "funny",
     "keywords": [
-      "aliens",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "ancient"
+      "viral",
+      "meme",
+      "ancient",
+      "funny",
+      "aliens"
     ],
     "dialogue": "Ancient Aliens Reaction",
     "explanation": "The classic 'Ancient Aliens' meme template, perfect for funny scenarios.",
@@ -858,15 +1118,15 @@
     "name": "Y'all Got Any More Of That",
     "category": "funny",
     "keywords": [
-      "got",
-      "meme",
-      "any",
-      "funny",
-      "that",
-      "viral",
-      "all",
       "reaction",
-      "more"
+      "got",
+      "all",
+      "any",
+      "viral",
+      "that",
+      "meme",
+      "more",
+      "funny"
     ],
     "dialogue": "Y'all Got Any More Of That Reaction",
     "explanation": "The classic 'Y'all Got Any More Of That' meme template, perfect for funny scenarios.",
@@ -878,13 +1138,13 @@
     "name": "Batman Slapping Robin",
     "category": "coding",
     "keywords": [
-      "meme",
-      "coding",
-      "robin",
-      "viral",
-      "reaction",
       "slapping",
-      "batman"
+      "reaction",
+      "coding",
+      "viral",
+      "meme",
+      "batman",
+      "robin"
     ],
     "dialogue": "Batman Slapping Robin Reaction",
     "explanation": "The classic 'Batman Slapping Robin' meme template, perfect for coding scenarios.",
@@ -896,12 +1156,12 @@
     "name": "Mocking Spongebob",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
+      "meme",
       "mocking",
       "spongebob",
-      "meme",
-      "funny",
-      "viral",
-      "reaction"
+      "funny"
     ],
     "dialogue": "Mocking Spongebob Reaction",
     "explanation": "The classic 'Mocking Spongebob' meme template, perfect for funny scenarios.",
@@ -913,14 +1173,14 @@
     "name": "One Does Not Simply",
     "category": "funny",
     "keywords": [
-      "simply",
+      "reaction",
+      "viral",
+      "does",
       "meme",
       "not",
-      "funny",
-      "viral",
-      "reaction",
-      "does",
-      "one"
+      "simply",
+      "one",
+      "funny"
     ],
     "dialogue": "One Does Not Simply Reaction",
     "explanation": "The classic 'One Does Not Simply' meme template, perfect for funny scenarios.",
@@ -932,12 +1192,12 @@
     "name": "Woman Yelling At Cat",
     "category": "office",
     "keywords": [
-      "office",
-      "meme",
-      "woman",
-      "viral",
       "reaction",
+      "office",
       "cat",
+      "viral",
+      "woman",
+      "meme",
       "yelling"
     ],
     "dialogue": "Yelling at someone who has no idea what happened",
@@ -950,12 +1210,12 @@
     "name": "Bike Fall",
     "category": "funny",
     "keywords": [
-      "bike",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "fall"
+      "fall",
+      "viral",
+      "meme",
+      "bike",
+      "funny"
     ],
     "dialogue": "Bike Fall Reaction",
     "explanation": "The classic 'Bike Fall' meme template, perfect for funny scenarios.",
@@ -967,11 +1227,11 @@
     "name": "Is This A Pigeon",
     "category": "office",
     "keywords": [
+      "reaction",
       "office",
       "this",
-      "meme",
       "viral",
-      "reaction",
+      "meme",
       "pigeon"
     ],
     "dialogue": "Is This A Pigeon Reaction",
@@ -984,14 +1244,14 @@
     "name": "0 days without (Lenny, Simpsons)",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "simpsons",
-      "viral",
       "reaction",
+      "lenny",
       "days",
       "without",
-      "lenny"
+      "viral",
+      "meme",
+      "simpsons",
+      "funny"
     ],
     "dialogue": "0 days without (Lenny, Simpsons) Reaction",
     "explanation": "The classic '0 days without (Lenny, Simpsons)' meme template, perfect for funny scenarios.",
@@ -1003,14 +1263,14 @@
     "name": "Mother Ignoring Kid Drowning In A Pool",
     "category": "funny",
     "keywords": [
-      "pool",
-      "meme",
       "ignoring",
-      "funny",
-      "viral",
       "reaction",
-      "drowning",
       "mother",
+      "drowning",
+      "viral",
+      "meme",
+      "pool",
+      "funny",
       "kid"
     ],
     "dialogue": "Mother Ignoring Kid Drowning In A Pool Reaction",
@@ -1023,15 +1283,15 @@
     "name": "You Guys are Getting Paid",
     "category": "ai",
     "keywords": [
-      "guys",
-      "meme",
-      "you",
-      "ai",
-      "viral",
       "reaction",
       "are",
-      "paid",
-      "getting"
+      "guys",
+      "viral",
+      "ai",
+      "meme",
+      "you",
+      "getting",
+      "paid"
     ],
     "dialogue": "You Guys are Getting Paid Reaction",
     "explanation": "The classic 'You Guys are Getting Paid' meme template, perfect for ai scenarios.",
@@ -1043,12 +1303,12 @@
     "name": "Expanding Brain",
     "category": "coding",
     "keywords": [
-      "expanding",
-      "brain",
-      "meme",
+      "reaction",
       "coding",
+      "brain",
       "viral",
-      "reaction"
+      "meme",
+      "expanding"
     ],
     "dialogue": "Expanding Brain Reaction",
     "explanation": "The classic 'Expanding Brain' meme template, perfect for coding scenarios.",
@@ -1060,14 +1320,14 @@
     "name": "They're The Same Picture",
     "category": "funny",
     "keywords": [
-      "they",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "the",
+      "they",
+      "viral",
+      "meme",
+      "same",
       "picture",
-      "same"
+      "funny",
+      "the"
     ],
     "dialogue": "They're The Same Picture Reaction",
     "explanation": "The classic 'They're The Same Picture' meme template, perfect for funny scenarios.",
@@ -1079,12 +1339,12 @@
     "name": "Absolute Cinema",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "absolute",
-      "viral",
       "reaction",
-      "cinema"
+      "absolute",
+      "cinema",
+      "viral",
+      "meme",
+      "funny"
     ],
     "dialogue": "Absolute Cinema Reaction",
     "explanation": "The classic 'Absolute Cinema' meme template, perfect for funny scenarios.",
@@ -1096,16 +1356,16 @@
     "name": "This Is Where I'd Put My Trophy If I Had One",
     "category": "funny",
     "keywords": [
-      "this",
-      "had",
-      "trophy",
-      "put",
-      "funny",
-      "meme",
-      "where",
-      "viral",
       "reaction",
-      "one"
+      "this",
+      "viral",
+      "meme",
+      "put",
+      "had",
+      "funny",
+      "one",
+      "where",
+      "trophy"
     ],
     "dialogue": "This Is Where I'd Put My Trophy If I Had One Reaction",
     "explanation": "The classic 'This Is Where I'd Put My Trophy If I Had One' meme template, perfect for funny scenarios.",
@@ -1117,12 +1377,12 @@
     "name": "Squidward window",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "viral",
       "reaction",
+      "squidward",
+      "viral",
+      "meme",
       "window",
-      "squidward"
+      "funny"
     ],
     "dialogue": "Squidward window Reaction",
     "explanation": "The classic 'Squidward window' meme template, perfect for funny scenarios.",
@@ -1134,12 +1394,12 @@
     "name": "Megamind peeking",
     "category": "funny",
     "keywords": [
-      "megamind",
+      "reaction",
       "peeking",
-      "meme",
-      "funny",
       "viral",
-      "reaction"
+      "meme",
+      "megamind",
+      "funny"
     ],
     "dialogue": "Megamind peeking Reaction",
     "explanation": "The classic 'Megamind peeking' meme template, perfect for funny scenarios.",
@@ -1151,13 +1411,13 @@
     "name": "Buff Doge vs. Cheems",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "doge",
-      "buff",
-      "viral",
       "reaction",
-      "cheems"
+      "viral",
+      "buff",
+      "meme",
+      "doge",
+      "cheems",
+      "funny"
     ],
     "dialogue": "Buff Doge vs. Cheems Reaction",
     "explanation": "The classic 'Buff Doge vs. Cheems' meme template, perfect for funny scenarios.",
@@ -1169,11 +1429,11 @@
     "name": "This Is Fine",
     "category": "failure",
     "keywords": [
+      "reaction",
       "failure",
       "this",
-      "meme",
       "viral",
-      "reaction",
+      "meme",
       "fine"
     ],
     "dialogue": "This is fine. Everything is totally fine.",
@@ -1186,14 +1446,14 @@
     "name": "Tuxedo Winnie The Pooh",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "the",
-      "pooh",
-      "viral",
       "winnie",
       "reaction",
-      "tuxedo"
+      "viral",
+      "the",
+      "meme",
+      "pooh",
+      "tuxedo",
+      "funny"
     ],
     "dialogue": "Tuxedo Winnie The Pooh Reaction",
     "explanation": "The classic 'Tuxedo Winnie The Pooh' meme template, perfect for funny scenarios.",
@@ -1205,13 +1465,13 @@
     "name": "Oprah You Get A",
     "category": "funny",
     "keywords": [
-      "get",
+      "reaction",
+      "viral",
       "meme",
-      "funny",
       "oprah",
       "you",
-      "viral",
-      "reaction"
+      "get",
+      "funny"
     ],
     "dialogue": "Oprah You Get A Reaction",
     "explanation": "The classic 'Oprah You Get A' meme template, perfect for funny scenarios.",
@@ -1223,14 +1483,14 @@
     "name": "Pawn Stars Best I Can Do",
     "category": "funny",
     "keywords": [
-      "stars",
-      "can",
-      "meme",
-      "funny",
-      "pawn",
+      "reaction",
       "best",
       "viral",
-      "reaction"
+      "meme",
+      "pawn",
+      "funny",
+      "stars",
+      "can"
     ],
     "dialogue": "Pawn Stars Best I Can Do Reaction",
     "explanation": "The classic 'Pawn Stars Best I Can Do' meme template, perfect for funny scenarios.",
@@ -1242,12 +1502,12 @@
     "name": "where monkey",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
       "meme",
       "funny",
-      "where",
       "monkey",
-      "viral",
-      "reaction"
+      "where"
     ],
     "dialogue": "where monkey Reaction",
     "explanation": "The classic 'where monkey' meme template, perfect for funny scenarios.",
@@ -1259,12 +1519,12 @@
     "name": "Bell Curve",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
+      "reaction",
       "viral",
+      "meme",
       "bell",
-      "curve",
-      "reaction"
+      "funny",
+      "curve"
     ],
     "dialogue": "Bell Curve Reaction",
     "explanation": "The classic 'Bell Curve' meme template, perfect for funny scenarios.",
@@ -1276,14 +1536,14 @@
     "name": "I Bet He's Thinking About Other Women",
     "category": "funny",
     "keywords": [
-      "about",
-      "bet",
-      "meme",
-      "funny",
-      "viral",
-      "thinking",
       "reaction",
+      "thinking",
+      "viral",
+      "meme",
+      "about",
       "women",
+      "bet",
+      "funny",
       "other"
     ],
     "dialogue": "I Bet He's Thinking About Other Women Reaction",
@@ -1296,13 +1556,13 @@
     "name": "Clown Applying Makeup",
     "category": "office",
     "keywords": [
-      "clown",
+      "reaction",
       "office",
-      "makeup",
       "applying",
-      "meme",
       "viral",
-      "reaction"
+      "clown",
+      "makeup",
+      "meme"
     ],
     "dialogue": "Clown Applying Makeup Reaction",
     "explanation": "The classic 'Clown Applying Makeup' meme template, perfect for office scenarios.",
@@ -1314,12 +1574,12 @@
     "name": "Monkey Puppet",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
       "meme",
-      "funny",
       "puppet",
       "monkey",
-      "viral",
-      "reaction"
+      "funny"
     ],
     "dialogue": "Monkey Puppet Reaction",
     "explanation": "The classic 'Monkey Puppet' meme template, perfect for funny scenarios.",
@@ -1331,14 +1591,14 @@
     "name": "Soldier protecting sleeping child",
     "category": "funny",
     "keywords": [
-      "sleeping",
-      "meme",
-      "funny",
+      "reaction",
+      "soldier",
       "viral",
       "child",
-      "reaction",
+      "meme",
       "protecting",
-      "soldier"
+      "funny",
+      "sleeping"
     ],
     "dialogue": "Soldier protecting sleeping child Reaction",
     "explanation": "The classic 'Soldier protecting sleeping child' meme template, perfect for funny scenarios.",
@@ -1350,13 +1610,13 @@
     "name": "They don't know",
     "category": "funny",
     "keywords": [
+      "reaction",
       "they",
-      "meme",
-      "funny",
       "viral",
-      "know",
+      "meme",
       "don",
-      "reaction"
+      "know",
+      "funny"
     ],
     "dialogue": "They don't know Reaction",
     "explanation": "The classic 'They don't know' meme template, perfect for funny scenarios.",
@@ -1368,13 +1628,13 @@
     "name": "Spider Man Triple",
     "category": "funny",
     "keywords": [
-      "man",
-      "meme",
-      "funny",
-      "spider",
-      "viral",
       "reaction",
-      "triple"
+      "viral",
+      "spider",
+      "meme",
+      "triple",
+      "funny",
+      "man"
     ],
     "dialogue": "Spider Man Triple Reaction",
     "explanation": "The classic 'Spider Man Triple' meme template, perfect for funny scenarios.",
@@ -1386,11 +1646,11 @@
     "name": "Friendship ended",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
       "friendship",
       "meme",
       "funny",
-      "viral",
-      "reaction",
       "ended"
     ],
     "dialogue": "Friendship ended Reaction",
@@ -1403,12 +1663,12 @@
     "name": "Hide the Pain Harold",
     "category": "office",
     "keywords": [
-      "office",
-      "meme",
-      "hide",
-      "pain",
-      "viral",
       "reaction",
+      "office",
+      "hide",
+      "viral",
+      "meme",
+      "pain",
       "harold",
       "the"
     ],
@@ -1422,13 +1682,13 @@
     "name": "Two guys on a bus",
     "category": "funny",
     "keywords": [
-      "guys",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
       "two",
-      "bus"
+      "guys",
+      "viral",
+      "meme",
+      "bus",
+      "funny"
     ],
     "dialogue": "Two guys on a bus Reaction",
     "explanation": "The classic 'Two guys on a bus' meme template, perfect for funny scenarios.",
@@ -1440,13 +1700,13 @@
     "name": "All My Homies Hate",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "viral",
-      "all",
       "reaction",
+      "all",
       "homies",
-      "hate"
+      "viral",
+      "meme",
+      "hate",
+      "funny"
     ],
     "dialogue": "All My Homies Hate Reaction",
     "explanation": "The classic 'All My Homies Hate' meme template, perfect for funny scenarios.",
@@ -1458,12 +1718,12 @@
     "name": "Boardroom Meeting Suggestion",
     "category": "office",
     "keywords": [
-      "meeting",
-      "office",
-      "meme",
-      "suggestion",
-      "viral",
       "reaction",
+      "office",
+      "viral",
+      "meme",
+      "meeting",
+      "suggestion",
       "boardroom"
     ],
     "dialogue": "Boardroom Meeting Suggestion Reaction",
@@ -1476,12 +1736,12 @@
     "name": "Imagination Spongebob",
     "category": "funny",
     "keywords": [
-      "spongebob",
-      "meme",
-      "funny",
+      "reaction",
       "imagination",
       "viral",
-      "reaction"
+      "meme",
+      "spongebob",
+      "funny"
     ],
     "dialogue": "Imagination Spongebob Reaction",
     "explanation": "The classic 'Imagination Spongebob' meme template, perfect for funny scenarios.",
@@ -1493,13 +1753,13 @@
     "name": "Roll Safe Think About It",
     "category": "funny",
     "keywords": [
-      "think",
-      "about",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
       "safe",
+      "viral",
+      "think",
+      "meme",
+      "about",
+      "funny",
       "roll"
     ],
     "dialogue": "Roll Safe Think About It Reaction",
@@ -1512,12 +1772,12 @@
     "name": "Sleeping Shaq",
     "category": "funny",
     "keywords": [
-      "sleeping",
+      "reaction",
+      "viral",
+      "shaq",
       "meme",
       "funny",
-      "viral",
-      "reaction",
-      "shaq"
+      "sleeping"
     ],
     "dialogue": "Sleeping Shaq Reaction",
     "explanation": "The classic 'Sleeping Shaq' meme template, perfect for funny scenarios.",
@@ -1529,12 +1789,12 @@
     "name": "Flex Tape",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
+      "reaction",
       "flex",
-      "tape",
       "viral",
-      "reaction"
+      "meme",
+      "tape",
+      "funny"
     ],
     "dialogue": "Flex Tape Reaction",
     "explanation": "The classic 'Flex Tape' meme template, perfect for funny scenarios.",
@@ -1546,12 +1806,12 @@
     "name": "Megamind no bitches",
     "category": "funny",
     "keywords": [
-      "megamind",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "bitches"
+      "bitches",
+      "viral",
+      "meme",
+      "megamind",
+      "funny"
     ],
     "dialogue": "Megamind no bitches Reaction",
     "explanation": "The classic 'Megamind no bitches' meme template, perfect for funny scenarios.",
@@ -1564,11 +1824,11 @@
     "category": "funny",
     "keywords": [
       "george",
-      "meme",
+      "reaction",
       "bush",
-      "funny",
       "viral",
-      "reaction"
+      "meme",
+      "funny"
     ],
     "dialogue": "George Bush 9/11 Reaction",
     "explanation": "The classic 'George Bush 9/11' meme template, perfect for funny scenarios.",
@@ -1581,11 +1841,11 @@
     "category": "funny",
     "keywords": [
       "kermit",
-      "evil",
+      "reaction",
+      "viral",
       "meme",
       "funny",
-      "viral",
-      "reaction"
+      "evil"
     ],
     "dialogue": "Evil Kermit Reaction",
     "explanation": "The classic 'Evil Kermit' meme template, perfect for funny scenarios.",
@@ -1597,12 +1857,12 @@
     "name": "Inhaling Seagull",
     "category": "funny",
     "keywords": [
-      "seagull",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "inhaling"
+      "viral",
+      "seagull",
+      "inhaling",
+      "meme",
+      "funny"
     ],
     "dialogue": "Inhaling Seagull Reaction",
     "explanation": "The classic 'Inhaling Seagull' meme template, perfect for funny scenarios.",
@@ -1614,12 +1874,12 @@
     "name": "Types of Headaches meme",
     "category": "funny",
     "keywords": [
-      "types",
-      "meme",
-      "funny",
+      "reaction",
       "headaches",
       "viral",
-      "reaction"
+      "meme",
+      "types",
+      "funny"
     ],
     "dialogue": "Types of Headaches meme Reaction",
     "explanation": "The classic 'Types of Headaches meme' meme template, perfect for funny scenarios.",
@@ -1631,13 +1891,13 @@
     "name": "Three-headed Dragon",
     "category": "funny",
     "keywords": [
-      "three",
-      "meme",
-      "funny",
+      "reaction",
       "dragon",
       "viral",
-      "reaction",
-      "headed"
+      "meme",
+      "headed",
+      "funny",
+      "three"
     ],
     "dialogue": "Three-headed Dragon Reaction",
     "explanation": "The classic 'Three-headed Dragon' meme template, perfect for funny scenarios.",
@@ -1649,13 +1909,13 @@
     "name": "Anime Girl Hiding from Terminator",
     "category": "relationship",
     "keywords": [
-      "relationship",
-      "hiding",
-      "meme",
-      "anime",
-      "viral",
       "reaction",
+      "viral",
       "from",
+      "anime",
+      "meme",
+      "hiding",
+      "relationship",
       "terminator",
       "girl"
     ],
@@ -1669,11 +1929,11 @@
     "name": "No - Yes",
     "category": "funny",
     "keywords": [
-      "yes",
-      "meme",
-      "funny",
       "reaction",
-      "viral"
+      "viral",
+      "meme",
+      "yes",
+      "funny"
     ],
     "dialogue": "No - Yes Reaction",
     "explanation": "The classic 'No - Yes' meme template, perfect for funny scenarios.",
@@ -1685,12 +1945,12 @@
     "name": "AJ Styles & Undertaker",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
       "undertaker",
+      "reaction",
       "styles",
       "viral",
-      "reaction"
+      "meme",
+      "funny"
     ],
     "dialogue": "AJ Styles & Undertaker Reaction",
     "explanation": "The classic 'AJ Styles & Undertaker' meme template, perfect for funny scenarios.",
@@ -1702,12 +1962,12 @@
     "name": "Panik Kalm Panik",
     "category": "failure",
     "keywords": [
-      "failure",
-      "meme",
-      "viral",
       "reaction",
-      "panik",
-      "kalm"
+      "failure",
+      "kalm",
+      "viral",
+      "meme",
+      "panik"
     ],
     "dialogue": "Panik Kalm Panik Reaction",
     "explanation": "The classic 'Panik Kalm Panik' meme template, perfect for failure scenarios.",
@@ -1719,12 +1979,12 @@
     "name": "is this butterfly",
     "category": "funny",
     "keywords": [
-      "this",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
-      "butterfly"
+      "this",
+      "viral",
+      "butterfly",
+      "meme",
+      "funny"
     ],
     "dialogue": "is this butterfly Reaction",
     "explanation": "The classic 'is this butterfly' meme template, perfect for funny scenarios.",
@@ -1736,13 +1996,13 @@
     "name": "Whisper and Goosebumps",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "whisper",
-      "goosebumps",
-      "viral",
       "reaction",
-      "and"
+      "viral",
+      "goosebumps",
+      "meme",
+      "and",
+      "whisper",
+      "funny"
     ],
     "dialogue": "Whisper and Goosebumps Reaction",
     "explanation": "The classic 'Whisper and Goosebumps' meme template, perfect for funny scenarios.",
@@ -1754,14 +2014,14 @@
     "name": "A train hitting a school bus",
     "category": "ai",
     "keywords": [
-      "train",
-      "meme",
-      "ai",
-      "viral",
       "reaction",
+      "train",
+      "viral",
+      "ai",
+      "meme",
+      "bus",
       "hitting",
-      "school",
-      "bus"
+      "school"
     ],
     "dialogue": "A train hitting a school bus Reaction",
     "explanation": "The classic 'A train hitting a school bus' meme template, perfect for ai scenarios.",
@@ -1773,14 +2033,14 @@
     "name": "Grandma Finds The Internet",
     "category": "funny",
     "keywords": [
-      "grandma",
+      "reaction",
+      "viral",
+      "internet",
       "meme",
       "funny",
+      "the",
       "finds",
-      "viral",
-      "reaction",
-      "internet",
-      "the"
+      "grandma"
     ],
     "dialogue": "Grandma Finds The Internet Reaction",
     "explanation": "The classic 'Grandma Finds The Internet' meme template, perfect for funny scenarios.",
@@ -1792,13 +2052,13 @@
     "name": "Grant Gustin over grave",
     "category": "funny",
     "keywords": [
-      "over",
-      "grave",
-      "meme",
-      "funny",
-      "viral",
       "reaction",
+      "over",
+      "viral",
+      "meme",
       "gustin",
+      "funny",
+      "grave",
       "grant"
     ],
     "dialogue": "Grant Gustin over grave Reaction",
@@ -1811,14 +2071,14 @@
     "name": "Scooby doo mask reveal",
     "category": "funny",
     "keywords": [
-      "scooby",
-      "meme",
-      "funny",
-      "doo",
-      "viral",
       "reaction",
+      "viral",
       "reveal",
-      "mask"
+      "doo",
+      "meme",
+      "scooby",
+      "mask",
+      "funny"
     ],
     "dialogue": "Scooby doo mask reveal Reaction",
     "explanation": "The classic 'Scooby doo mask reveal' meme template, perfect for funny scenarios.",
@@ -1830,12 +2090,12 @@
     "name": "Futurama Fry",
     "category": "funny",
     "keywords": [
-      "meme",
-      "fry",
-      "funny",
-      "viral",
       "reaction",
-      "futurama"
+      "fry",
+      "viral",
+      "meme",
+      "futurama",
+      "funny"
     ],
     "dialogue": "Futurama Fry Reaction",
     "explanation": "The classic 'Futurama Fry' meme template, perfect for funny scenarios.",
@@ -1847,13 +2107,13 @@
     "name": "Blank Nut Button",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "button",
+      "blank",
+      "viral",
       "meme",
       "funny",
-      "viral",
-      "reaction",
-      "nut",
-      "blank",
-      "button"
+      "nut"
     ],
     "dialogue": "Blank Nut Button Reaction",
     "explanation": "The classic 'Blank Nut Button' meme template, perfect for funny scenarios.",
@@ -1865,15 +2125,15 @@
     "name": "You know, I'm something of a scientist myself",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "something",
-      "you",
+      "reaction",
       "myself",
+      "something",
       "viral",
+      "meme",
+      "you",
       "know",
-      "scientist",
-      "reaction"
+      "funny",
+      "scientist"
     ],
     "dialogue": "You know, I'm something of a scientist myself Reaction",
     "explanation": "The classic 'You know, I'm something of a scientist myself' meme template, perfect for funny scenarios.",
@@ -1885,12 +2145,12 @@
     "name": "Domino Effect",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "effect",
-      "viral",
       "reaction",
-      "domino"
+      "viral",
+      "domino",
+      "meme",
+      "effect",
+      "funny"
     ],
     "dialogue": "Domino Effect Reaction",
     "explanation": "The classic 'Domino Effect' meme template, perfect for funny scenarios.",
@@ -1902,12 +2162,12 @@
     "name": "spiderman pointing at spiderman",
     "category": "coding",
     "keywords": [
-      "pointing",
-      "spiderman",
-      "meme",
+      "reaction",
       "coding",
+      "spiderman",
       "viral",
-      "reaction"
+      "pointing",
+      "meme"
     ],
     "dialogue": "spiderman pointing at spiderman Reaction",
     "explanation": "The classic 'spiderman pointing at spiderman' meme template, perfect for coding scenarios.",
@@ -1919,12 +2179,12 @@
     "name": "Surprised Pikachu",
     "category": "failure",
     "keywords": [
-      "failure",
-      "meme",
-      "viral",
       "reaction",
-      "pikachu",
-      "surprised"
+      "failure",
+      "viral",
+      "meme",
+      "surprised",
+      "pikachu"
     ],
     "dialogue": "Surprised Pikachu Face!",
     "explanation": "The classic 'Surprised Pikachu' meme template, perfect for failure scenarios.",
@@ -1936,12 +2196,12 @@
     "name": "I'm The Captain Now",
     "category": "ai",
     "keywords": [
-      "meme",
-      "now",
-      "captain",
-      "ai",
-      "viral",
       "reaction",
+      "now",
+      "viral",
+      "ai",
+      "meme",
+      "captain",
       "the"
     ],
     "dialogue": "I'm The Captain Now Reaction",
@@ -1954,14 +2214,14 @@
     "name": "say the line bart! simpsons",
     "category": "funny",
     "keywords": [
+      "bart",
+      "reaction",
+      "viral",
       "say",
       "meme",
-      "funny",
-      "bart",
-      "simpsons",
-      "viral",
-      "reaction",
       "line",
+      "simpsons",
+      "funny",
       "the"
     ],
     "dialogue": "say the line bart! simpsons Reaction",
@@ -1974,12 +2234,12 @@
     "name": "Who Killed Hannibal",
     "category": "funny",
     "keywords": [
-      "who",
-      "meme",
-      "funny",
-      "hannibal",
-      "viral",
       "reaction",
+      "viral",
+      "meme",
+      "hannibal",
+      "funny",
+      "who",
       "killed"
     ],
     "dialogue": "Who Killed Hannibal Reaction",
@@ -1992,12 +2252,12 @@
     "name": "Two Paths",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "viral",
       "reaction",
       "two",
-      "paths"
+      "viral",
+      "meme",
+      "paths",
+      "funny"
     ],
     "dialogue": "Two Paths Reaction",
     "explanation": "The classic 'Two Paths' meme template, perfect for funny scenarios.",
@@ -2009,12 +2269,12 @@
     "name": "Laughing Leo",
     "category": "funny",
     "keywords": [
-      "leo",
-      "meme",
-      "funny",
-      "laughing",
+      "reaction",
       "viral",
-      "reaction"
+      "meme",
+      "leo",
+      "funny",
+      "laughing"
     ],
     "dialogue": "Laughing Leo Reaction",
     "explanation": "The classic 'Laughing Leo' meme template, perfect for funny scenarios.",
@@ -2026,15 +2286,15 @@
     "name": "Charlie Conspiracy (Always Sunny in Philidelphia)",
     "category": "funny",
     "keywords": [
+      "sunny",
+      "reaction",
+      "viral",
+      "always",
+      "meme",
+      "conspiracy",
       "charlie",
       "philidelphia",
-      "meme",
-      "funny",
-      "viral",
-      "reaction",
-      "sunny",
-      "conspiracy",
-      "always"
+      "funny"
     ],
     "dialogue": "Charlie Conspiracy (Always Sunny in Philidelphia) Reaction",
     "explanation": "The classic 'Charlie Conspiracy (Always Sunny in Philidelphia)' meme template, perfect for funny scenarios.",
@@ -2046,12 +2306,12 @@
     "name": "Drake Blank",
     "category": "coding",
     "keywords": [
-      "meme",
-      "coding",
-      "drake",
-      "viral",
       "reaction",
-      "blank"
+      "coding",
+      "blank",
+      "viral",
+      "meme",
+      "drake"
     ],
     "dialogue": "Nah / Yeah Drake Reaction",
     "explanation": "The classic 'Drake Blank' meme template, perfect for coding scenarios.",
@@ -2063,14 +2323,14 @@
     "name": "Grim Reaper Knocking Door",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "reaper",
+      "reaction",
       "knocking",
       "viral",
-      "reaction",
-      "grim",
-      "door"
+      "meme",
+      "door",
+      "reaper",
+      "funny",
+      "grim"
     ],
     "dialogue": "Grim Reaper Knocking Door Reaction",
     "explanation": "The classic 'Grim Reaper Knocking Door' meme template, perfect for funny scenarios.",
@@ -2082,14 +2342,14 @@
     "name": "whe i'm in a competition and my opponent is",
     "category": "funny",
     "keywords": [
-      "opponent",
-      "meme",
-      "funny",
-      "whe",
-      "competition",
-      "viral",
       "reaction",
-      "and"
+      "viral",
+      "whe",
+      "meme",
+      "and",
+      "competition",
+      "funny",
+      "opponent"
     ],
     "dialogue": "whe i'm in a competition and my opponent is Reaction",
     "explanation": "The classic 'whe i'm in a competition and my opponent is' meme template, perfect for funny scenarios.",
@@ -2101,13 +2361,13 @@
     "name": "Star Wars Yoda",
     "category": "funny",
     "keywords": [
-      "star",
-      "meme",
-      "funny",
+      "reaction",
       "wars",
       "viral",
-      "reaction",
-      "yoda"
+      "yoda",
+      "meme",
+      "star",
+      "funny"
     ],
     "dialogue": "Star Wars Yoda Reaction",
     "explanation": "The classic 'Star Wars Yoda' meme template, perfect for funny scenarios.",
@@ -2119,14 +2379,14 @@
     "name": "Third World Skeptical Kid",
     "category": "funny",
     "keywords": [
-      "world",
-      "meme",
-      "funny",
+      "skeptical",
+      "reaction",
       "third",
       "viral",
-      "reaction",
-      "skeptical",
-      "kid"
+      "meme",
+      "funny",
+      "kid",
+      "world"
     ],
     "dialogue": "Third World Skeptical Kid Reaction",
     "explanation": "The classic 'Third World Skeptical Kid' meme template, perfect for funny scenarios.",
@@ -2138,16 +2398,16 @@
     "name": "Gus Fring we are not the same",
     "category": "funny",
     "keywords": [
-      "gus",
-      "meme",
-      "not",
-      "funny",
-      "viral",
       "reaction",
       "are",
+      "viral",
+      "gus",
+      "meme",
+      "same",
+      "not",
+      "funny",
       "fring",
-      "the",
-      "same"
+      "the"
     ],
     "dialogue": "Gus Fring we are not the same Reaction",
     "explanation": "The classic 'Gus Fring we are not the same' meme template, perfect for funny scenarios.",
@@ -2159,13 +2419,13 @@
     "name": "Bugs bunny communist",
     "category": "funny",
     "keywords": [
-      "bunny",
+      "reaction",
       "communist",
+      "viral",
       "meme",
       "funny",
       "bugs",
-      "viral",
-      "reaction"
+      "bunny"
     ],
     "dialogue": "Bugs bunny communist Reaction",
     "explanation": "The classic 'Bugs bunny communist' meme template, perfect for funny scenarios.",
@@ -2177,13 +2437,13 @@
     "name": "American Chopper Argument",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "american",
+      "argument",
+      "viral",
       "meme",
       "funny",
-      "chopper",
-      "american",
-      "viral",
-      "reaction",
-      "argument"
+      "chopper"
     ],
     "dialogue": "American Chopper Argument Reaction",
     "explanation": "The classic 'American Chopper Argument' meme template, perfect for funny scenarios.",
@@ -2195,13 +2455,13 @@
     "name": "Yo Dawg Heard You",
     "category": "funny",
     "keywords": [
-      "dawg",
-      "meme",
-      "funny",
-      "you",
-      "viral",
       "reaction",
-      "heard"
+      "heard",
+      "viral",
+      "meme",
+      "you",
+      "dawg",
+      "funny"
     ],
     "dialogue": "Yo Dawg Heard You Reaction",
     "explanation": "The classic 'Yo Dawg Heard You' meme template, perfect for funny scenarios.",
@@ -2213,12 +2473,12 @@
     "name": "The Rock Driving",
     "category": "funny",
     "keywords": [
-      "driving",
-      "meme",
-      "funny",
       "rock",
-      "viral",
       "reaction",
+      "viral",
+      "meme",
+      "driving",
+      "funny",
       "the"
     ],
     "dialogue": "The Rock Driving Reaction",
@@ -2231,13 +2491,13 @@
     "name": "Disappointed Black Guy",
     "category": "funny",
     "keywords": [
-      "meme",
-      "disappointed",
-      "funny",
-      "black",
-      "viral",
       "reaction",
-      "guy"
+      "disappointed",
+      "viral",
+      "guy",
+      "meme",
+      "funny",
+      "black"
     ],
     "dialogue": "Disappointed Black Guy Reaction",
     "explanation": "The classic 'Disappointed Black Guy' meme template, perfect for funny scenarios.",
@@ -2249,11 +2509,11 @@
     "name": "Look At Me",
     "category": "funny",
     "keywords": [
+      "reaction",
+      "viral",
       "meme",
       "look",
-      "funny",
-      "reaction",
-      "viral"
+      "funny"
     ],
     "dialogue": "Look At Me Reaction",
     "explanation": "The classic 'Look At Me' meme template, perfect for funny scenarios.",
@@ -2265,12 +2525,12 @@
     "name": "The Scroll Of Truth",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
-      "truth",
-      "scroll",
-      "viral",
       "reaction",
+      "viral",
+      "meme",
+      "truth",
+      "funny",
+      "scroll",
       "the"
     ],
     "dialogue": "The Scroll Of Truth Reaction",
@@ -2283,11 +2543,11 @@
     "name": "c'mon do something",
     "category": "funny",
     "keywords": [
-      "meme",
-      "funny",
+      "reaction",
       "something",
       "viral",
-      "reaction",
+      "meme",
+      "funny",
       "mon"
     ],
     "dialogue": "c'mon do something Reaction",
