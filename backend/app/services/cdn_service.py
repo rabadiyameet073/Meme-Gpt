@@ -47,9 +47,21 @@ def resolve_formats(meme: dict) -> dict:
     }
 
 
+def build_meme_urls(meme_id: str, slug: str) -> dict:
+    """Build CDN URLs for all available formats matching Services.md spec."""
+    return {
+        "image": f"{CDN_BASE_URL}/images/{slug}.jpg",
+        "gif": f"{CDN_BASE_URL}/gifs/{slug}.gif",
+        "video": f"{CDN_BASE_URL}/videos/{slug}.mp4",
+        "webp": f"{CDN_BASE_URL}/webp/{slug}.webp",
+        "thumb": f"{CDN_BASE_URL}/thumbs/{slug}.webp",
+    }
+
+
 def get_share_url(slug: str, query_id: str = "") -> str:
     """Generate a shareable URL for a meme."""
     base = f"{APP_BASE_URL}/meme/{slug}"
     if query_id:
         return f"{base}?ref={query_id}"
     return base
+
