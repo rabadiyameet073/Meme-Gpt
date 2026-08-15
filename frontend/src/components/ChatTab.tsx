@@ -159,11 +159,11 @@ export function ChatTab({ onToast }: { onToast: (m: string) => void }) {
           </div>
           <MemeCard meme={result.primary} primary showConfidence onToast={onToast} />
 
-          {/* Top 5 */}
-          {result.topFive?.length > 0 && (
+          {/* Top 5 Matches (excl. primary) */}
+          {result.topFive?.length > 1 && (
             <>
-              <div className="section-label">Top 5 Matches</div>
-              {result.topFive.map((m) => (
+              <div className="section-label">Top Matches</div>
+              {result.topFive.slice(1).map((m) => (
                 <MemeCard key={m.id} meme={m} showConfidence onToast={onToast} />
               ))}
             </>
