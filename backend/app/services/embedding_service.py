@@ -174,3 +174,8 @@ def build_query_text(user_text: str, intent: dict, emotion: dict) -> str:
 def is_loaded() -> bool:
     """Check if models are loaded and ready."""
     return _models_loaded
+
+
+get_text_embedding = embed_text
+embed_meme = embed_text
+
