@@ -135,6 +135,22 @@ export function MemeCard({
       </div>
       <div className="meme-explanation">{meme.explanation}</div>
 
+      {/* Visual Meme Media Preview */}
+      {(() => {
+        const mediaUrl = meme.formats?.[selectedFormat] || meme.formats?.image || meme.formats?.gif || meme.imageRef || meme.gifRef;
+        if (!mediaUrl) return null;
+        return (
+          <div className="meme-media-container" style={{ margin: "12px 0", borderRadius: "8px", overflow: "hidden", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", textAlign: "center" }}>
+            <img
+              src={mediaUrl}
+              alt={meme.name}
+              onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+              style={{ maxHeight: "280px", maxWidth: "100%", objectFit: "contain", borderRadius: "8px", display: "inline-block" }}
+            />
+          </div>
+        );
+      })()}
+
       <div className="format-selector-row" style={{ display: "flex", gap: "6px", margin: "12px 0 8px", flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginRight: "4px" }}>Format:</span>
         {(["image", "gif", "video", "webp"] as const).map((fmt) => (
