@@ -27,6 +27,15 @@
   --radius-md:     10px;
   --radius-lg:     14px;
 
+  --brand-purple:       #7C3AED;
+  --brand-purple-dark:  #6D28D9;
+  --brand-amber:        #F59E0B;
+  --bg-dark:            #0F0F23;
+  --border-subtle:      #334155;
+  --success:            #22C55E;
+  --error:              #EF4444;
+  --radius-xl:          16px;
+
   --shadow-card:   0 4px 20px rgba(0, 0, 0, 0.4);
   --shadow-pop:    0 12px 36px rgba(0, 0, 0, 0.6);
 
