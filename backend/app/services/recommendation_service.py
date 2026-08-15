@@ -15,6 +15,7 @@ Pipeline stages:
 Specification: 03_ML_PIPELINE_AND_TRAINING.md, 04_DESIGN_AND_DEVELOPMENT.md
 """
 
+import asyncio
 import hashlib
 import logging
 import time
@@ -58,25 +59,39 @@ async def recommend(
     start = time.perf_counter()
     query_id = f"q_{uuid.uuid4().hex[:8]}"
 
+    # Input truncation safeguards (Performance.md)
+    clean_text = (user_text or "")[:2000].strip()
+    emotion_text = clean_text[:512]
+
     # ── 1. Cache check (~15ms on hit) ─────────────────────────────────────
-    cache_key = _make_cache_key(user_text, format_pref, nsfw)
+    cache_key = _make_cache_key(clean_text, format_pref, nsfw)
     cached = query_cache.get(cache_key)
     if cached is not None:
         elapsed = int((time.perf_counter() - start) * 1000)
         logger.info(f"Cache hit for {cache_key[:16]} ({elapsed}ms)")
         return {**cached, "latencyMs": elapsed, "cached": True}
 
-    # ── 2. Parse intent via LLM (~300ms) ──────────────────────────────────
-    intent = await llm_service.parse_intent(user_text)
+    # ── 2 & 3. Concurrent Intent Parsing & Emotion Detection (~300ms) ─────
+    # Run LLM intent parsing and emotion classifier in parallel to reduce latency
+    async def _get_intent():
+        try:
+            return await llm_service.parse_intent(clean_text)
+        except Exception:
+            return {"keywords": clean_text.split()[:5], "categories": ["general"]}
 
-    # ── 3. Detect emotion (~100ms with model, ~1ms with rules) ────────────
-    emotion = embedding_service.detect_emotion(user_text)
+    async def _get_emotion():
+        try:
+            return embedding_service.detect_emotion(emotion_text)
+        except Exception:
+            return {"primary": "neutral", "all": {"neutral": 1.0}}
+
+    intent, emotion = await asyncio.gather(_get_intent(), _get_emotion())
 
     # ── 4. Build enriched query text ──────────────────────────────────────
-    query_text = embedding_service.build_query_text(user_text, intent, emotion)
+    query_text = embedding_service.build_query_text(clean_text, intent, emotion)
 
     # ── 5. Generate query embedding (~50ms) ────────────────────────────────
-    query_vector = embedding_service.embed_text(query_text)
+    query_vector = embedding_service.embed_text(query_text[:512])
 
     # ── 6. Vector search (~50ms) ───────────────────────────────────────────
     candidates = search_service.search(
@@ -166,6 +181,9 @@ async def recommend(
 
     logger.info(f"Recommendation completed in {elapsed_ms}ms | results={len(top_five)}")
     return response
+
+
+recommend_memes = recommend
 
 
 def _build_result(item: dict, intent: dict, emotion: dict) -> dict:
