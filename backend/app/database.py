@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from typing import Generator, Sequence
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -244,6 +245,10 @@ class FavouriteMeme(Base):
     meme = relationship("Meme", back_populates="favourites")
 
 
+FavoriteMeme = FavouriteMeme
+
+
+
 class SearchLog(Base):
     __tablename__ = "search_logs"
 
@@ -253,6 +258,33 @@ class SearchLog(Base):
     match_count = Column(Integer, default=0)
     latency_ms = Column(Float, default=0.0)
     created_at = Column(DateTime, default=utc_now)
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)
+    name = Column(String(100), nullable=False, default="Default API Key")
+    prefix = Column(String(32), nullable=False)  # e.g., pk_live_...1234
+    tier = Column(String(20), nullable=False, default="free")  # free, pro, internal, admin
+    rate_limit = Column(Integer, nullable=False, default=120)  # 120, 300, 1000
+    user_id = Column(String(64), nullable=True, index=True)
+    revoked = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=utc_now)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "prefix": self.prefix,
+            "tier": self.tier,
+            "rate_limit": self.rate_limit,
+            "user_id": self.user_id,
+            "revoked": self.revoked,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
 
 
 # ── Session factory utilities ──────────────────────────────────────
