@@ -168,3 +168,7 @@ def _deduplicate(results: list[dict]) -> list[dict]:
         elif not name:
             unique.append(item)
     return unique
+
+
+composite_score = rerank
+
