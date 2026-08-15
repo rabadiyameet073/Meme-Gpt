@@ -218,3 +218,8 @@ def _local_search(
     # Sort by score descending
     scored.sort(key=lambda x: x["score"], reverse=True)
     return scored[:top_k]
+
+
+vector_search = search
+get_qdrant_client = _get_qdrant
+
