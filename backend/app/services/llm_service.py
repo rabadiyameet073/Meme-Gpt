@@ -146,3 +146,7 @@ def _fallback_intent_parse(user_text: str) -> dict:
         "meme_format": "reaction",
         "categories": rules.categories[:3] or ["funny"],
     }
+
+
+analyze_text = parse_intent
+
