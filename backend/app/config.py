@@ -73,6 +73,8 @@ def _parse_cors_origins() -> List[str]:
         except json.JSONDecodeError:
             pass
     defaults = [
+        "https://memegpt.com",
+        "https://app.memegpt.com",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:19006",
