@@ -42,6 +42,9 @@ prisma/*.db-journal
 # Testing & Coverage
 coverage/
 .pytest_cache/
+logs/
+*.log
+
 
 # IDE & OS Files
 .DS_Store
