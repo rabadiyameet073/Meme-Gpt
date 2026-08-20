@@ -32,6 +32,17 @@ from app.core.cache import query_cache
 
 logger = logging.getLogger("memegpt.recommendation")
 
+SIGNAL_WEIGHTS = {
+    "view": 0.1,         # Saw the result
+    "click": 0.5,        # Clicked to expand
+    "copy": 1.0,         # Copied the image
+    "download": 2.0,     # Downloaded the meme
+    "share": 3.0,        # Shared via link
+    "thumbs_up": 2.0,    # Explicit positive
+    "thumbs_down": -1.0, # Explicit negative
+    "skip": -0.3,        # Scrolled past without interaction
+}
+
 
 
 def _make_cache_key(user_text: str, format_pref: str, nsfw: bool = False) -> str:
