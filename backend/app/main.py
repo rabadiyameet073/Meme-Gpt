@@ -101,40 +101,61 @@ async def security_and_timing_middleware(request: Request, call_next):
     # Rate limiting for API requests (skip internal health checks)
     api_key_header = request.headers.get("X-API-Key", "").strip()
     
-    # Determine tier rate limit
-    limit = RATE_LIMIT_PER_MINUTE  # default 60
+    # Determine tier and route rate limit
+    tier = "free"
+    limit = 60
+    window_seconds = 60
+    
+    is_search = request.url.path.startswith(("/api/v1/search", "/search"))
+    is_feedback = request.url.path.startswith(("/api/v1/feedback", "/feedback"))
+    
     rate_identifier = getattr(request.client, "host", "127.0.0.1") if request.client else "127.0.0.1"
     
     if api_key_header:
         rate_identifier = f"key:{hashlib.sha256(api_key_header.encode('utf-8')).hexdigest()[:16]}"
-        if "admin" in api_key_header:
-            limit = 1000
-        elif "pro" in api_key_header:
-            limit = 300
+        key_clean = api_key_header.lower()
+        if "admin" in key_clean or "pro" in key_clean:
+            tier = "pro"
+            limit = 500 if is_search else 1000
         else:
-            limit = 120
+            tier = "developer"
+            limit = 100 if is_search else 300
     else:
         rate_identifier = f"ip:{rate_identifier}"
+        tier = "free"
+        if is_search:
+            limit = 30
+        elif is_feedback:
+            limit = 120
+        else:
+            limit = 60
 
     remaining = limit
+    reset_epoch = int(time.time() + 60)
+
     if request.url.path.startswith(("/api", "/search")) and not request.url.path.endswith("/health"):
-        allowed, remaining, retry_after = rate_limiter.check(rate_identifier, limit)
+        allowed, remaining, retry_after, reset_epoch = rate_limiter.check_with_window(
+            rate_identifier, limit, window_seconds=window_seconds
+        )
         if not allowed:
             return JSONResponse(
                 status_code=429,
                 content={
                     "success": False,
                     "error": "rate_limit_exceeded",
-                    "message": f"Too many requests. Limit is {limit} requests per minute.",
-                    "detail": f"Retry after {retry_after} seconds."
+                    "message": f"{limit} requests per minute allowed. Please slow down.",
+                    "retry_after": retry_after,
+                    "limit": limit,
+                    "window": "60s"
                 },
                 headers={
                     "Retry-After": str(retry_after),
                     "X-RateLimit-Limit": str(limit),
-                    "X-RateLimit-Remaining": "0"
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(reset_epoch),
+                    "X-RateLimit-Window": "60",
                 },
             )
-
 
     response = await call_next(request)
 
@@ -157,6 +178,8 @@ async def security_and_timing_middleware(request: Request, call_next):
     response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(reset_epoch)
+    response.headers["X-RateLimit-Window"] = "60"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
