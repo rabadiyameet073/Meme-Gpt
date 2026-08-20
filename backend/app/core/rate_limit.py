@@ -18,21 +18,33 @@ class RateLimiter:
         Returns:
             (allowed: bool, remaining: int, retry_after: int)
         """
+        allowed, remaining, retry_after, _ = self.check_with_window(identifier, limit, self.window_seconds)
+        return allowed, remaining, retry_after
+
+    def check_with_window(
+        self, identifier: str, limit: int, window_seconds: int = 60
+    ) -> Tuple[bool, int, int, int]:
+        """Checks rate limit with custom window duration.
+        Returns:
+            (allowed: bool, remaining: int, retry_after: int, reset_epoch: int)
+        """
         now = time.time()
         # Clean expired timestamps outside the sliding window
         self._history[identifier] = [
-            t for t in self._history[identifier] if now - t < self.window_seconds
+            t for t in self._history[identifier] if now - t < window_seconds
         ]
 
         current_count = len(self._history[identifier])
         if current_count >= limit:
             oldest = self._history[identifier][0]
-            retry_after = max(1, int(self.window_seconds - (now - oldest)))
-            return False, 0, retry_after
+            retry_after = max(1, int(window_seconds - (now - oldest)))
+            reset_epoch = int(now + retry_after)
+            return False, 0, retry_after, reset_epoch
 
         self._history[identifier].append(now)
         remaining = max(0, limit - len(self._history[identifier]))
-        return True, remaining, 0
+        reset_epoch = int(now + window_seconds)
+        return True, remaining, 0, reset_epoch
 
     def reset(self, identifier: str | None = None):
         """Resets rate history for a specific key or all keys."""
