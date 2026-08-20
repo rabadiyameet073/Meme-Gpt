@@ -16,10 +16,32 @@ except ImportError:
     print("Install: pip install sentence-transformers")
     sys.exit(1)
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / "prisma" / "dev.db"
 OUTPUT = ROOT / "server" / "data" / "embeddings.json"
 MODEL_NAME = "all-MiniLM-L6-v2"
+
+
+def get_combined_embedding(
+    text_emb: list[float],
+    image_emb: list[float],
+    text_weight: float = 0.65,
+    image_weight: float = 0.35,
+) -> list[float]:
+    """
+    Weighted combination: text contributes 65%, image 35%.
+    Text gets higher weight because meme search is primarily semantic.
+    Combined dimension: 384 + 512 = 896.
+    """
+    text_arr = np.array(text_emb) * text_weight
+    image_arr = np.array(image_emb) * image_weight
+    combined = np.concatenate([text_arr, image_arr])
+    norm = np.linalg.norm(combined)
+    if norm > 0:
+        combined = combined / norm
+    return combined.tolist()
 
 
 def main():
