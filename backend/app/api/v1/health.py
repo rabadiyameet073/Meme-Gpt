@@ -75,3 +75,34 @@ def categories():
         "motivation", "unrealistic_goals", "ai", "business", "exam", "failure",
         "success", "gaming", "bollywood", "youtube", "money", "sleep"
     ]
+
+
+@router.get("/database/overview", summary="Polyglot persistence architecture overview")
+def database_overview():
+    """Returns architecture overview of the 4 specialized data stores from 06_Database/Database_Overview.md."""
+    from app.services.database_service import get_polyglot_database_overview
+    return get_polyglot_database_overview()
+
+
+@router.get("/database/ownership", summary="Data ownership matrix")
+def database_ownership():
+    """Returns entity-to-store mapping from 06_Database/Database_Overview.md."""
+    from app.services.database_service import get_data_ownership_matrix
+    return get_data_ownership_matrix()
+
+
+@router.get("/database/access-patterns", summary="Access patterns catalog")
+def database_access_patterns():
+    """Returns standard access patterns from 06_Database/Database_Overview.md."""
+    from app.services.database_service import get_access_patterns
+    return get_access_patterns()
+
+
+@router.get("/database/limits", summary="Free tier headroom limits and alerts")
+def database_limits():
+    """Returns free-tier headroom limits and active threshold alerts."""
+    from app.services.database_service import get_free_tier_limits, check_free_tier_alerts
+    return {
+        "limits": get_free_tier_limits(),
+        "alerts": check_free_tier_alerts(threshold_pct=80.0),
+    }

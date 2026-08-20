@@ -78,6 +78,7 @@ def list_memes(
 
 
 from fastapi import Query
+from app.services.meme_service import format_meme_detail_response, get_meme_download_url
 
 
 @router.get("/memes/{slug_or_id}", summary="Get specific meme details")
@@ -101,13 +102,13 @@ def get_meme_detail(
                 break
 
     if not meme:
-        raise HTTPException(status_code=404, detail="Meme not found")
+        raise HTTPException(status_code=404, detail=f"No meme found with slug '{slug_or_id}'")
 
     # Asynchronously track view count without blocking response
     if background_tasks:
         background_tasks.add_task(_record_feedback_background, meme.id, "view", "image")
 
-    return meme.to_dict()
+    return format_meme_detail_response(meme, db=db)
 
 
 @router.get("/memes/{slug_or_id}/download", summary="Download meme in specific format")
@@ -132,16 +133,9 @@ def download_meme(
         raise HTTPException(status_code=404, detail="Meme not found")
 
     fmt = format.lower()
-    target_url = None
-    if fmt == "gif":
-        target_url = meme.gif_ref
-    elif fmt in ("video", "mp4"):
-        target_url = meme.video_ref
-    elif fmt in ("image", "png", "webp"):
-        target_url = meme.image_ref
-
+    target_url = get_meme_download_url(meme, fmt)
     if not target_url:
-        target_url = meme.image_ref or meme.gif_ref or meme.video_ref or f"https://cdn.memegpt.com/images/{meme.id}.png"
+        raise HTTPException(status_code=400, detail=f"Format '{format}' not available for this meme")
 
     if background_tasks:
         background_tasks.add_task(_record_feedback_background, meme.id, "download", fmt)

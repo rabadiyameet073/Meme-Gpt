@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import (
     Meme,
     MemeVote,
+    Feedback,
     FavouriteMeme as FavoriteMeme,
     SessionLocal,
     get_db,
@@ -17,24 +18,54 @@ from app.meme_matcher import export_markdown, export_txt
 logger = logging.getLogger("memegpt.api.feedback")
 router = APIRouter(tags=["Feedback & Interactions"])
 
+VALID_FEEDBACK_ACTIONS = {
+    "view": 0.1,
+    "click": 0.5,
+    "copy": 1.0,
+    "download": 2.0,
+    "share": 3.0,
+    "thumbs_up": 2.0,
+    "thumbs_down": -1.0,
+    "skip": -0.3,
+}
 
-def _record_feedback_background(meme_id: str, signal: str, fmt: str = "image"):
-    """Background task for updating meme viral score and usage counters."""
+
+def _record_feedback_background(
+    meme_id: str,
+    action: str,
+    session_id: str = "anonymous",
+    query_id: str = None,
+    fmt: str = "image"
+):
+    """Background task for persisting feedback entry and updating meme viral score and usage counters."""
     db = SessionLocal()
     try:
+        # 1. Insert feedback record
+        feedback_entry = Feedback(
+            session_id=session_id,
+            meme_id=meme_id,
+            query_id=query_id,
+            action=action,
+        )
+        db.add(feedback_entry)
+
+        # 2. Update meme metrics
         meme = db.query(Meme).filter(Meme.id == meme_id).first()
         if meme:
-            if signal == "upvote":
-                meme.upvotes += 1
-            elif signal == "downvote":
-                meme.downvotes += 1
-            elif signal == "copy":
-                meme.viral_score += 0.5
-                meme.usage_count += 1
-            elif signal == "download":
-                meme.viral_score += 1.0
-                meme.usage_count += 1
-            db.commit()
+            weight = VALID_FEEDBACK_ACTIONS.get(action, 0.0)
+            
+            if action in ("copy", "download", "share"):
+                meme.usage_count = (meme.usage_count or 0) + 1
+            elif action == "thumbs_up":
+                meme.upvotes = (meme.upvotes or 0) + 1
+            elif action == "thumbs_down":
+                meme.downvotes = (meme.downvotes or 0) + 1
+
+            # Update viral score
+            new_score = (meme.viral_score or 0.0) + weight
+            meme.viral_score = max(0.0, round(new_score, 2))
+
+        db.commit()
     except Exception as e:
         logger.error(f"Error in background feedback task: {e}")
         db.rollback()
@@ -48,23 +79,32 @@ def record_feedback(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Logs user actions (copy, download, upvote, downvote, share) to train recommendation ranking."""
+    """Records user interactions (view, click, copy, download, share, thumbs_up, thumbs_down, skip) asynchronously."""
     meme = db.query(Meme).filter(Meme.id == body.meme_id).first()
     if not meme:
         raise HTTPException(status_code=404, detail="Meme not found")
 
-    signal = body.get_signal()
+    action = body.get_action()
+    if action not in VALID_FEEDBACK_ACTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action '{action}'. Valid actions: {list(VALID_FEEDBACK_ACTIONS.keys())}"
+        )
+
     background_tasks.add_task(
         _record_feedback_background,
-        body.meme_id,
-        signal,
-        body.format or "image"
+        meme_id=body.meme_id,
+        action=action,
+        session_id=body.session_id or "anonymous",
+        query_id=body.query_id,
+        fmt=body.format or "image",
     )
+
     return {
-        "status": "recorded",
+        "success": True,
+        "message": "Feedback recorded",
         "meme_id": body.meme_id,
-        "signal": signal,
-        "success": True
+        "action": action,
     }
 
 
