@@ -26,6 +26,11 @@ class MemeResult(BaseModel):
     meme_type: Optional[str] = "reaction"
 
 
+class SearchFilters(BaseModel):
+    categories: Optional[List[str]] = Field(default_factory=list, description="Filter by categories")
+    exclude_ids: Optional[List[str]] = Field(default_factory=list, description="Exclude specific meme IDs")
+
+
 class SearchRequest(BaseModel):
     query: str = Field(
         ...,
@@ -35,11 +40,12 @@ class SearchRequest(BaseModel):
     )
     format_preference: Optional[str] = Field(
         "gif",
-        description="Preferred meme format: gif, png, mp4, webp, any"
+        description="Preferred meme format: gif, image, video, webp, any"
     )
     nsfw: bool = Field(False, description="Include NSFW results")
     limit: int = Field(5, ge=1, le=20, description="Number of results to return")
     session_id: Optional[str] = Field(None, description="Client session tracking ID")
+    filters: Optional[SearchFilters] = Field(None, description="Category and ID exclusion filters")
 
 
 class AnalyzeRequest(BaseModel):
