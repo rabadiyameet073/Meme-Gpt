@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { api, getSessionId, MemeMatch } from "../api";
 import { Icon } from "./Icon";
+import {
+  copyMemeToClipboard as execCopyMeme,
+  downloadMeme as execDownloadMeme,
+  shareMeme as execShareMeme,
+} from "../lib/clipboard";
 
 const SESSION_ID = getSessionId();
 
@@ -9,6 +14,7 @@ export interface MemeCardProps {
   primary?: boolean;
   showConfidence?: boolean;
   isFav?: boolean;
+  queryId?: string;
   onToggleFav?: (id: string) => void;
   onToast?: (msg: string) => void;
 }
@@ -18,6 +24,7 @@ export function MemeCard({
   primary,
   showConfidence,
   isFav,
+  queryId,
   onToggleFav,
   onToast,
 }: MemeCardProps) {
@@ -53,49 +60,39 @@ export function MemeCard({
     }
   };
 
-  const copyMemeToClipboard = async () => {
-    const shareUrl = meme.share_url || `https://memegpt.com/m/${meme.id}`;
-    const textToCopy = `"${meme.dialogue}" — ${meme.name}\n${shareUrl}`;
+  const handleFormatChange = (fmt: "gif" | "image" | "video" | "webp") => {
+    setSelectedFormat(fmt);
+    api.sendFeedback(meme.id, "format_change", fmt);
+  };
 
-    try {
-      if (meme.formats?.image) {
-        const resp = await fetch(meme.formats.image);
-        const blob = await resp.blob();
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        await api.sendFeedback(meme.id, "copy", "image");
-        onToast?.("Meme image copied to clipboard");
-        return;
+  const handleShare = async () => {
+    await execShareMeme(
+      meme,
+      queryId,
+      onToast,
+      (qid, mid, action) => {
+        api.sendFeedback(mid, action);
       }
-    } catch {
-      /* Fallback to text copy */
-    }
+    );
+  };
 
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      await api.sendFeedback(meme.id, "copy", "text");
-      onToast?.("Meme text & link copied");
-    } catch {
+  const copyMeme = async () => {
+    const copyResult = await execCopyMeme(meme);
+    if (copyResult === "image") {
+      await api.sendFeedback(meme.id, "copy", "image");
+      onToast?.("✓ Copied!");
+    } else if (copyResult === "url") {
+      await api.sendFeedback(meme.id, "copy", "url");
+      onToast?.("✓ Copied!");
+    } else {
       onToast?.("Could not copy to clipboard");
     }
   };
 
   const downloadMeme = (format: "gif" | "image" | "video" | "webp") => {
-    const formats = meme.formats || {};
-    const targetUrl = formats[format] || meme.gifRef || meme.videoRef || "#";
-    const ext = format === "image" ? "png" : format;
-    const slug = meme.slug || meme.id;
-    const filename = `${slug}.${ext}`;
-
-    const link = document.createElement("a");
-    link.href = targetUrl;
-    link.download = filename;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
+    execDownloadMeme(meme, format);
     api.sendFeedback(meme.id, "download", format);
-    onToast?.(`Downloaded .${ext} file`);
+    onToast?.("✓ Downloaded!");
   };
 
   const pct = meme.confidence !== undefined ? Math.round(meme.confidence * 100) : null;
@@ -128,7 +125,7 @@ export function MemeCard({
       <div
         className="meme-dialogue"
         title="Click to copy dialogue"
-        onClick={copyMemeToClipboard}
+        onClick={copyMeme}
         style={{ cursor: "pointer" }}
       >
         "{meme.dialogue}"
@@ -140,10 +137,26 @@ export function MemeCard({
         const mediaUrl = meme.formats?.[selectedFormat] || meme.formats?.image || meme.formats?.gif || meme.imageRef || meme.gifRef;
         if (!mediaUrl) return null;
         return (
-          <div className="meme-media-container" style={{ margin: "12px 0", borderRadius: "8px", overflow: "hidden", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", textAlign: "center" }}>
+          <div
+            className="meme-media-container"
+            style={{
+              margin: "12px 0",
+              borderRadius: "8px",
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--border)",
+              textAlign: "center",
+              minHeight: "180px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <img
               src={mediaUrl}
               alt={meme.name}
+              loading="lazy"
+              decoding="async"
               onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
               style={{ maxHeight: "280px", maxWidth: "100%", objectFit: "contain", borderRadius: "8px", display: "inline-block" }}
             />
@@ -157,7 +170,7 @@ export function MemeCard({
           <button
             key={fmt}
             className={`btn-fmt ${selectedFormat === fmt ? "active" : ""}`}
-            onClick={() => setSelectedFormat(fmt)}
+            onClick={() => handleFormatChange(fmt)}
             style={{
               padding: "3px 9px",
               fontSize: "0.74rem",
@@ -226,7 +239,11 @@ export function MemeCard({
           <Icon name={fav ? "heart-filled" : "heart"} size={14} /> {fav ? "Saved" : "Favorite"}
         </button>
 
-        <button className="btn-action" onClick={copyMemeToClipboard} title="Copy meme">
+        <button className="btn-action" onClick={handleShare} title="Share meme link">
+          <Icon name="share" size={14} /> Share
+        </button>
+
+        <button className="btn-action" onClick={copyMeme} title="Copy meme">
           <Icon name="copy" size={14} /> Copy
         </button>
 
