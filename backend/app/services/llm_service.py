@@ -36,30 +36,105 @@ def _get_groq_client():
         return _groq_client
     except Exception as e:
         logger.error(f"Failed to initialize Groq client: {e}")
-        return None
-
-
-# ── System prompt for intent parsing (from LLM_Workflow.md) ───────────────────
-
-INTENT_SYSTEM_PROMPT = """You are MemeGPT's intent parser. Given a user's text describing a situation, feeling, or conversation, extract structured information for meme recommendation.
-
-You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no extra text.
-
-JSON schema:
-{
-  "situation": "brief description of what's happening",
-  "emotion": "primary emotion (one of: frustration, anxiety, triumph, despair, humor, stress, ambition)",
-  "tone": "desired meme tone (one of: humorous, sarcastic, dark_humor, wholesome, savage, relatable)",
-  "keywords": ["keyword1", "keyword2", "keyword3"],
-  "meme_format": "reaction or situational or template",
-  "categories": ["category1", "category2"]
+GROQ_CONFIG = {
+    "model": GROQ_MODEL or "llama-3.1-8b-instant",
+    "temperature": 0.1,  # Low = consistent JSON output
+    "max_tokens": 200,   # Intent JSON is small
+    "top_p": 0.9,
+    "timeout": GROQ_TIMEOUT or 5.0,  # Fail fast, use fallback
 }
 
-Available categories: coding, startup, relationship, college, office, funny, motivation, unrealistic_goals, ai, business, exam, failure, success, gaming, bollywood, youtube, money, sleep
+# ── Prompt Inventory (from 05_AI_System/Prompt_Engineering.md) ────────────────
 
-Example input: "My boss called at midnight to ask about a report that's due next month"
-Example output: {"situation": "boss calling at midnight for non-urgent work", "emotion": "frustration", "tone": "sarcastic", "keywords": ["boss", "midnight", "work", "overwork"], "meme_format": "reaction", "categories": ["office", "funny"]}
-"""
+INTENT_PROMPT = """You are a meme recommendation engine. Analyze the user's text and extract structured intent.
+
+User text: "{user_text}"
+
+Return ONLY valid JSON with these fields:
+{{
+  "emotion": "joy|sadness|anger|surprise|fear|disgust|neutral",
+  "situation": "brief description of what's happening",
+  "tone": "sarcastic|sincere|humorous|frustrated|excited|resigned",
+  "keywords": ["5-8 search keywords for finding relevant memes"],
+  "meme_format": "reaction|comparison|advice|relatable|wholesome"
+}}
+
+Rules:
+- Return ONLY JSON, no markdown, no explanation
+- Keywords should include synonyms and related concepts
+- Emotion should be the dominant feeling
+- Meme_format describes the type of meme that would fit best"""
+
+TAG_PROMPT = """Analyze this meme and return ONLY valid JSON:
+
+Meme name: {meme_name}
+Text in image: {ocr_text}
+Visual description: {caption}
+
+Return:
+{{
+  "emotions": ["2-4 emotions this meme expresses"],
+  "situations": ["3-5 situations where you'd send this meme"],
+  "keywords": ["10 search keywords people would use to find this"],
+  "tone": "sarcastic|sincere|humorous|frustrated|excited|relatable",
+  "meme_type": "reaction|comparison|advice|relatable|wholesome",
+  "alt_text": "Accessible image description for screen readers"
+}}"""
+
+ALT_TEXT_PROMPT = """Generate an accessible, concise alt text description for screen readers describing this meme:
+Meme name: {meme_name}
+Visual description: {caption}
+Text inside image: {ocr_text}
+
+Return ONLY the alt text description in 1-2 sentences."""
+
+BLOG_PROMPT = """Write an SEO-optimized blog post:
+Title: "Top 20 {topic} Memes of This Week"
+
+Memes available:
+{meme_summary}
+
+Include:
+- 300-word intro (natural, conversational)
+- Meme sections with: name, why it's funny, when to use it
+- Conclusion with CTA to try MemeGPT
+
+Target keyword: "{topic_lower} memes"
+Tone: funny, relatable, internet-native"""
+
+VALID_EMOTIONS = ["joy", "sadness", "anger", "surprise", "fear", "disgust", "neutral", "humor", "frustration", "anxiety", "triumph", "despair", "stress", "ambition"]
+VALID_TONES = ["sarcastic", "sincere", "humorous", "frustrated", "excited", "resigned", "relatable", "dark_humor", "wholesome", "savage"]
+VALID_MEME_FORMATS = ["reaction", "comparison", "advice", "relatable", "wholesome", "situational", "template"]
+
+
+def clean_llm_json(raw_text: str, default: dict | None = None) -> dict:
+    """Clean markdown markers and extract JSON block from LLM output."""
+    if not raw_text:
+        return default or {}
+
+    raw = raw_text.strip()
+    # Strip markdown ```json markers
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) >= 2:
+            raw = parts[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except Exception:
+                pass
+        return default or {}
+
+
+INTENT_SYSTEM_PROMPT = INTENT_PROMPT
 
 
 async def parse_intent(user_text: str) -> dict:
@@ -149,4 +224,184 @@ def _fallback_intent_parse(user_text: str) -> dict:
 
 
 analyze_text = parse_intent
+_default_intent = _fallback_intent_parse
+
+
+def generate_meme_tags(meme_name: str, ocr_text: str = "", caption: str = "") -> dict:
+    """Use Groq LLM to generate rich tags for a meme.
+
+    Specification: 05_AI_System/Code_Generation.md
+    """
+    client = _get_groq_client()
+    if client is None:
+        return _fallback_meme_tags(meme_name, ocr_text, caption)
+
+    prompt = f"""Analyze this meme and return ONLY valid JSON:
+
+Meme name: {meme_name}
+Text in image: {ocr_text}
+Visual description: {caption}
+
+Return:
+{{
+  "emotions": ["list of 2-4 emotions this meme expresses"],
+  "situations": ["3-5 situations where you'd send this meme"],
+  "keywords": ["10 search keywords people would use to find this"],
+  "tone": "sarcastic|sincere|humorous|frustrated|excited|relatable",
+  "meme_type": "reaction|comparison|advice|relatable|wholesome",
+  "alt_text": "Accessible description for screen readers"
+}}"""
+
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=300,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content.strip()
+        tags = json.loads(content)
+        return {
+            "emotions": tags.get("emotions", ["humor", "relatable"]),
+            "situations": tags.get("situations", [f"When dealing with {meme_name.lower()}"]),
+            "keywords": tags.get("keywords", [meme_name.lower(), "meme"]),
+            "tone": tags.get("tone", "humorous"),
+            "meme_type": tags.get("meme_type", "reaction"),
+            "alt_text": tags.get("alt_text", f"Meme depicting {meme_name} - {caption}"),
+        }
+    except Exception as e:
+        logger.error(f"Groq tag generation failed: {e}")
+        return _fallback_meme_tags(meme_name, ocr_text, caption)
+
+
+def _fallback_meme_tags(meme_name: str, ocr_text: str = "", caption: str = "") -> dict:
+    """Fallback meme tag generator when Groq is offline."""
+    words = re.findall(r"\b[a-zA-Z]{3,}\b", f"{meme_name} {ocr_text} {caption}".lower())
+    keywords = list(dict.fromkeys(words))[:10]
+    return {
+        "emotions": ["humor", "relatable", "irony"],
+        "situations": [
+            f"When encountering {meme_name.lower()}",
+            "Relatable daily struggles",
+            "Humorous reaction in group chat",
+        ],
+        "keywords": keywords or [meme_name.lower(), "meme"],
+        "tone": "relatable",
+        "meme_type": "reaction",
+        "alt_text": f"Meme depicting {meme_name}. {caption}".strip(),
+    }
+
+
+def generate_alt_text(meme_name: str, caption: str = "", ocr_text: str = "") -> str:
+    """Generate concise accessible alt text for screen readers.
+
+    Prompt 3 from 05_AI_System/Prompt_Engineering.md (T=0.3, max_tokens=100).
+    """
+    client = _get_groq_client()
+    if client is None:
+        return f"Meme depicting {meme_name}. {caption}".strip()
+
+    prompt = ALT_TEXT_PROMPT.format(meme_name=meme_name, caption=caption, ocr_text=ocr_text)
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=100,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.debug(f"Alt text generation fallback: {e}")
+        return f"Meme depicting {meme_name}. {caption}".strip()
+
+
+def generate_weekly_blog_post(topic: str, memes: list[dict]) -> str:
+    """Generate an SEO-optimized markdown blog post for a given topic and meme list.
+
+    Specification: 05_AI_System/Code_Generation.md
+    """
+    client = _get_groq_client()
+    if client is None:
+        return _fallback_blog_post(topic, memes)
+
+    meme_summary = "\n".join(
+        [f"- {m.get('name', 'Meme')}: {m.get('caption', m.get('description', ''))}" for m in memes[:10]]
+    )
+
+    prompt = f"""Write an SEO-optimized blog post:
+Title: "Top 20 {topic} Memes of This Week"
+
+Memes available:
+{meme_summary}
+
+Include:
+- 300-word intro (natural, conversational)
+- Meme sections with: name, why it's funny, when to use it
+- Conclusion with CTA to try MemeGPT
+
+Target keyword: "{topic.lower()} memes"
+Tone: funny, relatable, internet-native"""
+
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=2000,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Groq blog generation failed: {e}")
+        return _fallback_blog_post(topic, memes)
+
+
+def _fallback_blog_post(topic: str, memes: list[dict]) -> str:
+    """Fallback template-based markdown blog post."""
+    sections = []
+    for i, meme in enumerate(memes[:5], 1):
+        name = meme.get("name", f"Featured Meme {i}")
+        sections.append(
+            f"### {i}. {name}\n\n"
+            f"**Why it's funny:** Perfectly captures the reality of {topic.lower()} with humor and precision.\n\n"
+            f"**When to use it:** When words fail and only a high-impact reaction meme will do."
+        )
+
+    sections_str = "\n\n".join(sections)
+    return f"""# Top 20 {topic} Memes of This Week
+
+Welcome to this week's definitive roundup of the funniest and most relatable **{topic.lower()} memes** on the internet. Whether you are navigating daily chaos or just looking for the perfect reaction image for your team chat, these memes have you covered.
+
+{sections_str}
+
+## Conclusion
+
+Ready to find the perfect meme for every situation in real time? Try **[MemeGPT](https://memegpt.live)** today and let AI find your next laugh in under 500 milliseconds!
+"""
+
+
+def generate_test_dataset(count: int = 5) -> list[dict]:
+    """Generate synthetic test meme records for local integration and benchmarking."""
+    templates = [
+        ("Distracted Boyfriend", "Man looking back at another woman while his girlfriend looks angry", "disloyalty, temptation"),
+        ("This Is Fine", "Dog in a burning room drinking coffee", "denial, crisis, calmness"),
+        ("Drake Hotline Bling", "Drake showing disapproval then approval", "preference, decision, comparison"),
+        ("Two Buttons", "Man sweating profusely while choosing between two red buttons", "dilemma, tough choice, anxiety"),
+        ("Expanding Brain", "Four stages of increasing brain illumination", "intellect, irony, progression"),
+    ]
+
+    results = []
+    for i in range(min(count, len(templates))):
+        name, caption, emotions_str = templates[i]
+        tags = _fallback_meme_tags(name, "", caption)
+        results.append({
+            "id": f"test_meme_{i+1}",
+            "name": name,
+            "caption": caption,
+            "emotions": [e.strip() for e in emotions_str.split(",")],
+            "tags": tags,
+            "format": "image",
+            "url": f"https://example.com/memes/{name.lower().replace(' ', '_')}.jpg",
+        })
+    return results
 
