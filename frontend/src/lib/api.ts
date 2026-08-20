@@ -30,6 +30,19 @@ export class ApiError extends Error {
   }
 }
 
+export class ValidationError extends Error {
+  errors: Array<{ field: string; message: string }>;
+  status: number;
+
+  constructor(errors: Array<{ field: string; message: string }>) {
+    const summary = errors.map((e) => `${e.field}: ${e.message}`).join(", ") || "Validation Error";
+    super(summary);
+    this.name = "ValidationError";
+    this.status = 422;
+    this.errors = errors;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
@@ -45,6 +58,18 @@ export async function apiRequest<T>(
   });
 
   const data = await response.json().catch(() => ({}));
+
+  if (response.status === 422) {
+    const details = Array.isArray(data?.detail)
+      ? data.detail.map((d: any) => ({
+          field: Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : d.field || "query",
+          message: d.msg || d.message || "Invalid value",
+        }))
+      : Array.isArray(data?.details)
+      ? data.details
+      : [{ field: "query", message: data?.message || "Validation failed" }];
+    throw new ValidationError(details);
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, data);
