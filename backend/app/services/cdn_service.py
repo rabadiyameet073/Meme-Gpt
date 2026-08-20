@@ -47,14 +47,29 @@ def resolve_formats(meme: dict) -> dict:
     }
 
 
-def build_meme_urls(meme_id: str, slug: str) -> dict:
-    """Build CDN URLs for all available formats matching Services.md spec."""
+def build_meme_urls(
+    meme_id_or_dict: str | dict = "",
+    slug: str | None = None,
+    meme_id: str | None = None,
+) -> dict:
+    """Build CDN URLs for all available formats matching Services.md and RAG specs."""
+    if isinstance(meme_id_or_dict, dict):
+        m_id = str(meme_id_or_dict.get("id", ""))
+        s = str(meme_id_or_dict.get("slug") or meme_id_or_dict.get("name", "meme")).lower().replace(" ", "-")
+        existing_img = meme_id_or_dict.get("imageRef") or meme_id_or_dict.get("image_ref") or meme_id_or_dict.get("url")
+    else:
+        m_id = str(meme_id or meme_id_or_dict)
+        s = str(slug or m_id or "meme").lower().replace(" ", "-")
+        existing_img = None
+
+    base_img = existing_img or f"{CDN_BASE_URL}/images/{s}.jpg"
     return {
-        "image": f"{CDN_BASE_URL}/images/{slug}.jpg",
-        "gif": f"{CDN_BASE_URL}/gifs/{slug}.gif",
-        "video": f"{CDN_BASE_URL}/videos/{slug}.mp4",
-        "webp": f"{CDN_BASE_URL}/webp/{slug}.webp",
-        "thumb": f"{CDN_BASE_URL}/thumbs/{slug}.webp",
+        "original": base_img,
+        "image": base_img,
+        "gif": f"{CDN_BASE_URL}/gifs/{s}.gif",
+        "video": f"{CDN_BASE_URL}/videos/{s}.mp4",
+        "webp": f"{CDN_BASE_URL}/webp/{s}.webp",
+        "thumb": f"{CDN_BASE_URL}/thumbs/{s}.webp",
     }
 
 
