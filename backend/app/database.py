@@ -64,8 +64,9 @@ engine = create_engine(
     connect_args=connect_args,
     pool_size=5,
     max_overflow=10,
+    pool_timeout=30,
     pool_pre_ping=True,              # verify liveness before lease
-    pool_recycle=3600,               # recycle connections older than 1 hour
+    pool_recycle=1800,               # recycle connections every 30 min (06_Database/Performance.md)
     echo=False,
 )
 
@@ -170,6 +171,8 @@ class Meme(Base):
     votes = relationship("MemeVote", back_populates="meme", cascade="all, delete-orphan")
     usage_logs = relationship("MemeUsage", back_populates="meme", cascade="all, delete-orphan")
     favourites = relationship("FavouriteMeme", back_populates="meme", cascade="all, delete-orphan")
+    feedback_entries = relationship("Feedback", back_populates="meme", cascade="all, delete-orphan")
+    saved_memes = relationship("SavedMeme", back_populates="meme", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_memes_cat_viral", "category", "viral_score"),
@@ -246,6 +249,47 @@ class FavouriteMeme(Base):
 
 
 FavoriteMeme = FavouriteMeme
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    plan = Column(String(20), default="free", nullable=False)  # free, pro
+    created_at = Column(DateTime, default=utc_now)
+
+    saved_memes = relationship("SavedMeme", back_populates="user", cascade="all, delete-orphan")
+    feedback_entries = relationship("Feedback", back_populates="user")
+
+
+class SavedMeme(Base):
+    __tablename__ = "saved_memes"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    collection_name = Column(String(100), default="Favorites", nullable=False)
+    created_at = Column(DateTime, default=utc_now)
+
+    user = relationship("User", back_populates="saved_memes")
+    meme = relationship("Meme", back_populates="saved_memes")
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String(64), nullable=True, default="anonymous", index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    query_text = Column(Text, nullable=True)
+    query_id = Column(String(64), nullable=True)
+    action = Column(String(50), nullable=False, index=True)  # view | click | copy | download | share | thumbs_up | thumbs_down | skip
+    created_at = Column(DateTime, default=utc_now, index=True)
+
+    user = relationship("User", back_populates="feedback_entries")
+    meme = relationship("Meme", back_populates="feedback_entries")
 
 
 
