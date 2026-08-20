@@ -60,9 +60,13 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "memes")
 # ── Cache — Redis / Upstash ───────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", os.getenv("UPSTASH_REDIS_URL", ""))
 
-# ── CDN / Object Storage ─────────────────────────────────────
+# ── CDN / Object Storage (Cloudflare R2) ───────────────────────
 CDN_BASE_URL = os.getenv("CDN_BASE_URL", "https://cdn.memegpt.com")
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://memegpt.com")
+R2_ENDPOINT = os.getenv("R2_ENDPOINT", "")
+R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY", "")
+R2_SECRET_KEY = os.getenv("R2_SECRET_KEY", "")
+R2_BUCKET = os.getenv("R2_BUCKET", "memegpt-memes")
 
 # ── CORS ──────────────────────────────────────────────────────
 def _parse_cors_origins() -> List[str]:
