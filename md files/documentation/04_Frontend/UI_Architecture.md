@@ -21,6 +21,7 @@ graph TD
     end
 
     subgraph "Search View"
+    
         SI["SearchInput<br/>(multi-line textarea)"]
         CHIPS["SuggestionChips<br/>(quick-start)"]
         FORMAT["FormatSelector<br/>(GIF/PNG/MP4)"]
