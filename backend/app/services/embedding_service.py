@@ -176,6 +176,26 @@ def is_loaded() -> bool:
     return _models_loaded
 
 
+def get_combined_embedding(
+    text_emb: list[float],
+    image_emb: list[float],
+    text_weight: float = 0.65,
+    image_weight: float = 0.35,
+) -> list[float]:
+    """Weighted combination: text contributes 65%, image 35%.
+
+    Combined dimension: 384 + 512 = 896.
+    Specification: 05_AI_System/Embeddings.md
+    """
+    text_arr = np.array(text_emb, dtype=np.float32) * text_weight
+    image_arr = np.array(image_emb, dtype=np.float32) * image_weight
+    combined = np.concatenate([text_arr, image_arr])
+    norm = np.linalg.norm(combined)
+    if norm > 0:
+        combined = combined / norm
+    return combined.tolist()
+
+
 get_text_embedding = embed_text
 embed_meme = embed_text
 
