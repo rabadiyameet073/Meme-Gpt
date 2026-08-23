@@ -93,6 +93,21 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return sum(a[i] * b[i] for i in range(n))
 
 
+def embed_text(text: str) -> list[float]:
+    """Generate 384-dimensional L2-normalized vector for given text."""
+    model = _get_transformer_model()
+    if model is not None:
+        try:
+            vec = model.encode(text, convert_to_numpy=True).tolist()
+            return _normalize(vec)
+        except Exception:
+            pass
+    tokens = tokenize(text)
+    idf = {t: 1.0 for t in tokens}
+    return _build_vector(tokens, idf)
+
+
+
 def semantic_scores(query: str, memes: list[dict]) -> dict[str, float]:
     query_tokens = tokenize(query)
     corpus = [

@@ -2,8 +2,11 @@
 Specification: 10_Testing/AI_Evaluation.md
 """
 
+import os
 import sys
 import logging
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from app.services.ai_evaluation_service import (
     run_offline_search_evaluation,
@@ -25,10 +28,10 @@ def main() -> int:
     print("=======================================================")
     print(f"Total Test Cases Evaluated : {results['total_test_cases']}")
     print("-------------------------------------------------------")
-    print(f"Precision@5   : {summary['precision_at_5']:.2%}  (Target >70%) -> {'PASS ✅' if summary['precision_at_5_meets_target'] else 'FAIL ❌'}")
-    print(f"Recall@10     : {summary['recall_at_10']:.2%}  (Target >85%) -> {'PASS ✅' if summary['recall_at_10_meets_target'] else 'FAIL ❌'}")
-    print(f"MRR           : {summary['mrr']:.2%}  (Target >80%) -> {'PASS ✅' if summary['mrr_meets_target'] else 'FAIL ❌'}")
-    print(f"NDCG@5        : {summary['ndcg_at_5']:.2%}  (Target >75%) -> {'PASS ✅' if summary['ndcg_at_5_meets_target'] else 'FAIL ❌'}")
+    print(f"Precision@5   : {summary['precision_at_5']:.2%}  (Target >70%) -> {'[PASS]' if summary['precision_at_5_meets_target'] else '[FAIL]'}")
+    print(f"Recall@10     : {summary['recall_at_10']:.2%}  (Target >85%) -> {'[PASS]' if summary['recall_at_10_meets_target'] else '[FAIL]'}")
+    print(f"MRR           : {summary['mrr']:.2%}  (Target >80%) -> {'[PASS]' if summary['mrr_meets_target'] else '[FAIL]'}")
+    print(f"NDCG@5        : {summary['ndcg_at_5']:.2%}  (Target >75%) -> {'[PASS]' if summary['ndcg_at_5_meets_target'] else '[FAIL]'}")
     print("=======================================================\n")
     return 0
 

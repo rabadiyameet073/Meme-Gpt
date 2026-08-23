@@ -1,25 +1,22 @@
-name: Pull Request Verification
-
-on:
-  pull_request:
-    branches:
-      - main
+name: Tests
+on: [push, pull_request]
 
 jobs:
-  lint-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Test Python API
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
         run: |
-          cd services/api
-          pip install -r requirements.txt
-          pytest
-
-      - name: Lint Next.js App
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+      - name: Run Backend Tests
         run: |
-          cd apps/web
-          npm ci
-          npm run lint
+          pytest backend/tests/ -v --tb=short
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}

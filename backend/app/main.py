@@ -96,6 +96,15 @@ from app.core.rate_limit import rate_limiter
 
 @app.middleware("http")
 async def security_and_timing_middleware(request: Request, call_next):
+    # Production HTTPS enforcement (11_Security/API_Security.md)
+    is_prod = os.getenv("APP_ENV") == "production" or os.getenv("ENVIRONMENT") == "production"
+    if is_prod and request.url.scheme == "http" and "localhost" not in (request.url.hostname or ""):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=str(request.url).replace("http://", "https://", 1),
+            status_code=301,
+        )
+
     start_time = time.perf_counter()
 
     # Rate limiting for API requests (skip internal health checks)

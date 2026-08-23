@@ -56,8 +56,12 @@ EMOTION_PATTERNS = {
     "anxiety": [r"exam", r"scared", r"fear", r"nervous", r"worry", r"panic", r"deadline", r"test"],
     "stress": [r"work", r"boss", r"client", r"overtime", r"busy", r"pressure", r"tired"],
     "ambition": [r"startup", r"build", r"goal", r"hustle", r"grow", r"rich", r"future"],
-    "triumph": [r"win", r"success", r"passed", r"cracked", r"promoted", r"celebrate", r"finally"],
-    "despair": [r"rejected", r"broke", r"hopeless", r"over", r"crying", r"sad", r"loss"],
+    "triumph": [r"\bwin\b", r"\bwon\b", r"lottery", r"success", r"passed (?:exam|test|interview|jee|gate|neet)", r"\bpassed\b(?! away)", r"cracked", r"promoted", r"celebrate", r"finally"],
+    "joy": [r"happy", r"joy", r"yay", r"glad", r"excited", r"awesome", r"lottery"],
+    "despair": [r"rejected", r"broke", r"hopeless", r"over", r"crying", r"sad", r"loss", r"passed away", r"died"],
+    "sadness": [r"sad", r"depressed", r"grief", r"unhappy", r"mourn", r"passed away", r"miss"],
+    "anger": [r"angry", r"furious", r"unacceptable", r"mad", r"rage"],
+    "neutral": [r"weather", r"degrees", r"today", r"temperature", r"factual"],
     "humor": [r"lol", r"joke", r"funny", r"haha", r"lmao", r"roast"],
 }
 

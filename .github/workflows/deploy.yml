@@ -1,48 +1,40 @@
-name: Deploy MemeGPT Services
-
+# .github/workflows/deploy.yml
+# Specification: 12_Deployment/CI_CD_Pipeline.md
+name: Deploy
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  deploy-api:
-    name: Deploy FastAPI Backend
+  deploy-backend:
+    name: Deploy FastAPI Backend (Railway)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli || pip install railway-cli
+      - name: Deploy to Railway
+        run: railway up --service api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Dependencies
-        run: |
-          cd services/api
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Tests
-        run: |
-          cd services/api
-          pytest
-
-  deploy-web:
-    name: Deploy Next.js Web App
+  deploy-frontend:
+    name: Deploy Next.js Frontend (Vercel)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      # Vercel auto-deploys from Git — this is a fallback
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel
+        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install & Build
-        run: |
-          cd apps/web
-          npm ci
-          npm run build
+  smoke-test:
+    name: Post-Deployment Smoke Tests
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployments to stabilize
+        run: sleep 30
+      - name: Verify Backend API Health
+        run: curl -f https://api.memegpt.com/api/v1/health || exit 1
+      - name: Verify Frontend Web Health
+        run: curl -f https://memegpt.com || exit 1

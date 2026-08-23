@@ -62,12 +62,41 @@ def deduplicate(results: list) -> list:
     return deduplicated
 
 
-def match_memes(query: str, memes: list[dict], format_preference: str | None = None) -> dict:
+def match_memes(
+    query: str,
+    memes: list[dict] | None = None,
+    format_preference: str | None = None,
+    limit: int = 5,
+) -> dict:
     start = time.perf_counter()
+    if memes is None:
+        try:
+            from app.database import SessionLocal, Meme
+            db = SessionLocal()
+            try:
+                db_memes = db.query(Meme).limit(100).all()
+                memes = [m.to_dict() if hasattr(m, "to_dict") else {
+                    "id": m.id, "name": m.name, "category": m.category,
+                    "dialogue": m.dialogue, "explanation": m.explanation,
+                    "keywords": m.keywords if isinstance(m.keywords, list) else [],
+                    "viralScore": m.viral_score if hasattr(m, "viral_score") else 50,
+                    "usageCount": m.usage_count if hasattr(m, "usage_count") else 10,
+                } for m in db_memes]
+            finally:
+                db.close()
+        except Exception:
+            memes = []
+
+    if not memes:
+        memes = [
+            {"id": "default-1", "name": "Default Meme", "category": "general", "dialogue": "Hello", "explanation": "Default", "keywords": []}
+        ]
+
     rules = run_rule_engine(query)
     detected_emo = detect_emotion(query)
     primary_emo = detected_emo.get("primary", "")
     sem = semantic_scores(query, memes)
+
 
     scored = []
     q_lower = query.lower()

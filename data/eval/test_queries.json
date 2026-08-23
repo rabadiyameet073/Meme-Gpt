@@ -1,0 +1,77 @@
+[
+  {
+    "query": "when code works on first try",
+    "relevant_memes": ["surprised-pikachu", "confused-math-lady", "success-kid"],
+    "irrelevant_memes": ["sad-keanu", "grumpy-cat", "disaster-girl"]
+  },
+  {
+    "query": "Monday morning feeling",
+    "relevant_memes": ["grumpy-cat", "monday-meme", "this-is-fine"],
+    "irrelevant_memes": ["success-kid", "doge", "drake-hotline"]
+  },
+  {
+    "query": "when you fix one bug and create three more",
+    "relevant_memes": ["this-is-fine", "hydra-bug", "sponge-bob-fire"],
+    "irrelevant_memes": ["success-kid", "doge"]
+  },
+  {
+    "query": "celebrating weekend freedom",
+    "relevant_memes": ["success-kid", "dancing-baby", "leonardo-cheers"],
+    "irrelevant_memes": ["grumpy-cat", "crying-jordan"]
+  },
+  {
+    "query": "pretending to understand what boss is explaining",
+    "relevant_memes": ["confused-math-lady", "nod-and-smile", "harold-pain"],
+    "irrelevant_memes": ["doge", "sponge-bob-fire"]
+  },
+  {
+    "query": "production server crashed on friday evening",
+    "relevant_memes": ["this-is-fine", "disaster-girl", "sweating-jordan"],
+    "irrelevant_memes": ["success-kid", "leonardo-cheers"]
+  },
+  {
+    "query": "when the junior developer deletes the production database",
+    "relevant_memes": ["disaster-girl", "surprised-pikachu", "screaming-cat"],
+    "irrelevant_memes": ["doge", "success-kid"]
+  },
+  {
+    "query": "studying for exam the night before",
+    "relevant_memes": ["panicking-sponge-bob", "crying-student", "coffee-overload"],
+    "irrelevant_memes": ["leonardo-cheers", "dancing-baby"]
+  },
+  {
+    "query": "waiting for code review approval for two weeks",
+    "relevant_memes": ["skeleton-waiting", "pablo-escobar-waiting", "harold-pain"],
+    "irrelevant_memes": ["dancing-baby", "success-kid"]
+  },
+  {
+    "query": "client asks for massive changes right before release",
+    "relevant_memes": ["clown-makeup", "this-is-fine", "screaming-internally"],
+    "irrelevant_memes": ["leonardo-cheers", "doge"]
+  },
+  {
+    "query": "finally getting a job offer letter",
+    "relevant_memes": ["success-kid", "leonardo-cheers", "celebration-dance"],
+    "irrelevant_memes": ["grumpy-cat", "sad-keanu"]
+  },
+  {
+    "query": "looking at your own code from six months ago",
+    "relevant_memes": ["disgusted-ramsay", "confused-math-lady", "facepalm-picard"],
+    "irrelevant_memes": ["success-kid", "dancing-baby"]
+  },
+  {
+    "query": "when someone explains cryptocurrency to you",
+    "relevant_memes": ["doge", "stonks", "confused-math-lady"],
+    "irrelevant_memes": ["grumpy-cat", "sad-keanu"]
+  },
+  {
+    "query": "saying you will go to sleep early and staying up until 4am",
+    "relevant_memes": ["sleep-deprived-sponge-bob", "clown-makeup", "regretful-eyes"],
+    "irrelevant_memes": ["success-kid", "leonardo-cheers"]
+  },
+  {
+    "query": "running unit tests and everything passes green",
+    "relevant_memes": ["success-kid", "satisfaction-seal", "leonardo-cheers"],
+    "irrelevant_memes": ["disaster-girl", "this-is-fine"]
+  }
+]

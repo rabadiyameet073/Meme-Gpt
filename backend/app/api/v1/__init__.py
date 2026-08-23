@@ -14,6 +14,18 @@ from app.api.v1.share import router as share_router
 from app.api.v1.suggestion_chips import router as chips_router
 from app.api.v1.development import router as dev_router
 from app.api.v1.testing import router as testing_router
+from app.api.v1.security import router as security_router
+from app.api.v1.privacy import router as privacy_router
+from app.api.v1.validation import router as validation_router
+from app.api.v1.rate_limiting import router as rate_limiting_router
+from app.api.v1.deployment import router as deployment_router
+from app.api.v1.project_management import router as project_management_router
+from app.api.v1.troubleshooting import router as troubleshooting_router
+from app.api.v1.faq import router as faq_router
+from app.api.v1.mobile import router as mobile_router
+from app.api.v1.references import router as references_router
+from app.api.v1.marketing import router as marketing_router
+from app.api.v1.appendix import router as appendix_router
 
 v1_router = APIRouter()
 
@@ -32,6 +44,19 @@ v1_router.include_router(share_router)
 v1_router.include_router(chips_router)
 v1_router.include_router(dev_router)
 v1_router.include_router(testing_router)
+v1_router.include_router(security_router)
+v1_router.include_router(privacy_router)
+v1_router.include_router(validation_router)
+v1_router.include_router(rate_limiting_router)
+v1_router.include_router(deployment_router)
+v1_router.include_router(project_management_router)
+v1_router.include_router(troubleshooting_router)
+v1_router.include_router(faq_router)
+v1_router.include_router(mobile_router)
+v1_router.include_router(references_router)
+v1_router.include_router(marketing_router)
+v1_router.include_router(appendix_router)
 
 __all__ = ["v1_router"]
+
 

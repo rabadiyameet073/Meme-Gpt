@@ -7,8 +7,10 @@ client = TestClient(app)
 
 
 def test_400_bad_request_envelope():
+    from app.core.rate_limit import rate_limiter
+    rate_limiter.reset()
     # Whitespace-only query triggers 400 after sanitization
-    res = client.post("/api/v1/search", json={"query": "   "})
+    res = client.post("/api/v1/search", json={"query": "   "}, headers={"X-API-Key": "memegpt_dev_demo_key"})
     assert res.status_code == 400
     data = res.json()
     assert data["success"] is False
@@ -18,7 +20,7 @@ def test_400_bad_request_envelope():
 
 
 def test_404_not_found_envelope():
-    res = client.get("/api/v1/memes/completely-nonexistent-meme-uuid")
+    res = client.get("/api/v1/memes/completely-nonexistent-meme-uuid", headers={"X-API-Key": "memegpt_dev_demo_key"})
     assert res.status_code == 404
     data = res.json()
     assert data["success"] is False
@@ -27,8 +29,10 @@ def test_404_not_found_envelope():
 
 
 def test_422_validation_error_structured_details():
+    from app.core.rate_limit import rate_limiter
+    rate_limiter.reset()
     # Negative limit invalid format
-    res = client.post("/api/v1/search", json={"query": "test query", "limit": -5})
+    res = client.post("/api/v1/search", json={"query": "test query", "limit": -5}, headers={"X-API-Key": "memegpt_dev_demo_key"})
     assert res.status_code == 422
     data = res.json()
     assert data["success"] is False
