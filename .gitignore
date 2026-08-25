@@ -51,3 +51,8 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# Hugging Face & Model Caches
+model_cache/
+backend/model_cache/
+*.safetensors

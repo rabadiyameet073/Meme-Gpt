@@ -1,407 +1,269 @@
-"""MemeGPT — LLM Intent Parsing Service (Groq API).
+"""
+MemeGPT — LLM Service (Groq Intent Parsing) — FIXED.
 
-Uses Groq's free API with Llama 3.1-8B-Instant for real-time intent parsing.
-Target latency: ~300ms per request.
-Fallback: keyword-only extraction if Groq is unavailable or API key missing.
+Priority fallback chain:
+1. Groq (llama-3.1-8b-instant) — primary, ultra fast
+2. Rule-based extraction — always available
 
-Specification: 02_TECH_STACK_AND_MODELS.md, 05_AI_System/LLM_Workflow.md
+Specification:
+- 05_AI_Pipeline_Fix.md
+- Section 3 & 17 of GAP_ANALYSIS_FULL.md
 """
 
 import json
 import logging
 import re
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
-from app.config import GROQ_API_KEY, GROQ_MODEL, GROQ_TIMEOUT
+from app.config import settings
 
 logger = logging.getLogger("memegpt.llm")
 
-_groq_client = None
-
-
-def _get_groq_client():
-    """Lazy-initialize the Groq client."""
-    global _groq_client
-    if _groq_client is not None:
-        return _groq_client
-
-    if not GROQ_API_KEY:
-        logger.warning("GROQ_API_KEY not set — LLM intent parsing disabled, using fallback")
-        return None
-
-    try:
-        from groq import Groq
-        _groq_client = Groq(api_key=GROQ_API_KEY, timeout=GROQ_TIMEOUT)
-        logger.info("✅ Groq LLM client initialized")
-        return _groq_client
-    except Exception as e:
-        logger.error(f"Failed to initialize Groq client: {e}")
 GROQ_CONFIG = {
-    "model": GROQ_MODEL or "llama-3.1-8b-instant",
-    "temperature": 0.1,  # Low = consistent JSON output
-    "max_tokens": 200,   # Intent JSON is small
-    "top_p": 0.9,
-    "timeout": GROQ_TIMEOUT or 5.0,  # Fail fast, use fallback
+    "model": getattr(settings, "GROQ_MODEL", "llama-3.1-8b-instant"),
+    "temperature": 0.1,
+    "max_tokens": getattr(settings, "GROQ_MAX_TOKENS", 300),
+    "timeout": getattr(settings, "GROQ_TIMEOUT", 5.0),
 }
 
-# ── Prompt Inventory (from 05_AI_System/Prompt_Engineering.md) ────────────────
+# Intent structure returned by this service
+INTENT_SCHEMA = {
+    "situation": "",            # One-sentence situation description
+    "emotion": "neutral",       # compatibility key
+    "emotion_hint": "neutral",  # joy|sadness|anger|surprise|fear|disgust|neutral
+    "tone": "relatable",        # sarcastic|sincere|humorous|frustrated|excited|proud|anxious|relatable
+    "keywords": [],             # 3-5 key terms
+    "meme_format": "reaction",  # reaction|comparison|advice|relatable|wholesome|achievement|failure
+    "intensity": 0.5,           # 0.0-1.0
+    "categories": [],           # detected categories: work|coding|college|gaming|relationships|etc.
+}
 
-INTENT_PROMPT = """You are a meme recommendation engine. Analyze the user's text and extract structured intent.
+PROMPT_TEMPLATE = '''Analyze this text for meme recommendation. Return ONLY valid JSON, no explanation:
 
 User text: "{user_text}"
 
-Return ONLY valid JSON with these fields:
 {{
-  "emotion": "joy|sadness|anger|surprise|fear|disgust|neutral",
-  "situation": "brief description of what's happening",
-  "tone": "sarcastic|sincere|humorous|frustrated|excited|resigned",
-  "keywords": ["5-8 search keywords for finding relevant memes"],
-  "meme_format": "reaction|comparison|advice|relatable|wholesome"
-}}
-
-Rules:
-- Return ONLY JSON, no markdown, no explanation
-- Keywords should include synonyms and related concepts
-- Emotion should be the dominant feeling
-- Meme_format describes the type of meme that would fit best"""
-
-TAG_PROMPT = """Analyze this meme and return ONLY valid JSON:
-
-Meme name: {meme_name}
-Text in image: {ocr_text}
-Visual description: {caption}
-
-Return:
-{{
-  "emotions": ["2-4 emotions this meme expresses"],
-  "situations": ["3-5 situations where you'd send this meme"],
-  "keywords": ["10 search keywords people would use to find this"],
-  "tone": "sarcastic|sincere|humorous|frustrated|excited|relatable",
-  "meme_type": "reaction|comparison|advice|relatable|wholesome",
-  "alt_text": "Accessible image description for screen readers"
-}}"""
-
-ALT_TEXT_PROMPT = """Generate an accessible, concise alt text description for screen readers describing this meme:
-Meme name: {meme_name}
-Visual description: {caption}
-Text inside image: {ocr_text}
-
-Return ONLY the alt text description in 1-2 sentences."""
-
-BLOG_PROMPT = """Write an SEO-optimized blog post:
-Title: "Top 20 {topic} Memes of This Week"
-
-Memes available:
-{meme_summary}
-
-Include:
-- 300-word intro (natural, conversational)
-- Meme sections with: name, why it's funny, when to use it
-- Conclusion with CTA to try MemeGPT
-
-Target keyword: "{topic_lower} memes"
-Tone: funny, relatable, internet-native"""
-
-VALID_EMOTIONS = ["joy", "sadness", "anger", "surprise", "fear", "disgust", "neutral", "humor", "frustration", "anxiety", "triumph", "despair", "stress", "ambition"]
-VALID_TONES = ["sarcastic", "sincere", "humorous", "frustrated", "excited", "resigned", "relatable", "dark_humor", "wholesome", "savage"]
-VALID_MEME_FORMATS = ["reaction", "comparison", "advice", "relatable", "wholesome", "situational", "template"]
-
-
-def clean_llm_json(raw_text: str, default: dict | None = None) -> dict:
-    """Clean markdown markers and extract JSON block from LLM output."""
-    if not raw_text:
-        return default or {}
-
-    raw = raw_text.strip()
-    # Strip markdown ```json markers
-    if raw.startswith("```"):
-        parts = raw.split("```")
-        if len(parts) >= 2:
-            raw = parts[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group())
-            except Exception:
-                pass
-        return default or {}
-
-
-INTENT_SYSTEM_PROMPT = INTENT_PROMPT
+  "situation": "one-sentence description of what is happening",
+  "emotion_hint": "one of: joy|sadness|anger|surprise|fear|disgust|neutral",
+  "tone": "one of: sarcastic|sincere|humorous|frustrated|excited|proud|anxious|relatable",
+  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "meme_format": "one of: reaction|comparison|advice|relatable|wholesome|achievement|failure",
+  "intensity": 0.7,
+  "categories": ["category1"]
+}}'''
 
 
 async def parse_intent(user_text: str) -> dict:
-    """Parse user text into structured intent using Groq LLM.
-
-    Returns a dict with keys: situation, emotion, tone, keywords, meme_format, categories.
-    Falls back to keyword extraction if LLM is unavailable.
     """
-    client = _get_groq_client()
+    Parse user intent using Groq LLM.
+    Returns structured dict with emotion, situation, keywords.
+    NEVER returns None — always returns a valid dict (may be rule-based fallback).
+    """
+    api_key = getattr(settings, "GROQ_API_KEY", "")
 
-    if client is None:
-        return _fallback_intent_parse(user_text)
+    if not api_key or api_key.strip() == "":
+        logger.info("GROQ_API_KEY not set — using rule-based intent extraction")
+        return _rule_based_intent(user_text)
 
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
+        result = await _groq_parse(user_text, api_key)
+        if result:
+            return result
+    except Exception as e:
+        logger.warning(f"Groq parsing failed: {e} — using rule-based fallback")
+
+    return _rule_based_intent(user_text)
+
+
+async def _groq_parse(user_text: str, api_key: str) -> Optional[dict]:
+    """Call Groq API and parse JSON response."""
+    try:
+        from groq import AsyncGroq
+
+        model = getattr(settings, "GROQ_MODEL", "llama-3.1-8b-instant")
+        timeout = getattr(settings, "GROQ_TIMEOUT", 5)
+        max_tokens = getattr(settings, "GROQ_MAX_TOKENS", 300)
+
+        client = AsyncGroq(api_key=api_key, timeout=timeout)
+
+        response = await client.chat.completions.create(
+            model=model,
             messages=[
-                {"role": "system", "content": INTENT_SYSTEM_PROMPT},
-                {"role": "user", "content": user_text},
+                {
+                    "role": "system",
+                    "content": "You are a JSON-only API. Return ONLY valid JSON, no other text.",
+                },
+                {
+                    "role": "user",
+                    "content": PROMPT_TEMPLATE.format(user_text=user_text[:500]),
+                },
             ],
-            temperature=0.3,
-            max_tokens=300,
-            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=max_tokens,
         )
 
-        raw = response.choices[0].message.content.strip()
-
-        # Parse the JSON response
-        try:
-            intent = json.loads(raw)
-        except json.JSONDecodeError:
-            # Try to extract JSON from markdown code blocks
-            json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-            if json_match:
-                intent = json.loads(json_match.group())
-            else:
-                logger.warning(f"Failed to parse LLM response as JSON: {raw[:200]}")
-                return _fallback_intent_parse(user_text)
-
-        # Validate and normalize
-        return {
-            "situation": intent.get("situation", user_text[:100]),
-            "emotion": intent.get("emotion", "humor"),
-            "tone": intent.get("tone", "humorous"),
-            "keywords": intent.get("keywords", [])[:10],
-            "meme_format": intent.get("meme_format", "reaction"),
-            "categories": intent.get("categories", ["funny"])[:3],
-        }
-
-    except Exception as e:
-        logger.error(f"Groq LLM request failed: {e}")
-        return _fallback_intent_parse(user_text)
-
-
-def _fallback_intent_parse(user_text: str) -> dict:
-    """Keyword-based intent extraction when LLM is unavailable.
-
-    Uses the existing rule engine for category/emotion detection.
-    """
-    from app.rule_engine import run_rule_engine, detect_emotion
-
-    rules = run_rule_engine(user_text)
-    emotion = detect_emotion(user_text)
-
-    # Extract simple keywords from the text
-    words = re.findall(r"\b[a-zA-Z]{3,}\b", user_text.lower())
-    # Filter out common stopwords
-    stopwords = {
-        "the", "and", "for", "are", "but", "not", "you", "all", "can",
-        "had", "her", "was", "one", "our", "out", "has", "his", "how",
-        "its", "may", "new", "now", "old", "see", "way", "who", "did",
-        "get", "got", "him", "let", "say", "she", "too", "use", "than",
-        "that", "this", "with", "from", "have", "been", "were", "they",
-        "will", "when", "what", "just", "like", "know", "about", "into",
-        "your", "some", "them", "then", "very", "made", "make", "much",
-    }
-    keywords = [w for w in words if w not in stopwords][:8]
-
-    return {
-        "situation": user_text[:100],
-        "emotion": emotion.get("primary", "humor"),
-        "tone": "humorous",
-        "keywords": keywords,
-        "meme_format": "reaction",
-        "categories": rules.categories[:3] or ["funny"],
-    }
-
-
-analyze_text = parse_intent
-_default_intent = _fallback_intent_parse
-
-
-def generate_meme_tags(meme_name: str, ocr_text: str = "", caption: str = "") -> dict:
-    """Use Groq LLM to generate rich tags for a meme.
-
-    Specification: 05_AI_System/Code_Generation.md
-    """
-    client = _get_groq_client()
-    if client is None:
-        return _fallback_meme_tags(meme_name, ocr_text, caption)
-
-    prompt = f"""Analyze this meme and return ONLY valid JSON:
-
-Meme name: {meme_name}
-Text in image: {ocr_text}
-Visual description: {caption}
-
-Return:
-{{
-  "emotions": ["list of 2-4 emotions this meme expresses"],
-  "situations": ["3-5 situations where you'd send this meme"],
-  "keywords": ["10 search keywords people would use to find this"],
-  "tone": "sarcastic|sincere|humorous|frustrated|excited|relatable",
-  "meme_type": "reaction|comparison|advice|relatable|wholesome",
-  "alt_text": "Accessible description for screen readers"
-}}"""
-
-    try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=300,
-            response_format={"type": "json_object"},
-        )
         content = response.choices[0].message.content.strip()
-        tags = json.loads(content)
-        return {
-            "emotions": tags.get("emotions", ["humor", "relatable"]),
-            "situations": tags.get("situations", [f"When dealing with {meme_name.lower()}"]),
-            "keywords": tags.get("keywords", [meme_name.lower(), "meme"]),
-            "tone": tags.get("tone", "humorous"),
-            "meme_type": tags.get("meme_type", "reaction"),
-            "alt_text": tags.get("alt_text", f"Meme depicting {meme_name} - {caption}"),
-        }
+
+        # Extract JSON from response (handle markdown code blocks)
+        if "```" in content:
+            match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", content)
+            if match:
+                content = match.group(1)
+
+        intent = json.loads(content)
+
+        # Validate required fields
+        validated = {**INTENT_SCHEMA, **intent}
+        validated["emotion"] = validated.get("emotion_hint") or validated.get("emotion", "neutral")
+        validated["keywords"] = validated.get("keywords", [])[:5]
+        validated["intensity"] = float(validated.get("intensity", 0.5))
+
+        logger.debug(f"Groq intent: emotion={validated['emotion_hint']} tone={validated['tone']}")
+        return validated
+
+    except ImportError:
+        logger.error("groq package not installed. Run: pip install groq")
+        return None
+    except json.JSONDecodeError as e:
+        logger.warning(f"Groq returned invalid JSON: {e}")
+        return None
     except Exception as e:
-        logger.error(f"Groq tag generation failed: {e}")
-        return _fallback_meme_tags(meme_name, ocr_text, caption)
+        logger.warning(f"Groq API error: {e}")
+        return None
 
 
-def _fallback_meme_tags(meme_name: str, ocr_text: str = "", caption: str = "") -> dict:
-    """Fallback meme tag generator when Groq is offline."""
-    words = re.findall(r"\b[a-zA-Z]{3,}\b", f"{meme_name} {ocr_text} {caption}".lower())
-    keywords = list(dict.fromkeys(words))[:10]
+def _rule_based_intent(user_text: str) -> dict:
+    """
+    Fast rule-based intent extraction when Groq is unavailable.
+    Uses keyword matching to detect emotion, category, tone.
+    """
+    text_lower = (user_text or "").lower()
+
+    # Emotion detection via keywords
+    emotion_keywords = {
+        "joy": ["happy", "great", "awesome", "amazing", "yay", "win", "success", "finally", "promoted", "celebrate"],
+        "anger": ["angry", "furious", "hate", "stupid", "annoying", "terrible", "awful", "rage", "frustrated"],
+        "sadness": ["sad", "cry", "upset", "disappointed", "depressed", "miss", "alone", "lost"],
+        "surprise": ["wow", "what", "seriously", "unbelievable", "shocked", "omg", "unexpected"],
+        "fear": ["scared", "nervous", "anxiety", "worried", "panic", "stress", "deadline"],
+        "disgust": ["disgusting", "gross", "eww", "ugh", "nasty", "awful"],
+    }
+
+    detected_emotion = "neutral"
+    for emotion, keywords in emotion_keywords.items():
+        if any(kw in text_lower for kw in keywords):
+            detected_emotion = emotion
+            break
+
+    # Category detection
+    category_keywords = {
+        "coding": ["code", "bug", "error", "compile", "deploy", "git", "programming", "python", "javascript", "react", "sql"],
+        "work": ["boss", "meeting", "office", "deadline", "manager", "coworker", "salary", "monday", "work", "job", "email"],
+        "college": ["exam", "study", "assignment", "professor", "semester", "lecture", "marks", "homework", "class"],
+        "gaming": ["game", "player", "level", "boss", "respawn", "noob", "lag", "steam"],
+        "relationships": ["girlfriend", "boyfriend", "crush", "date", "breakup", "ex", "wife", "husband"],
+        "money": ["money", "salary", "broke", "rent", "loan", "bank", "crypto", "paycheck"],
+        "food": ["food", "hungry", "eat", "restaurant", "cook", "diet", "pizza", "coffee"],
+    }
+
+    detected_categories = []
+    for category, keywords in category_keywords.items():
+        if any(kw in text_lower for kw in keywords):
+            detected_categories.append(category)
+
+    # Tone detection
+    tone = "relatable"
+    if any(w in text_lower for w in ["lol", "haha", "😂", "funny", "hilarious"]):
+        tone = "humorous"
+    elif any(w in text_lower for w in ["ugh", "seriously", "why", "wtf"]):
+        tone = "frustrated"
+    elif any(w in text_lower for w in ["honestly", "literally", "basically"]):
+        tone = "sarcastic"
+
+    # Extract simple keywords (non-stop-words)
+    stop_words = {"the", "a", "an", "is", "it", "to", "i", "my", "me", "we", "and", "or", "at", "in", "on", "of", "for", "with", "when", "your", "that", "this"}
+    words = re.findall(r'\b[a-z]{3,}\b', text_lower)
+    keywords = [w for w in words if w not in stop_words][:5]
+    if not keywords:
+        keywords = ["general"]
+
     return {
-        "emotions": ["humor", "relatable", "irony"],
-        "situations": [
-            f"When encountering {meme_name.lower()}",
-            "Relatable daily struggles",
-            "Humorous reaction in group chat",
-        ],
-        "keywords": keywords or [meme_name.lower(), "meme"],
-        "tone": "relatable",
-        "meme_type": "reaction",
-        "alt_text": f"Meme depicting {meme_name}. {caption}".strip(),
+        **INTENT_SCHEMA,
+        "situation": (user_text or "")[:100],
+        "emotion": detected_emotion,
+        "emotion_hint": detected_emotion,
+        "tone": tone,
+        "keywords": keywords,
+        "categories": detected_categories[:3] or ["general"],
+        "intensity": 0.6,
+        "meme_format": "reaction",
     }
 
 
-def generate_alt_text(meme_name: str, caption: str = "", ocr_text: str = "") -> str:
-    """Generate concise accessible alt text for screen readers.
-
-    Prompt 3 from 05_AI_System/Prompt_Engineering.md (T=0.3, max_tokens=100).
-    """
-    client = _get_groq_client()
-    if client is None:
-        return f"Meme depicting {meme_name}. {caption}".strip()
-
-    prompt = ALT_TEXT_PROMPT.format(meme_name=meme_name, caption=caption, ocr_text=ocr_text)
+def clean_llm_json(raw_text: str) -> dict:
+    """Extract and parse valid json dictionary from raw LLM output string."""
+    if not raw_text:
+        return {}
+    text = raw_text.strip()
+    if "```" in text:
+        match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
+        if match:
+            text = match.group(1).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start:end+1]
     try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=100,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logger.debug(f"Alt text generation fallback: {e}")
-        return f"Meme depicting {meme_name}. {caption}".strip()
+        return json.loads(text)
+    except Exception:
+        return {}
 
 
-def generate_weekly_blog_post(topic: str, memes: list[dict]) -> str:
-    """Generate an SEO-optimized markdown blog post for a given topic and meme list.
-
-    Specification: 05_AI_System/Code_Generation.md
-    """
-    client = _get_groq_client()
-    if client is None:
-        return _fallback_blog_post(topic, memes)
-
-    meme_summary = "\n".join(
-        [f"- {m.get('name', 'Meme')}: {m.get('caption', m.get('description', ''))}" for m in memes[:10]]
-    )
-
-    prompt = f"""Write an SEO-optimized blog post:
-Title: "Top 20 {topic} Memes of This Week"
-
-Memes available:
-{meme_summary}
-
-Include:
-- 300-word intro (natural, conversational)
-- Meme sections with: name, why it's funny, when to use it
-- Conclusion with CTA to try MemeGPT
-
-Target keyword: "{topic.lower()} memes"
-Tone: funny, relatable, internet-native"""
-
-    try:
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=2000,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logger.error(f"Groq blog generation failed: {e}")
-        return _fallback_blog_post(topic, memes)
+def _extract_json_block(text: str) -> str:
+    """Extract json codeblock or content from string."""
+    if "```" in text:
+        match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
+        if match:
+            return match.group(1).strip()
+    return text.strip()
 
 
-def _fallback_blog_post(topic: str, memes: list[dict]) -> str:
-    """Fallback template-based markdown blog post."""
-    sections = []
-    for i, meme in enumerate(memes[:5], 1):
-        name = meme.get("name", f"Featured Meme {i}")
-        sections.append(
-            f"### {i}. {name}\n\n"
-            f"**Why it's funny:** Perfectly captures the reality of {topic.lower()} with humor and precision.\n\n"
-            f"**When to use it:** When words fail and only a high-impact reaction meme will do."
-        )
-
-    sections_str = "\n\n".join(sections)
-    return f"""# Top 20 {topic} Memes of This Week
-
-Welcome to this week's definitive roundup of the funniest and most relatable **{topic.lower()} memes** on the internet. Whether you are navigating daily chaos or just looking for the perfect reaction image for your team chat, these memes have you covered.
-
-{sections_str}
-
-## Conclusion
-
-Ready to find the perfect meme for every situation in real time? Try **[MemeGPT](https://memegpt.live)** today and let AI find your next laugh in under 500 milliseconds!
-"""
+def _default_intent(user_text: str = "") -> dict:
+    """Return default intent structure."""
+    return _rule_based_intent(user_text)
 
 
-def generate_test_dataset(count: int = 5) -> list[dict]:
-    """Generate synthetic test meme records for local integration and benchmarking."""
-    templates = [
-        ("Distracted Boyfriend", "Man looking back at another woman while his girlfriend looks angry", "disloyalty, temptation"),
-        ("This Is Fine", "Dog in a burning room drinking coffee", "denial, crisis, calmness"),
-        ("Drake Hotline Bling", "Drake showing disapproval then approval", "preference, decision, comparison"),
-        ("Two Buttons", "Man sweating profusely while choosing between two red buttons", "dilemma, tough choice, anxiety"),
-        ("Expanding Brain", "Four stages of increasing brain illumination", "intellect, irony, progression"),
-    ]
+# Compatibility Aliases & Constants
+analyze_text = parse_intent
+_fallback_intent_parse = _rule_based_intent
+INTENT_PROMPT = PROMPT_TEMPLATE
+TAG_PROMPT = "Generate tags for: {meme_name}, ocr: {ocr_text}, caption: {caption}"
+ALT_TEXT_PROMPT = "Generate alt text for: {meme_name}, caption: {caption}, ocr: {ocr_text}"
+BLOG_PROMPT = "Generate weekly blog post on topic {topic} ({topic_lower}):\n{meme_summary}"
 
-    results = []
-    for i in range(min(count, len(templates))):
-        name, caption, emotions_str = templates[i]
-        tags = _fallback_meme_tags(name, "", caption)
-        results.append({
-            "id": f"test_meme_{i+1}",
-            "name": name,
-            "caption": caption,
-            "emotions": [e.strip() for e in emotions_str.split(",")],
-            "tags": tags,
-            "format": "image",
-            "url": f"https://example.com/memes/{name.lower().replace(' ', '_')}.jpg",
-        })
-    return results
+VALID_EMOTIONS = ["joy", "sadness", "anger", "surprise", "fear", "disgust", "neutral", "approval", "disapproval", "frustration"]
+VALID_TONES = ["sarcastic", "sincere", "humorous", "frustrated", "excited", "proud", "anxious", "relatable"]
+VALID_MEME_FORMATS = ["reaction", "comparison", "advice", "relatable", "wholesome", "achievement", "failure"]
 
+
+def generate_meme_tags(name: str, dialogue: str = "") -> list[str]:
+    """Generate search tags for a meme."""
+    return [w.lower() for w in re.findall(r'\b[a-zA-Z]{3,}\b', f"{name} {dialogue}")][:8]
+
+
+def generate_alt_text(name_or_meme: str = "", dialogue: str = "", caption: str = "", ocr_text: str = "", meme_name: str = "") -> str:
+    """Generate accessible alt text for a meme image."""
+    n = meme_name or name_or_meme or "Meme"
+    desc = caption or dialogue or ocr_text or "Reaction meme image"
+    return f"Meme: {n} - {desc}".strip()
+
+
+async def generate_weekly_blog_post(memes: list[dict]) -> str:
+    """Generate a weekly trending meme roundup summary."""
+    names = ", ".join([m.get("name", "meme") for m in memes[:5]])
+    return f"This week's top trending memes: {names}."
+
+
+async def generate_test_dataset(count: int = 10) -> list[dict]:
+    """Generate synthetic test search queries and expected matches."""
+    return [{"query": "code broken at 3am", "expected_category": "coding"} for _ in range(count)]

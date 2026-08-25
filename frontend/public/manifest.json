@@ -1,0 +1,19 @@
+{
+  "name": "MemeGPT — AI Meme Search",
+  "short_name": "MemeGPT",
+  "description": "Find the perfect meme for any situation using AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#7C3AED",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["entertainment", "utilities"],
+  "screenshots": []
+}

@@ -32,8 +32,15 @@ def _log_search_background(primary_meme_id: str, query: str, match_count: int, c
         meme = db.query(Meme).filter(Meme.id == primary_meme_id).first()
         if meme:
             meme.usage_count += 1
-            db.add(MemeUsage(meme_id=meme.id, query=query, confidence=confidence, session_id="api-session"))
-        db.add(SearchLog(query=query, match_count=match_count, latency_ms=latency_ms, session_id="api-session"))
+            db.add(MemeUsage(meme_id=meme.id, query=query_hash, confidence=confidence, session_id="api-session"))
+        db.add(SearchLog(
+            query_hash=query_hash,
+            result_count=match_count,
+            latency_ms=latency_ms,
+            top_meme_id=primary_meme_id,
+            cache_hit=False,
+            session_id="api-session"
+        ))
         db.commit()
     except Exception as e:
         logger.error(f"Error in background search log task: {e}")

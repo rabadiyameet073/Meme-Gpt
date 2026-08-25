@@ -49,32 +49,11 @@ def health_check(request: Request = None, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/stats", summary="Platform usage statistics")
+@router.get("/health/stats", summary="Platform usage statistics")
 def stats(db: Session = Depends(get_db)):
     """Returns aggregated platform search, voting, and latency statistics."""
-    total_memes = db.query(Meme).count()
-    total_searches = db.query(SearchLog).count()
-    total_votes = db.query(MemeVote).count()
-    total_usage = db.query(func.sum(Meme.usage_count)).scalar() or 0
-    avg_latency = db.query(func.avg(SearchLog.latency_ms)).scalar() or 0
-
-    return {
-        "totalMemes": total_memes,
-        "totalSearches": total_searches,
-        "totalVotes": total_votes,
-        "totalUsage": total_usage,
-        "avgLatencyMs": round(float(avg_latency), 1),
-    }
-
-
-@router.get("/categories", summary="List of available meme categories")
-def categories():
-    """Returns all supported meme category tags."""
-    return [
-        "coding", "startup", "relationship", "college", "office", "funny",
-        "motivation", "unrealistic_goals", "ai", "business", "exam", "failure",
-        "success", "gaming", "bollywood", "youtube", "money", "sleep"
-    ]
+    from app.api.v1.categories import get_stats
+    return get_stats(db)
 
 
 @router.get("/database/overview", summary="Polyglot persistence architecture overview")

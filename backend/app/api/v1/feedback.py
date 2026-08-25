@@ -144,33 +144,6 @@ def vote_on_meme(body: VoteRequest, db: Session = Depends(get_db)):
     return {"success": True, "upvotes": meme.upvotes, "downvotes": meme.downvotes}
 
 
-@router.get("/favorites", summary="List user favorite memes")
-def list_favorites(sessionId: str, db: Session = Depends(get_db)):
-    """Retrieve saved favorites for the given session ID."""
-    favs = db.query(FavoriteMeme).filter(FavoriteMeme.session_id == sessionId).all()
-    meme_ids = [f.meme_id for f in favs]
-    memes = db.query(Meme).filter(Meme.id.in_(meme_ids)).all() if meme_ids else []
-    return [m.to_dict() for m in memes]
-
-
-@router.post("/favorites/toggle", summary="Toggle favorite status for a meme")
-def toggle_favorite(body: FavoriteRequest, db: Session = Depends(get_db)):
-    """Star or un-star a meme for a given session ID."""
-    existing = (
-        db.query(FavoriteMeme)
-        .filter(FavoriteMeme.meme_id == body.memeId, FavoriteMeme.session_id == body.sessionId)
-        .first()
-    )
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"isFavorite": False}
-    else:
-        db.add(FavoriteMeme(meme_id=body.memeId, session_id=body.sessionId))
-        db.commit()
-        return {"isFavorite": True}
-
-
 @router.post("/export", summary="Export search results to file formats")
 def export_results(body: ExportRequest):
     """Exports structured recommendation results to Markdown, Text, or JSON formats."""

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- SEO -->
+  <title>MemeGPT — Find the Perfect Meme Using AI</title>
+  <meta name="description" content="MemeGPT uses AI to instantly find the perfect meme for any situation. Just describe how you feel and get the ideal reaction meme in seconds."/>
+  <meta name="keywords" content="AI meme search, meme finder, reaction memes, meme generator, AI meme"/>
+
+  <!-- OG Tags -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://memegpt.com"/>
+  <meta property="og:title" content="MemeGPT — AI Meme Search"/>
+  <meta property="og:description" content="Find the perfect meme for any situation in seconds using AI"/>
+  <meta property="og:image" content="https://memegpt.com/og-cover.jpg"/>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #7C3AED;
+      --purple-light: #A855F7;
+      --purple-dark: #5B21B6;
+      --bg: #09090B;
+      --surface: #111113;
+      --surface-2: #18181B;
+      --border: rgba(255,255,255,0.08);
+      --text: #FAFAFA;
+      --muted: #A1A1AA;
+      --green: #22C55E;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 40px;
+      background: rgba(9,9,11,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--purple-light); }
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--purple);
+      color: white !important;
+      padding: 8px 20px;
+      border-radius: 8px !important;
+      font-weight: 600;
+      transition: background 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--purple-light) !important; color: white !important; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 20px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(124,58,237,0.25) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 80%, rgba(168,85,247,0.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(124,58,237,0.15);
+      border: 1px solid rgba(124,58,237,0.35);
+      color: var(--purple-light);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(40px, 7vw, 80px);
+      font-weight: 900;
+      line-height: 1.05;
+      max-width: 900px;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, #A855F7 0%, #7C3AED 50%, #C084FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-primary {
+      background: var(--purple);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 14px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 0 40px rgba(124,58,237,0.4);
+    }
+    .btn-primary:hover {
+      background: var(--purple-light);
+      transform: translateY(-2px);
+      box-shadow: 0 0 60px rgba(124,58,237,0.6);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 32px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: var(--surface-2); border-color: rgba(255,255,255,0.2); }
+
+    /* ── DEMO PREVIEW ── */
+    .demo-preview {
+      margin-top: 64px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,58,237,0.1);
+    }
+    .demo-input {
+      background: var(--surface-2);
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 12px;
+      padding: 14px 20px;
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      margin-bottom: 16px;
+      outline: none;
+      font-family: inherit;
+    }
+    .demo-results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .demo-meme {
+      background: var(--surface-2);
+      border-radius: 10px;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      overflow: hidden;
+    }
+
+    /* ── STATS ── */
+    .stats {
+      display: flex;
+      gap: 48px;
+      justify-content: center;
+      padding: 48px 20px;
+      flex-wrap: wrap;
+    }
+    .stat { text-align: center; }
+    .stat-number {
+      font-size: 40px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #A855F7, #7C3AED);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+    /* ── FEATURES ── */
+    .section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+    .section-title {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: -1px;
+      margin-bottom: 48px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: all 0.2s;
+    }
+    .feature-card:hover {
+      border-color: rgba(124,58,237,0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .feature-icon { font-size: 32px; margin-bottom: 16px; }
+    .feature-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { color: var(--muted); font-size: 14px; line-height: 1.7; }
+
+    /* ── HOW IT WORKS ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px;
+      text-align: center;
+    }
+    .step-number {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-light));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      margin: 0 auto 16px;
+    }
+    .step-title { font-weight: 700; margin-bottom: 8px; }
+    .step-desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    /* ── CTA ── */
+    .cta-section {
+      text-align: center;
+      padding: 80px 20px;
+      background: radial-gradient(ellipse at center, rgba(124,58,237,0.12) 0%, transparent 70%);
+    }
+    .cta-section h2 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+    }
+    .cta-section p { color: var(--muted); font-size: 18px; margin-bottom: 32px; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    footer p { color: var(--muted); font-size: 14px; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .footer-links a:hover { color: var(--text); }
+
+    @media (max-width: 768px) {
+      nav { padding: 12px 20px; }
+      .nav-links { display: none; }
+      .demo-results { grid-template-columns: repeat(2, 1fr); }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">🎭 Meme<span>GPT</span></a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#how-it-works">How It Works</a></li>
+    <li><a href="/docs">API Docs</a></li>
+    <li><a href="/" class="nav-cta">Try Free →</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">🤖 Powered by Groq LLM + Qdrant Vector Search</div>
+  <h1>Find the <span class="gradient">Perfect Meme</span><br/>for Any Situation</h1>
+  <p>Just describe how you feel. MemeGPT's AI understands context, emotion, and humor to find the ideal meme in under 1.5 seconds.</p>
+  <div class="hero-actions">
+    <a href="/" class="btn-primary">Try MemeGPT Free →</a>
+    <a href="https://github.com" class="btn-secondary">View on GitHub</a>
+  </div>
+
+  <!-- Demo Preview -->
+  <div class="demo-preview">
+    <input
+      class="demo-input"
+      placeholder='Try: "when the code works but you don't know why"'
+      readonly
+    />
+    <div class="demo-results">
+      <div class="demo-meme">🤔</div>
+      <div class="demo-meme">🐕</div>
+      <div class="demo-meme">😅</div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-number">5,000+</div>
+    <div class="stat-label">Memes indexed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">&lt;1.5s</div>
+    <div class="stat-label">Avg response time</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">384-dim</div>
+    <div class="stat-label">Semantic vectors</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">Free</div>
+    <div class="stat-label">No signup needed</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <h2 class="section-title">Everything You Need to Find the Right Meme</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-title">AI Intent Understanding</div>
+      <div class="feature-desc">Groq's LLaMA-3.1 parses your text for situation, emotion, and tone — not just keywords.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Vector Search (Sub-50ms)</div>
+      <div class="feature-desc">Qdrant cosine similarity search across 5,000 meme embeddings. Finds conceptual matches, not literal word matches.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">😂</div>
+      <div class="feature-title">Emotion Detection</div>
+      <div class="feature-desc">DistilRoBERTa detects joy, anger, sadness, surprise, fear, disgust — then ranks memes by emotional match.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎞️</div>
+      <div class="feature-title">All Formats</div>
+      <div class="feature-desc">Get GIFs, static images, or MP4 videos. Filter by format preference. CDN-delivered from Cloudflare R2.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔑</div>
+      <div class="feature-title">API Access</div>
+      <div class="feature-desc">Integrate MemeGPT into your own app. Free tier: 120 req/min. Pro tier: 300 req/min.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Mobile App</div>
+      <div class="feature-desc">Native iOS & Android app with share sheet, camera roll save, and offline cache for last 50 memes.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how-it-works">
+  <h2 class="section-title">How It Works</h2>
+  <div class="steps">
+    <div>
+      <div class="step-number">1</div>
+      <div class="step-title">Describe Your Situation</div>
+      <div class="step-desc">Type anything: "my boss scheduled a 9am meeting on Friday afternoon" — in natural language.</div>
+    </div>
+    <div>
+      <div class="step-number">2</div>
+      <div class="step-title">AI Parses Your Intent</div>
+      <div class="step-desc">Groq LLM extracts emotion, situation, tone, and keywords in under 300ms.</div>
+    </div>
+    <div>
+      <div class="step-number">3</div>
+      <div class="step-title">Vector Search</div>
+      <div class="step-desc">Your query is embedded and matched against 5,000 meme vectors using cosine similarity.</div>
+    </div>
+    <div>
+      <div class="step-number">4</div>
+      <div class="step-title">Smart Re-ranking</div>
+      <div class="step-desc">Results are re-ranked by semantic match, emotional fit, popularity, and format preference.</div>
+    </div>
+    <div>
+      <div class="step-number">5</div>
+      <div class="step-title">Get Your Meme</div>
+      <div class="step-desc">Copy, download, or share with one click. Result cached for 1 hour for instant repeat queries.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-section">
+  <h2>Ready to Find Your Meme?</h2>
+  <p>No signup required. Free forever for personal use.</p>
+  <a href="/" class="btn-primary" style="font-size:18px;padding:18px 48px;">
+    Start Searching Free →
+  </a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2026 MemeGPT. Built with Groq + Qdrant + FastAPI.</p>
+  <div class="footer-links">
+    <a href="/">App</a>
+    <a href="/docs">API Docs</a>
+    <a href="/sitemap.xml">Sitemap</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.memegpt.com/api/:path*"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://api.memegpt.com/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "https://api.memegpt.com/robots.txt"
+    },
+    {
+      "source": "/landing",
+      "destination": "/landing.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

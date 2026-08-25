@@ -1,54 +1,47 @@
-"""MemeGPT — Recommendation Pipeline Orchestrator.
+"""MemeGPT — Recommendation Pipeline Orchestrator (FIXED).
 
 The central pipeline called for every user search request.
 Target latency: < 1.5 seconds total.
 
 Pipeline stages:
   1. Cache check (~15ms on hit)
-  2. Intent parsing via LLM (~300ms) — or keyword fallback (~5ms)
-  3. Emotion detection (~100ms) — or rule-based fallback (~1ms)
-  4. Query embedding (~50ms)
-  5. Vector search (~50ms) — or local fallback (~20ms)
-  6. Re-ranking (~10ms)
-  7. Build response with CDN URLs
+  2. Intent parsing via LLM (~300ms) in parallel with emotion detection (~100ms)
+  3. Query embedding (~50ms)
+  4. Vector search (~50ms) via Qdrant with payload filters
+  5. Re-ranking (~10ms)
+  6. Response construction with CDN media URLs & 1hr cache storage
 
-Specification: 03_ML_PIPELINE_AND_TRAINING.md, 04_DESIGN_AND_DEVELOPMENT.md
+Specification: 03_ML_PIPELINE_AND_TRAINING.md, 05_AI_Pipeline_Fix.md
 """
 
 import asyncio
-import hashlib
 import logging
 import time
 import uuid
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
+from app.core.cache import cache_get, cache_set, make_cache_key, query_cache
 from app.services import embedding_service
 from app.services import llm_service
 from app.services import search_service
 from app.services import rerank_service
 from app.services import cdn_service
 from app.services import giphy_service
-from app.core.cache import query_cache
 
 logger = logging.getLogger("memegpt.recommendation")
 
+_make_cache_key = make_cache_key
+
 SIGNAL_WEIGHTS = {
-    "view": 0.1,         # Saw the result
-    "click": 0.5,        # Clicked to expand
-    "copy": 1.0,         # Copied the image
-    "download": 2.0,     # Downloaded the meme
-    "share": 3.0,        # Shared via link
-    "thumbs_up": 2.0,    # Explicit positive
-    "thumbs_down": -1.0, # Explicit negative
-    "skip": -0.3,        # Scrolled past without interaction
+    "view": 0.1,
+    "click": 0.5,
+    "copy": 1.0,
+    "download": 2.0,
+    "share": 3.0,
+    "thumbs_up": 2.0,
+    "thumbs_down": -1.0,
+    "skip": -0.3,
 }
-
-
-
-def _make_cache_key(user_text: str, format_pref: str, nsfw: bool = False) -> str:
-    """Deterministic cache key generator as specified in Business_Logic.md."""
-    raw = f"{user_text.lower().strip()}:{format_pref or 'any'}:{nsfw}"
-    return f"search:{hashlib.md5(raw.encode('utf-8')).hexdigest()}"
 
 
 async def recommend(
@@ -62,7 +55,7 @@ async def recommend(
 
     Args:
         user_text: The user's query/situation description
-        format_pref: Preferred format (gif, video, image)
+        format_pref: Preferred format (gif, video, image, any)
         nsfw: Whether to include NSFW memes
         session_id: User session ID for analytics
         memes_from_db: Pre-loaded memes from database (for fallback matching)
@@ -70,42 +63,36 @@ async def recommend(
     start = time.perf_counter()
     query_id = f"q_{uuid.uuid4().hex[:8]}"
 
-    # Input truncation safeguards (Performance.md)
     clean_text = (user_text or "")[:2000].strip()
+    if not clean_text:
+        clean_text = "funny reaction"
     emotion_text = clean_text[:512]
 
     # ── 1. Cache check (~15ms on hit) ─────────────────────────────────────
-    cache_key = _make_cache_key(clean_text, format_pref, nsfw)
-    cached = query_cache.get(cache_key)
+    cache_key = make_cache_key(clean_text, format_pref, nsfw)
+    cached = cache_get(cache_key)
     if cached is not None:
         elapsed = int((time.perf_counter() - start) * 1000)
-        logger.info(f"Cache hit for {cache_key[:16]} ({elapsed}ms)")
+        logger.debug(f"Cache hit for {cache_key[:16]} ({elapsed}ms)")
         return {**cached, "latencyMs": elapsed, "cached": True}
 
     # ── 2 & 3. Concurrent Intent Parsing & Emotion Detection (~300ms) ─────
-    # Run LLM intent parsing and emotion classifier in parallel to reduce latency
-    async def _get_intent():
-        try:
-            return await llm_service.parse_intent(clean_text)
-        except Exception:
-            return {"keywords": clean_text.split()[:5], "categories": ["general"]}
-
-    async def _get_emotion():
-        try:
-            return embedding_service.detect_emotion(emotion_text)
-        except Exception:
-            return {"primary": "neutral", "all": {"neutral": 1.0}}
-
-    intent, emotion = await asyncio.gather(_get_intent(), _get_emotion())
+    loop = asyncio.get_event_loop()
+    intent, emotion = await asyncio.gather(
+        llm_service.parse_intent(clean_text),
+        loop.run_in_executor(None, embedding_service.detect_emotion, emotion_text),
+    )
 
     # ── 4. Build enriched query text ──────────────────────────────────────
     query_text = embedding_service.build_query_text(clean_text, intent, emotion)
 
     # ── 5. Generate query embedding (~50ms) ────────────────────────────────
-    query_vector = embedding_service.embed_text(query_text[:512])
+    query_vector = await loop.run_in_executor(
+        None, embedding_service.embed_text, query_text[:512]
+    )
 
     # ── 6. Vector search (~50ms) ───────────────────────────────────────────
-    candidates = search_service.search(
+    candidates = search_service.vector_search(
         query_vector=query_vector,
         emotion=emotion.get("primary", ""),
         format_pref=format_pref,
@@ -114,8 +101,6 @@ async def recommend(
     )
 
     # ── 6b. Enrich candidates with full meme data from DB ──────────────────
-    #   Local search only returns id+score with empty payloads (embeddings.json
-    #   has no metadata). Map each result back to the full DB meme record.
     if memes_from_db:
         db_lookup = {m["id"]: m for m in memes_from_db}
         for candidate in candidates:
@@ -126,8 +111,12 @@ async def recommend(
 
     # ── 6c. Fallback: if vector search returns too few, use DB memes ──────
     if len(candidates) < 3 and memes_from_db:
-        logger.info("Vector search returned few results, augmenting with DB memes")
+        logger.debug("Vector search returned few results, augmenting with DB memes")
         candidates = _augment_from_db(candidates, memes_from_db, query_vector)
+
+    # If still no candidates, pull directly from DB
+    if not candidates:
+        candidates = search_service._db_fallback_search(10)
 
     # ── 7. Re-rank (~10ms) ─────────────────────────────────────────────────
     final_results = rerank_service.rerank(candidates, intent, emotion, format_pref)
@@ -139,6 +128,7 @@ async def recommend(
         return {
             "success": True,
             "queryId": query_id,
+            "results": [],
             "primary": None,
             "topFive": [],
             "alternatives": [],
@@ -157,24 +147,25 @@ async def recommend(
     alternatives = [_build_result(r, intent, emotion) for r in final_results[1:]]
 
     # Fetch live Giphy GIFs and Global Meme Stream
-    primary_category = (intent.get("categories") or ["funny"])[0]
+    primary_category = (intent.get("categories") or ["reaction"])[0]
     live_data = giphy_service.get_global_gifs_and_memes(
-        query=user_text,
+        query=clean_text,
         category=primary_category,
         limit=10,
     )
 
-    # Collect GIF URLs (combining local GIF refs + live Giphy GIFs)
+    # Collect GIF URLs
     local_gifs = [
-        r["meme"].get("gifRef") or r["meme"].get("gif_ref")
+        r["meme"].get("gifRef") or r["meme"].get("gif_ref") or r["meme"].get("gif_url")
         for r in final_results[:5]
-        if r["meme"].get("gifRef") or r["meme"].get("gif_ref")
+        if r["meme"].get("gifRef") or r["meme"].get("gif_ref") or r["meme"].get("gif_url")
     ]
     gifs = list(dict.fromkeys(local_gifs + live_data.get("gif_urls", [])))
 
     response = {
         "success": True,
         "queryId": query_id,
+        "results": top_five,
         "primary": primary,
         "topFive": top_five,
         "alternatives": alternatives,
@@ -188,7 +179,7 @@ async def recommend(
     }
 
     # ── Cache successful result ───────────────────────────────────────────
-    query_cache.set(cache_key, response, ttl=3600)
+    cache_set(cache_key, response, ttl=3600)
 
     logger.info(f"Recommendation completed in {elapsed_ms}ms | results={len(top_five)}")
     return response
@@ -202,11 +193,9 @@ def _build_result(item: dict, intent: dict, emotion: dict) -> dict:
     meme = item.get("meme", {})
     score = item.get("score", 0.5)
 
-    # Resolve CDN formats
     formats = cdn_service.resolve_formats(meme)
     slug = meme.get("slug") or meme.get("name", "meme").lower().replace(" ", "-")
 
-    # Build situation-specific AI explanation text
     keywords_str = ", ".join(intent.get("keywords", [])[:4]) or "the situation"
     category = meme.get("category", "general")
     base_explanation = meme.get("explanation", "")
@@ -228,10 +217,16 @@ def _build_result(item: dict, intent: dict, emotion: dict) -> dict:
         "name": meme.get("name", "Unknown Meme"),
         "slug": slug,
         "category": category,
+        "categories": meme.get("categories", [category]),
+        "emotions": meme.get("emotions", []),
         "dialogue": meme.get("dialogue", ""),
         "explanation": explanation,
         "confidence": min(max(round(score, 2), 0.15), 0.99),
         "keywords": meme.get("keywords", []),
+        "image_url": formats.get("image"),
+        "gif_url": formats.get("gif"),
+        "mp4_url": formats.get("mp4"),
+        "thumb_url": formats.get("thumb"),
         "imageRef": formats.get("image"),
         "videoRef": formats.get("mp4"),
         "gifRef": formats.get("gif"),
@@ -239,7 +234,9 @@ def _build_result(item: dict, intent: dict, emotion: dict) -> dict:
         "formats": formats,
         "shareUrl": cdn_service.get_share_url(slug),
         "viralScore": meme.get("viralScore", meme.get("viral_score", 0)),
+        "viral_score": meme.get("viral_score", meme.get("viralScore", 0)),
         "usageCount": meme.get("usageCount", meme.get("usage_count", 0)),
+        "usage_count": meme.get("usage_count", meme.get("usageCount", 0)),
         "upvotes": meme.get("upvotes", 0),
         "downvotes": meme.get("downvotes", 0),
         "emotionMatch": item.get("emotion_match", False),
@@ -252,8 +249,6 @@ def _augment_from_db(
     query_vector: list[float],
 ) -> list[dict]:
     """Augment sparse vector search results with database memes scored by cosine similarity."""
-    from app.services.search_service import _cosine_similarity
-
     existing_ids = {c.get("id") for c in candidates}
 
     for meme in memes:
@@ -261,13 +256,9 @@ def _augment_from_db(
         if meme_id in existing_ids:
             continue
 
-        # Build a simple text representation for embedding comparison
-        # Score using existing meme data
-        score = 0.3  # Base score for DB augmentation
-
-        # Boost by popularity
-        viral = meme.get("viralScore", 0) or 0
-        usage = meme.get("usageCount", 0) or 0
+        score = 0.3
+        viral = meme.get("viralScore", 0) or meme.get("viral_score", 0) or 0
+        usage = meme.get("usageCount", 0) or meme.get("usage_count", 0) or 0
         score += min(viral / 200, 0.15)
         score += min(usage / 500, 0.1)
 
@@ -277,6 +268,5 @@ def _augment_from_db(
             "meme": meme,
         })
 
-    # Sort by score
     candidates.sort(key=lambda x: x["score"], reverse=True)
     return candidates[:15]

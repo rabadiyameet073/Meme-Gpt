@@ -2,8 +2,11 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { api } from "./api";
 import { Icon } from "./components/Icon";
 import { ChatTab } from "./components/ChatTab";
+import { Sidebar } from "./components/Sidebar";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { useSearchHistory } from "./hooks/useSearchHistory";
 
-// Code splitting: Lazy load views to minimize initial JS bundle
+// Code splitting: Lazy load views
 const SearchTab = lazy(() => import("./components/SearchTab").then(m => ({ default: m.SearchTab })));
 const TrendingTab = lazy(() => import("./components/TrendingTab").then(m => ({ default: m.TrendingTab })));
 const FavoritesTab = lazy(() => import("./components/FavoritesTab").then(m => ({ default: m.FavoritesTab })));
@@ -47,6 +50,7 @@ export default function App() {
   const [view, setView] = useState<ViewState>({ type: "tab", name: "chat" });
   const [memeCount, setMemeCount] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const { history, addToHistory, clearHistory, removeFromHistory } = useSearchHistory();
 
   // Hash route parsing
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function App() {
   useEffect(() => {
     api
       .health()
-      .then((h) => setMemeCount(h.memeCount))
+      .then((h: any) => setMemeCount(h.memeCount || h.totalMemes || null))
       .catch(() => setMemeCount(null));
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -118,145 +122,189 @@ export default function App() {
     }, 3200);
   };
 
-  const currentTab = view.type === "tab" ? view.name : null;
+  const handleSelectHistoryQuery = (query: string) => {
+    navigateTo({ type: "tab", name: "chat" });
+    setTimeout(() => {
+      const input = document.querySelector<HTMLTextAreaElement | HTMLInputElement>("textarea, input[type='text']");
+      if (input) {
+        input.value = query;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        const form = input.closest("form");
+        if (form) {
+          form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        }
+      }
+    }, 100);
+  };
+
+  const currentTab = view.type === "tab" ? view.name : undefined;
 
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="header">
-        <div
-          className="logo-group"
-          style={{ cursor: "pointer" }}
-          onClick={() => navigateTo({ type: "tab", name: "chat" })}
-        >
-          <span className="logo-icon">
-            <Icon name="mask" size={20} />
-          </span>
-          <div>
-            <div className="logo-title">
-              MemeGPT <span className="version-badge">v2.5</span>
-            </div>
-            <div className="logo-tagline">AI-Powered Meme Recommendation & Semantic Matching Engine</div>
-          </div>
-        </div>
-
-        <div className="status-pill">
-          <div className="status-dot" />
-          <span>FastAPI Engine</span>
-          {memeCount !== null && (
-            <span style={{ color: "var(--text-muted)", marginLeft: "2px" }}>
-              ({memeCount} active)
-            </span>
-          )}
-        </div>
-      </header>
-
-      {/* Tabs */}
-      <nav className="tab-bar">
-        <button
-          className={`tab-btn ${currentTab === "chat" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "chat" })}
-        >
-          <Icon name="chat" size={16} /> AI Matcher
-        </button>
-        <button
-          className={`tab-btn ${currentTab === "search" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "search" })}
-        >
-          <Icon name="search" size={16} /> Browse Memes
-        </button>
-        <button
-          className={`tab-btn ${currentTab === "trending" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "trending" })}
-        >
-          <Icon name="trending" size={16} /> Trending
-        </button>
-        <button
-          className={`tab-btn ${currentTab === "favorites" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "favorites" })}
-        >
-          <Icon name="heart" size={16} /> Saved
-        </button>
-        <button
-          className={`tab-btn ${currentTab === "stats" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "stats" })}
-        >
-          <Icon name="stats" size={16} /> Analytics
-        </button>
-        <button
-          className={`tab-btn ${currentTab === "admin" ? "active" : ""}`}
-          onClick={() => navigateTo({ type: "tab", name: "admin" })}
-        >
-          <Icon name="settings" size={16} /> Admin
-        </button>
-      </nav>
+    <div className="app-layout">
+      {/* Left Sidebar */}
+      <Sidebar
+        history={history}
+        onSelectQuery={handleSelectHistoryQuery}
+        onClearHistory={clearHistory}
+        onRemoveItem={removeFromHistory}
+        activeTab={currentTab}
+        onNavigateTab={(tab) => navigateTo({ type: "tab", name: tab as any })}
+      />
 
       {/* Main Content Area */}
-      <main className="tab-content">
-        <Suspense fallback={<TabLoadingFallback />}>
-          {view.type === "tab" && view.name === "chat" && <ChatTab onToast={addToast} />}
-          {view.type === "tab" && view.name === "search" && <SearchTab onToast={addToast} />}
-          {view.type === "tab" && view.name === "trending" && <TrendingTab onToast={addToast} />}
-          {view.type === "tab" && view.name === "favorites" && <FavoritesTab onToast={addToast} />}
-          {view.type === "tab" && view.name === "stats" && <StatsTab />}
-          {view.type === "tab" && view.name === "admin" && <AdminTab onToast={addToast} />}
-          {view.type === "meme" && (
-            <MemeDetail
-              slug={view.slug}
-              onBack={() => navigateTo({ type: "tab", name: "search" })}
-              onToast={addToast}
-            />
-          )}
-          {view.type === "about" && <AboutView />}
-          {view.type === "privacy" && <PrivacyView />}
-        </Suspense>
-      </main>
-
-      {/* Toast Notifications */}
-      <div className="toast-container">
-        {toasts.map((t) => (
-          <div key={t.id} className="toast">
-            <Icon name="info" size={16} />
-            <span>{t.text}</span>
+      <div className="app-container" style={{ width: "100%", maxWidth: "1200px", padding: "20px 24px" }}>
+        {/* Header */}
+        <header className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <div
+            className="logo-group"
+            style={{ cursor: "pointer" }}
+            onClick={() => navigateTo({ type: "tab", name: "chat" })}
+          >
+            <span className="logo-icon">
+              <Icon name="mask" size={20} />
+            </span>
+            <div>
+              <div className="logo-title">
+                MemeGPT <span className="version-badge">v3.0</span>
+              </div>
+              <div className="logo-tagline">AI-Powered Meme Recommendation & Semantic Vector Matching</div>
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Footer */}
-      <footer
-        style={{
-          marginTop: "60px",
-          paddingTop: "20px",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          fontSize: "0.78rem",
-          color: "var(--text-muted)",
-        }}
-      >
-        <span>MemeGPT v2.5 · FastAPI + SQLite + Semantic AI Search Engine</span>
-        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-          <a
-            href="#/about"
-            onClick={(e) => { e.preventDefault(); navigateTo({ type: "about" }); }}
-            style={{ color: "var(--text-secondary)", textDecoration: "none" }}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div className="status-pill">
+              <div className="status-dot" />
+              <span>FastAPI Engine</span>
+              {memeCount !== null && (
+                <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>
+                  ({memeCount} active)
+                </span>
+              )}
+            </div>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        {/* Top Tab Bar (Mobile/Tablet and Quick Access) */}
+        <nav className="tab-bar">
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "chat" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "chat" })}
           >
-            About
-          </a>
-          <a
-            href="#/privacy"
-            onClick={(e) => { e.preventDefault(); navigateTo({ type: "privacy" }); }}
-            style={{ color: "var(--text-secondary)", textDecoration: "none" }}
+            <Icon name="chat" size={16} /> AI Matcher
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "search" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "search" })}
           >
-            Privacy
-          </a>
-          <span>Press <kbd style={{ padding: "2px 6px", background: "var(--bg-surface)", borderRadius: "4px", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>/</kbd> to search</span>
+            <Icon name="search" size={16} /> Browse Memes
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "trending" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "trending" })}
+          >
+            <Icon name="trending" size={16} /> Trending
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "favorites" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "favorites" })}
+          >
+            <Icon name="heart" size={16} /> Saved
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "stats" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "stats" })}
+          >
+            <Icon name="stats" size={16} /> Analytics
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${currentTab === "admin" ? "active" : ""}`}
+            onClick={() => navigateTo({ type: "tab", name: "admin" })}
+          >
+            <Icon name="settings" size={16} /> Admin
+          </button>
+        </nav>
+
+        {/* Main Content Component */}
+        <main className="tab-content">
+          <Suspense fallback={<TabLoadingFallback />}>
+            {view.type === "tab" && view.name === "chat" && (
+              <ChatTab onToast={addToast} onSearchCompleted={addToHistory} />
+            )}
+            {view.type === "tab" && view.name === "search" && <SearchTab onToast={addToast} />}
+            {view.type === "tab" && view.name === "trending" && <TrendingTab onToast={addToast} />}
+            {view.type === "tab" && view.name === "favorites" && <FavoritesTab onToast={addToast} />}
+            {view.type === "tab" && view.name === "stats" && <StatsTab />}
+            {view.type === "tab" && view.name === "admin" && <AdminTab onToast={addToast} />}
+            {view.type === "meme" && (
+              <MemeDetail
+                slug={view.slug}
+                onBack={() => navigateTo({ type: "tab", name: "search" })}
+                onToast={addToast}
+              />
+            )}
+            {view.type === "about" && <AboutView />}
+            {view.type === "privacy" && <PrivacyView />}
+          </Suspense>
+        </main>
+
+        {/* Toast Notifications */}
+        <div className="toast-container">
+          {toasts.map((t) => (
+            <div key={t.id} className="toast">
+              <Icon name="info" size={16} />
+              <span>{t.text}</span>
+            </div>
+          ))}
         </div>
-      </footer>
+
+        {/* Footer */}
+        <footer
+          style={{
+            marginTop: "60px",
+            paddingTop: "20px",
+            borderTop: "1px solid var(--border)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+            fontSize: "0.78rem",
+            color: "var(--text-muted)",
+          }}
+        >
+          <span>MemeGPT v3.0 · FastAPI + Qdrant + Semantic AI Vector Engine</span>
+          <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+            <a
+              href="#/about"
+              onClick={(e) => { e.preventDefault(); navigateTo({ type: "about" }); }}
+              style={{ color: "var(--text-secondary)", textDecoration: "none" }}
+            >
+              About
+            </a>
+            <a
+              href="#/privacy"
+              onClick={(e) => { e.preventDefault(); navigateTo({ type: "privacy" }); }}
+              style={{ color: "var(--text-secondary)", textDecoration: "none" }}
+            >
+              Privacy
+            </a>
+            <a
+              href="/landing"
+              style={{ color: "var(--brand-purple-light)", textDecoration: "none" }}
+            >
+              Marketing Page
+            </a>
+            <span>Press <kbd style={{ padding: "2px 6px", background: "var(--bg-surface)", borderRadius: "4px", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>/</kbd> to search</span>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
-

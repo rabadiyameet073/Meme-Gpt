@@ -8,6 +8,7 @@ Production features:
 - Input sanitization with null-byte kill, Unicode normalisation, and length caps
 - Composite indexes on hot query paths
 - Unique constraints to prevent duplicate votes/favourites
+- Complete upgraded schema (12+ columns per Gap Analysis)
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Generator, Sequence
+from typing import Generator, Sequence, Any, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -29,6 +30,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -37,6 +39,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.config import DATABASE_URL, DB_PATH
 
@@ -65,8 +68,8 @@ engine = create_engine(
     pool_size=5,
     max_overflow=10,
     pool_timeout=30,
-    pool_pre_ping=True,              # verify liveness before lease
-    pool_recycle=1800,               # recycle connections every 30 min (06_Database/Performance.md)
+    pool_pre_ping=True,
+    pool_recycle=1800,
     echo=False,
 )
 
@@ -108,15 +111,7 @@ _NULL_BYTE = re.compile(r"\x00")
 
 
 def sanitize_input(value: str, *, max_len: int = MAX_TEXT_LENGTH) -> str:
-    """Sanitize a user-supplied string for safe storage and display.
-
-    Steps:
-    1. Collapse null bytes (kill-switch against trivial injection)
-    2. Normalize Unicode, replacing unknown codepoints
-    3. Collapse consecutive whitespace
-    4. Drop characters outside safe Latin + punctuation range
-    5. Truncate to max_len codepoints, then RTRIM
-    """
+    """Sanitize a user-supplied string for safe storage and display."""
     if not isinstance(value, str):
         value = str(value)
     if "\x00" in value:
@@ -141,33 +136,81 @@ def is_valid_input(value: str, max_len: int = MAX_TEXT_LENGTH) -> bool:
 
 
 def is_valid_meme_id(meme_id: str) -> bool:
-    """Strong UUID v4 validation with regex."""
-    return isinstance(meme_id, str) and bool(_VALID_UUID.fullmatch(meme_id))
+    """Validate UUID or standard meme ID format."""
+    if not isinstance(meme_id, str) or not meme_id:
+        return False
+    return bool(_VALID_UUID.fullmatch(meme_id) or re.match(r"^[a-zA-Z0-9_\-\.]{1,64}$", meme_id))
 
 
 # ── ORM Models ────────────────────────────────────────────────────────
 
 
+def _generate_slug(context):
+    params = context.get_current_parameters()
+    name = params.get("name", "")
+    slug_val = re.sub(r"[^a-z0-9\s-]", "", str(name).lower()).strip().replace(" ", "-")
+    return slug_val[:180] or str(uuid.uuid4())[:8]
+
+
 class Meme(Base):
+    """
+    Meme metadata table — matches Schema.md specification.
+    Media files stored in Cloudflare R2, URLs stored here.
+    Embeddings stored in Qdrant.
+    """
     __tablename__ = "memes"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(MAX_NAME_LENGTH), nullable=False, index=True)
-    slug = Column(String(300), nullable=True, index=True)
-    category = Column(String(50), nullable=False, index=True)
-    dialogue = Column(Text, nullable=False)
-    explanation = Column(Text, nullable=False)
-    keywords = Column(Text, nullable=False)   # JSON string
+    # Primary key — matches Qdrant payload meme_id
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Core identity
+    name = Column(String(200), nullable=False, index=True)
+    slug = Column(String(200), unique=True, nullable=True, default=_generate_slug, index=True)
+
+    # Classification — stored as JSON string/object
+    categories = Column(JSON, default=list)
+    emotions = Column(JSON, default=list)
+
+    # Textual content
+    dialogue = Column(Text, default="")
+    explanation = Column(Text, default="")
+    keywords = Column(JSON, default=list)
+
+    # Media URLs — CDN links to Cloudflare R2
+    image_url = Column(String(500), nullable=True)
+    gif_url = Column(String(500), nullable=True)
+    mp4_url = Column(String(500), nullable=True)
+    thumb_url = Column(String(500), nullable=True)
+    webp_url = Column(String(500), nullable=True)
+
+    # Legacy refs (kept for backward compatibility)
     image_ref = Column(String(500), nullable=True)
-    video_ref = Column(String(500), nullable=True)
     gif_ref = Column(String(500), nullable=True)
-    viral_score = Column(Float, default=0.0)
+    video_ref = Column(String(500), nullable=True)
+
+    # Provenance
+    source = Column(String(50), default="manual", index=True)
+
+    # Content flags
+    nsfw = Column(Boolean, default=False, index=True)
+
+    # Analytics
+    view_count = Column(Integer, default=0)
+    download_count = Column(Integer, default=0)
     usage_count = Column(Integer, default=0)
     upvotes = Column(Integer, default=0)
     downvotes = Column(Integer, default=0)
+
+    # Scores
+    viral_score = Column(Float, default=0.0)
+    popularity_score = Column(Float, default=0.0, index=True)
+
+    # Timestamps
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    indexed_at = Column(DateTime, nullable=True)
 
+    # Relationships
     votes = relationship("MemeVote", back_populates="meme", cascade="all, delete-orphan")
     usage_logs = relationship("MemeUsage", back_populates="meme", cascade="all, delete-orphan")
     favourites = relationship("FavouriteMeme", back_populates="meme", cascade="all, delete-orphan")
@@ -175,43 +218,131 @@ class Meme(Base):
     saved_memes = relationship("SavedMeme", back_populates="meme", cascade="all, delete-orphan")
 
     __table_args__ = (
-        Index("ix_memes_cat_viral", "category", "viral_score"),
-        Index("ix_memes_usage_up", "usage_count", "upvotes"),
+        Index("idx_memes_slug", "slug"),
+        Index("idx_memes_nsfw", "nsfw"),
+        Index("idx_memes_popularity", "popularity_score"),
+        Index("idx_memes_source", "source"),
     )
 
+    def __init__(self, **kwargs):
+        if "slug" not in kwargs or not kwargs["slug"]:
+            name = kwargs.get("name", "")
+            slug_val = re.sub(r"[^a-z0-9\s-]", "", str(name).lower()).strip().replace(" ", "-")
+            kwargs["slug"] = slug_val[:180] or str(uuid.uuid4())[:8]
+        if "category" in kwargs and "categories" not in kwargs:
+            kwargs["categories"] = [kwargs.pop("category")]
+        super().__init__(**kwargs)
+
     def keywords_list(self) -> list[str]:
-        try:
-            return json.loads(self.keywords or "[]")
-        except (json.JSONDecodeError, TypeError):
-            logger.warning("Bad keywords JSON for meme %s", self.id)
-            return []
+        if isinstance(self.keywords, list):
+            return self.keywords
+        if isinstance(self.keywords, str):
+            try:
+                return json.loads(self.keywords or "[]")
+            except Exception:
+                return [self.keywords]
+        return []
+
+    def categories_list(self) -> list[str]:
+        if isinstance(self.categories, list):
+            return self.categories
+        if isinstance(self.categories, str):
+            try:
+                parsed = json.loads(self.categories)
+                if isinstance(parsed, list):
+                    return parsed
+                return [self.categories]
+            except Exception:
+                return [self.categories]
+        return ["general"]
+
+    def emotions_list(self) -> list[str]:
+        if isinstance(self.emotions, list):
+            return self.emotions
+        if isinstance(self.emotions, str):
+            try:
+                parsed = json.loads(self.emotions)
+                if isinstance(parsed, list):
+                    return parsed
+                return [self.emotions]
+            except Exception:
+                return [self.emotions]
+        return []
+
+    @hybrid_property
+    def category(self) -> str:
+        cats = self.categories_list()
+        return cats[0] if cats else "general"
+
+    @category.setter
+    def category(self, val: str) -> None:
+        if isinstance(val, str):
+            self.categories = [val]
+        elif isinstance(val, list):
+            self.categories = val
+
+    @category.expression
+    def category(cls):
+        return cls.categories
 
     def to_dict(self) -> dict:
-        slug_val = self.slug or re.sub(r"[^\|\s-]", "", self.name.lower()).strip().replace(" ", "-")
+        """Serialize meme to API response format."""
+        cats = self.categories_list()
+        emots = self.emotions_list()
+        kws = self.keywords_list()
+        img = self.image_url or self.image_ref
+        gif = self.gif_url or self.gif_ref
+        mp4 = self.mp4_url or self.video_ref
+
         return {
             "id": self.id,
             "name": self.name,
-            "slug": slug_val,
-            "category": self.category,
-            "dialogue": self.dialogue,
-            "explanation": self.explanation,
-            "keywords": self.keywords_list(),
-            "imageRef": self.image_ref,
-            "videoRef": self.video_ref,
-            "gifRef": self.gif_ref,
-            "viralScore": round(self.viral_score or 0.0, 2),
+            "slug": self.slug or re.sub(r"[^a-z0-9\s-]", "", self.name.lower()).strip().replace(" ", "-"),
+            "category": cats[0] if cats else "general",
+            "categories": cats,
+            "emotions": emots,
+            "dialogue": self.dialogue or "",
+            "explanation": self.explanation or "",
+            "keywords": kws,
+            "image_url": img,
+            "gif_url": gif,
+            "mp4_url": mp4,
+            "thumb_url": self.thumb_url,
+            "webp_url": self.webp_url,
+            # Legacy fields (keep for frontend compatibility)
+            "imageRef": img,
+            "gifRef": gif,
+            "videoRef": mp4,
+            "thumbUrl": self.thumb_url,
+            "formats": {
+                "image": img,
+                "gif": gif,
+                "mp4": mp4,
+                "webp": self.webp_url,
+                "thumb": self.thumb_url,
+            },
+            "source": self.source or "manual",
+            "nsfw": bool(self.nsfw),
+            "view_count": self.view_count or 0,
+            "download_count": self.download_count or 0,
+            "usage_count": self.usage_count or 0,
             "usageCount": self.usage_count or 0,
             "upvotes": self.upvotes or 0,
             "downvotes": self.downvotes or 0,
+            "viral_score": round(self.viral_score or 0.0, 2),
+            "viralScore": round(self.viral_score or 0.0, 2),
+            "popularity_score": round(self.popularity_score or 0.0, 2),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "indexed_at": self.indexed_at.isoformat() if self.indexed_at else None,
         }
 
 
 class MemeUsage(Base):
     __tablename__ = "meme_usage"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
     query = Column(Text, nullable=False)
     session_id = Column(String(64), nullable=False, index=True)
     confidence = Column(Float, nullable=True)
@@ -222,10 +353,10 @@ class MemeUsage(Base):
 class MemeVote(Base):
     __tablename__ = "meme_votes"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String(64), nullable=False, index=True)
-    vote = Column(Integer, nullable=False)  # +1 or -1
+    vote = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=utc_now)
 
     __table_args__ = (
@@ -237,8 +368,8 @@ class MemeVote(Base):
 class FavouriteMeme(Base):
     __tablename__ = "favourite_memes"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False)
     session_id = Column(String(64), nullable=False, index=True)
     created_at = Column(DateTime, default=utc_now)
 
@@ -252,23 +383,46 @@ FavoriteMeme = FavouriteMeme
 
 
 class User(Base):
+    """
+    User accounts — matches Schema.md specification.
+    """
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    plan = Column(String(20), default="free", nullable=False)  # free, pro
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), unique=True, nullable=True, index=True)
+    name = Column(String(200), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
+    plan = Column(String(20), default="free")
+    preferences = Column(JSON, default=dict)
+    hashed_password = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utc_now)
+    last_login = Column(DateTime, nullable=True)
 
     saved_memes = relationship("SavedMeme", back_populates="user", cascade="all, delete-orphan")
     feedback_entries = relationship("Feedback", back_populates="user")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "name": self.name,
+            "avatar_url": self.avatar_url,
+            "plan": self.plan,
+            "preferences": self.preferences or {},
+            "is_active": self.is_active,
+            "is_admin": self.is_admin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class SavedMeme(Base):
     __tablename__ = "saved_memes"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
     collection_name = Column(String(100), default="Favorites", nullable=False)
     created_at = Column(DateTime, default=utc_now)
 
@@ -279,43 +433,88 @@ class SavedMeme(Base):
 class Feedback(Base):
     __tablename__ = "feedback"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String(64), nullable=True, default="anonymous", index=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    meme_id = Column(String(36), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
     query_text = Column(Text, nullable=True)
     query_id = Column(String(64), nullable=True)
-    action = Column(String(50), nullable=False, index=True)  # view | click | copy | download | share | thumbs_up | thumbs_down | skip
+    action = Column(String(50), nullable=False, index=True)
     created_at = Column(DateTime, default=utc_now, index=True)
 
     user = relationship("User", back_populates="feedback_entries")
     meme = relationship("Meme", back_populates="feedback_entries")
 
 
-
 class SearchLog(Base):
+    """
+    Anonymized search analytics — NO PII stored.
+    Matches Schema.md specification (GDPR compliant).
+    """
     __tablename__ = "search_logs"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    query = Column(Text, nullable=False)
-    session_id = Column(String(64), nullable=False, index=True)
-    match_count = Column(Integer, default=0)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    query_hash = Column(String(32), nullable=True, index=True)
+    session_id = Column(String(64), nullable=True, index=True)
+    result_count = Column(Integer, default=0)
+    top_meme_id = Column(String(64), nullable=True)
     latency_ms = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=utc_now)
+    cache_hit = Column(Boolean, default=False)
+    model_used = Column(String(50), nullable=True)
+    emotion_detected = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
+
+    __table_args__ = (
+        Index("idx_search_logs_created_at", "created_at"),
+        Index("idx_search_logs_query_hash", "query_hash"),
+    )
+
+    def __init__(self, **kwargs):
+        if "query" in kwargs and "query_hash" not in kwargs:
+            raw_query = kwargs.pop("query")
+            if raw_query:
+                import hashlib
+                kwargs["query_hash"] = hashlib.md5(str(raw_query).strip().lower().encode("utf-8")).hexdigest()
+            else:
+                kwargs["query_hash"] = None
+        elif "query" in kwargs:
+            kwargs.pop("query")
+
+        if "match_count" in kwargs and "result_count" not in kwargs:
+            kwargs["result_count"] = kwargs.pop("match_count")
+        elif "match_count" in kwargs:
+            kwargs.pop("match_count")
+
+        super().__init__(**kwargs)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "query_hash": self.query_hash,
+            "session_id": self.session_id,
+            "result_count": self.result_count,
+            "top_meme_id": self.top_meme_id,
+            "latency_ms": self.latency_ms,
+            "cache_hit": self.cache_hit,
+            "model_used": self.model_used,
+            "emotion_detected": self.emotion_detected,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    key_hash = Column(String(64), nullable=False, unique=True, index=True)
-    name = Column(String(100), nullable=False, default="Default API Key")
-    prefix = Column(String(32), nullable=False)  # e.g., pk_live_...1234
-    tier = Column(String(20), nullable=False, default="free")  # free, pro, internal, admin
-    rate_limit = Column(Integer, nullable=False, default=120)  # 120, 300, 1000
-    user_id = Column(String(64), nullable=True, index=True)
-    revoked = Column(Boolean, nullable=False, default=False)
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), default="Default API Key")
+    key_hash = Column(String(64), unique=True, nullable=False, index=True)
+    prefix = Column(String(32), nullable=False)
+    tier = Column(String(20), default="free")
+    user_id = Column(String(64), nullable=True)
+    revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utc_now)
+    last_used = Column(DateTime, nullable=True)
+    rate_limit = Column(Integer, nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -323,12 +522,10 @@ class ApiKey(Base):
             "name": self.name,
             "prefix": self.prefix,
             "tier": self.tier,
-            "rate_limit": self.rate_limit,
-            "user_id": self.user_id,
+            "rate_limit": self.rate_limit or 120,
             "revoked": self.revoked,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
-
 
 
 # ── Session factory utilities ──────────────────────────────────────
@@ -351,9 +548,16 @@ def init_db(drop_all: bool = False) -> None:
 
 
 def bulk_insert_memes(items: Sequence[dict]) -> int:
-    """Efficiently insert many meme records using the list-creating bulk mode."""
-    with get_db() as db:
-        objs = [Meme(**item) for item in items]
+    """Efficiently insert many meme records."""
+    db = SessionLocal()
+    try:
+        objs = []
+        for item in items:
+            valid_keys = Meme.__table__.columns.keys()
+            filtered = {k: v for k, v in item.items() if k in valid_keys}
+            objs.append(Meme(**filtered))
         db.add_all(objs)
-        db.flush()
+        db.commit()
         return len(objs)
+    finally:
+        db.close()

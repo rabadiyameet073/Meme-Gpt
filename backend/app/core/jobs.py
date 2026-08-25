@@ -17,6 +17,7 @@ from app.database import (
     get_db,
     sanitize_input,
 )
+from app.config import settings
 from app.core.cache import query_cache
 
 logger = logging.getLogger("memegpt.jobs")
@@ -61,9 +62,13 @@ def log_search_task(
                 ))
 
         db.add(SearchLog(
-            query=query_hash,
-            match_count=match_count,
+            query_hash=query_hash,
+            result_count=match_count,
             latency_ms=latency_ms,
+            cache_hit=cached,
+            top_meme_id=primary_meme_id,
+            model_used="groq" if getattr(settings, "GROQ_API_KEY", None) else "fallback",
+            emotion_detected=emotion or "neutral",
             session_id=session_id
         ))
         db.commit()

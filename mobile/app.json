@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "MemeGPT",
+    "slug": "memegpt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.memegpt.app",
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "MemeGPT needs permission to save memes to your camera roll."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#09090B"
+      },
+      "package": "com.memegpt.app",
+      "permissions": ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow MemeGPT to save memes to your photo library.",
+          "savePhotosPermission": "Allow MemeGPT to save memes to your photo library."
+        }
+      ]
+    ]
+  }
+}

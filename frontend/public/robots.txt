@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and API paths
+Disallow: /api/
+Disallow: /admin/
+Disallow: /api/v1/
+
+# Sitemap location
+Sitemap: https://app.memegpt.com/sitemap.xml
+
+# Crawl rate
+Crawl-delay: 1

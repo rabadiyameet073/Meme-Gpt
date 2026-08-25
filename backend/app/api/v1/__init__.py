@@ -26,6 +26,8 @@ from app.api.v1.mobile import router as mobile_router
 from app.api.v1.references import router as references_router
 from app.api.v1.marketing import router as marketing_router
 from app.api.v1.appendix import router as appendix_router
+from app.api.v1.categories import router as categories_router
+from app.api.v1.admin import router as admin_router
 
 v1_router = APIRouter()
 
@@ -39,6 +41,8 @@ v1_router.include_router(auth_router)
 v1_router.include_router(webhooks_router)
 v1_router.include_router(chat_router)
 v1_router.include_router(collections_router)
+v1_router.include_router(categories_router)
+v1_router.include_router(admin_router)
 v1_router.include_router(features_router)
 v1_router.include_router(share_router)
 v1_router.include_router(chips_router)

@@ -97,3 +97,103 @@ def test_verify_migration_health():
     assert health["prisma_schema_exists"] is True
     assert health["migrations_directory_exists"] is True
     assert health["total_migrations"] >= 3
+
+
+def test_sqlite_migration_script_execution():
+    """Verify migrate.py executes and applies / skips migrations safely."""
+    from migrate import run_migration
+    res = run_migration()
+    assert isinstance(res, dict)
+    assert "applied" in res
+    assert "skipped" in res
+    assert (res["applied"] + res["skipped"]) >= 20
+
+
+def test_meme_model_upgraded_columns_step1():
+    """Verify Meme model contains all 12+ upgraded columns from Step 1."""
+    from app.database import Meme
+    cols = Meme.__table__.columns.keys()
+
+    # Required columns per Step 1
+    expected_cols = [
+        "id", "name", "slug", "categories", "emotions", "dialogue", "explanation", "keywords",
+        "image_url", "gif_url", "mp4_url", "thumb_url", "webp_url",
+        "image_ref", "gif_ref", "video_ref",
+        "source", "nsfw",
+        "view_count", "download_count", "usage_count", "upvotes", "downvotes",
+        "viral_score", "popularity_score",
+        "created_at", "updated_at", "indexed_at"
+    ]
+    for col in expected_cols:
+        assert col in cols, f"Missing column on Meme model: {col}"
+
+    # Verify serialization
+    meme = Meme(
+        id="test-migration-001",
+        name="Migration Meme",
+        slug="migration-meme",
+        categories=["tech", "ai"],
+        emotions=["joy", "excitement"],
+        image_url="https://cdn.memegpt.com/m.png",
+        thumb_url="https://cdn.memegpt.com/thumb.webp",
+        popularity_score=0.88,
+        source="imgflip",
+        nsfw=False,
+    )
+    d = meme.to_dict()
+    assert d["id"] == "test-migration-001"
+    assert d["categories"] == ["tech", "ai"]
+    assert d["emotions"] == ["joy", "excitement"]
+    assert d["popularity_score"] == 0.88
+    assert d["thumb_url"] == "https://cdn.memegpt.com/thumb.webp"
+    assert d["source"] == "imgflip"
+    assert d["nsfw"] is False
+
+
+def test_user_model_upgraded_columns_step2():
+    """Verify User model contains name, avatar_url, preferences from Step 2."""
+    from app.database import User
+    cols = User.__table__.columns.keys()
+
+    assert "name" in cols
+    assert "avatar_url" in cols
+    assert "preferences" in cols
+    assert "plan" in cols
+
+    user = User(
+        id="user-001",
+        email="dev@memegpt.com",
+        name="Developer",
+        avatar_url="https://cdn.memegpt.com/avatar.png",
+        preferences={"format_pref": "gif", "nsfw": False},
+    )
+    d = user.to_dict()
+    assert d["name"] == "Developer"
+    assert d["avatar_url"] == "https://cdn.memegpt.com/avatar.png"
+    assert d["preferences"]["format_pref"] == "gif"
+
+
+def test_search_log_gdpr_hash_step3():
+    """Verify SearchLog stores MD5 query_hash and no raw PII query from Step 3."""
+    from app.database import SearchLog
+    cols = SearchLog.__table__.columns.keys()
+
+    assert "query_hash" in cols
+    assert "top_meme_id" in cols
+    assert "cache_hit" in cols
+    assert "model_used" in cols
+    assert "emotion_detected" in cols
+    assert "result_count" in cols
+
+    log = SearchLog(
+        query="Confidential user search text",
+        result_count=5,
+        latency_ms=120.5,
+        cache_hit=True,
+    )
+    assert log.query_hash is not None
+    assert len(log.query_hash) == 32
+    assert "Confidential" not in log.query_hash
+    d = log.to_dict()
+    assert d["cache_hit"] is True
+    assert d["result_count"] == 5

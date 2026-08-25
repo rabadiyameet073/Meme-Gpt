@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { api, download, type MemeSearchResult } from "../api";
 import { MemeCard } from "./MemeCard";
 import { Icon } from "./Icon";
+import { SkeletonGrid } from "./SkeletonCard";
 
 const EXAMPLES = [
   "I worked 3 months on a project and accuracy is only 12%. Can you make it 100%?",
@@ -14,7 +15,13 @@ const EXAMPLES = [
   "Salary credited on 1st, account balance ₹142 by 5th.",
 ];
 
-export function ChatTab({ onToast }: { onToast: (m: string) => void }) {
+export function ChatTab({
+  onToast,
+  onSearchCompleted,
+}: {
+  onToast: (m: string) => void;
+  onSearchCompleted?: (query: string) => void;
+}) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,6 +42,7 @@ export function ChatTab({ onToast }: { onToast: (m: string) => void }) {
       const res = await api.analyze(q);
       setResult(res);
       onToast(`Matched in ${res.latencyMs}ms`);
+      onSearchCompleted?.(q);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Is FastAPI running on port 8000?");
     } finally {
@@ -116,9 +124,12 @@ export function ChatTab({ onToast }: { onToast: (m: string) => void }) {
 
       {/* Loading */}
       {loading && (
-        <div className="loading-wrap">
-          <div className="spinner" />
-          <div className="loading-text">Analyzing situation with Semantic & Rule Engine…</div>
+        <div style={{ marginTop: "24px" }}>
+          <div className="loading-wrap" style={{ marginBottom: "16px" }}>
+            <div className="spinner" />
+            <div className="loading-text">Analyzing situation with Semantic Vector Engine…</div>
+          </div>
+          <SkeletonGrid count={3} />
         </div>
       )}
 

@@ -1,45 +1,70 @@
-import os
+"""
+MemeGPT — Main FastAPI Application.
+
+Complete upgraded implementation:
+- Real DB-driven tier enforcement & Redis rate limiting
+- Sentry error monitoring
+- Qdrant collection initialization
+- APScheduler 30-day retention cleanup
+- Security headers & CSP
+- Dynamic SEO sitemap, robots.txt, OG meta endpoints
+- Full legacy frontend endpoint compatibility
+"""
+
 import hashlib
 import logging
+import os
 import time
-from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.config import (
+    settings,
     setup_logging,
     CORS_ORIGINS,
-    RATE_LIMIT_PER_MINUTE,
-    RATE_LIMIT_WINDOW,
     LOG_LEVEL,
 )
-from app.database import init_db, get_db
+from app.database import init_db, get_db, SessionLocal
 from app.api.v1 import v1_router
+from app.api.v1.sitemap import router as sitemap_router
+from app.api.v1.categories import get_categories, get_stats
 from app.models.search import AnalyzeRequest, SearchRequest
-
-from app.core.logging_config import setup_logging, hash_pii
+from app.core.logging_config import hash_pii
 
 setup_logging(LOG_LEVEL)
 logger = logging.getLogger("memegpt.api")
 
+# ── Optional Sentry SDK ────────────────────────────────────────────────────────
+sentry_dsn = getattr(settings, "SENTRY_DSN", "")
+if sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+            traces_sample_rate=0.1,
+            environment=getattr(settings, "APP_ENV", "development"),
+            release=getattr(settings, "APP_VERSION", "1.0.0"),
+        )
+        logger.info("✅ Sentry initialized")
+    except Exception as e:
+        logger.warning(f"Sentry init skipped: {e}")
+
 
 # ── Application Lifespan ───────────────────────────────────────────────────────
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup & shutdown lifecycle management:
-    - Initialize database tables
-    - Clear and warm query cache
-    - Pre-load ML models (MiniLM, DistilRoBERTa) in background thread
-    """
+    """Startup & shutdown lifecycle management."""
     logger.info("Initializing database...")
     init_db()
     logger.info("Database initialized.")
@@ -48,7 +73,16 @@ async def lifespan(app: FastAPI):
     query_cache.clear()
     app.state.cache = query_cache
 
-    # Pre-load ML models in a background daemon thread to keep startup fast
+    # 1. Initialize Qdrant collection
+    try:
+        from app.services.search_service import create_qdrant_collection, get_collection_info
+        create_qdrant_collection(recreate=False)
+        info = get_collection_info()
+        logger.info(f"Qdrant collection status: {info}")
+    except Exception as e:
+        logger.warning(f"Qdrant startup init deferred: {e}")
+
+    # 2. Pre-load ML models in a background daemon thread
     import threading
     def _async_load():
         try:
@@ -56,18 +90,41 @@ async def lifespan(app: FastAPI):
             load_models()
             logger.info("ML models pre-loaded successfully.")
         except Exception as e:
-            logger.warning(f"ML model loading deferred or skipped ({e}). Using rule-based fallback.")
+            logger.warning(f"ML model loading deferred ({e}).")
 
     threading.Thread(target=_async_load, daemon=True).start()
 
+    # 3. Schedule 30-day retention cleanup
+    scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from app.jobs.retention import run_retention_cleanup
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            run_retention_cleanup,
+            "cron",
+            hour=3,
+            minute=0,
+            id="retention_cleanup",
+        )
+        scheduler.start()
+        logger.info("✅ Retention job scheduled (daily at 03:00 UTC)")
+    except Exception as e:
+        logger.debug(f"APScheduler not started: {e}")
+
     logger.info("MemeGPT FastAPI Backend ready.")
     yield
+
+    if scheduler:
+        try:
+            scheduler.shutdown()
+        except Exception:
+            pass
     logger.info("MemeGPT FastAPI Backend shutting down.")
 
 
 # ── App Factory ───────────────────────────────────────────────────────────────
-
-
 app = FastAPI(
     title="MemeGPT API",
     description="AI-powered conversational meme recommendation engine with multi-format support",
@@ -79,9 +136,7 @@ app = FastAPI(
 )
 
 
-# ── Middleware Stack (CORS -> Rate Limit -> Timing & Security Headers) ─────────
-
-
+# ── Middleware Stack ──────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -91,13 +146,11 @@ app.add_middleware(
     max_age=3600,
 )
 
-from app.core.rate_limit import rate_limiter
-
 
 @app.middleware("http")
 async def security_and_timing_middleware(request: Request, call_next):
-    # Production HTTPS enforcement (11_Security/API_Security.md)
-    is_prod = os.getenv("APP_ENV") == "production" or os.getenv("ENVIRONMENT") == "production"
+    # Production HTTPS enforcement
+    is_prod = getattr(settings, "APP_ENV", "") == "production"
     if is_prod and request.url.scheme == "http" and "localhost" not in (request.url.hostname or ""):
         from fastapi.responses import RedirectResponse
         return RedirectResponse(
@@ -107,100 +160,100 @@ async def security_and_timing_middleware(request: Request, call_next):
 
     start_time = time.perf_counter()
 
-    # Rate limiting for API requests (skip internal health checks)
-    api_key_header = request.headers.get("X-API-Key", "").strip()
-    
-    # Determine tier and route rate limit
-    tier = "free"
-    limit = 60
-    window_seconds = 60
-    
-    is_search = request.url.path.startswith(("/api/v1/search", "/search"))
-    is_feedback = request.url.path.startswith(("/api/v1/feedback", "/feedback"))
-    
-    rate_identifier = getattr(request.client, "host", "127.0.0.1") if request.client else "127.0.0.1"
-    
+    # Endpoints exempt from rate limiting
+    exempt_paths = {"/health", "/docs", "/openapi.json", "/redoc", "/favicon.ico", "/api/health", "/robots.txt", "/sitemap.xml"}
+    path = request.url.path
+    is_exempt = any(path == p or path.startswith("/docs") or path.startswith("/static") for p in exempt_paths)
+
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    api_key_header = (
+        request.headers.get("x-api-key", "").strip()
+        or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    )
+
+    tier = "anonymous"
     if api_key_header:
-        rate_identifier = f"key:{hashlib.sha256(api_key_header.encode('utf-8')).hexdigest()[:16]}"
-        key_clean = api_key_header.lower()
-        if "admin" in key_clean or "pro" in key_clean:
-            tier = "pro"
-            limit = 500 if is_search else 1000
-        else:
-            tier = "developer"
-            limit = 100 if is_search else 300
-    else:
-        rate_identifier = f"ip:{rate_identifier}"
-        tier = "free"
-        if is_search:
-            limit = 30
-        elif is_feedback:
-            limit = 120
-        else:
-            limit = 60
+        try:
+            from app.core.auth import lookup_api_key_tier
+            db = SessionLocal()
+            try:
+                tier, _ = lookup_api_key_tier(api_key_header, db)
+            finally:
+                db.close()
+        except Exception:
+            tier = "anonymous"
 
-    remaining = limit
-    reset_epoch = int(time.time() + 60)
+    from app.core.auth import get_rate_limit_for_tier
+    rate_limit = get_rate_limit_for_tier(tier)
 
-    if request.url.path.startswith(("/api", "/search")) and not request.url.path.endswith("/health"):
-        allowed, remaining, retry_after, reset_epoch = rate_limiter.check_with_window(
-            rate_identifier, limit, window_seconds=window_seconds
-        )
+    remaining = rate_limit
+    window_seconds = 60
+    reset_epoch = int(time.time() + window_seconds)
+    if not is_exempt:
+        from app.core.rate_limit import rate_limiter
+        identifier = f"ip:{client_ip}" if not api_key_header else f"key:{api_key_header}"
+        allowed, remaining, retry_after, reset_epoch = rate_limiter.check_with_window(identifier, rate_limit, window_seconds=window_seconds)
+
         if not allowed:
             return JSONResponse(
                 status_code=429,
                 content={
                     "success": False,
                     "error": "rate_limit_exceeded",
-                    "message": f"{limit} requests per minute allowed. Please slow down.",
-                    "retry_after": retry_after,
-                    "limit": limit,
-                    "window": "60s"
+                    "message": f"Rate limit exceeded. {rate_limit} requests per minute allowed. Please slow down.",
+                    "retry_after": retry_after or 60,
+                    "limit": rate_limit,
+                    "window": f"{window_seconds}s",
+                    "tier": tier,
                 },
                 headers={
-                    "Retry-After": str(retry_after),
-                    "X-RateLimit-Limit": str(limit),
+                    "Retry-After": str(retry_after or 60),
+                    "X-RateLimit-Limit": str(rate_limit),
                     "X-RateLimit-Remaining": "0",
                     "X-RateLimit-Reset": str(reset_epoch),
-                    "X-RateLimit-Window": "60",
+                    "X-RateLimit-Window": str(window_seconds),
+                    "X-RateLimit-Tier": tier,
                 },
             )
 
     response = await call_next(request)
 
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-    client_host = request.client.host if request.client else "127.0.0.1"
 
-    logger.info(
-        "Request completed",
-        extra={
-            "extra_data": {
-                "method": request.method,
-                "path": request.url.path,
-                "status": response.status_code,
-                "latency_ms": elapsed_ms,
-                "client_ip_hash": hash_pii(client_host, length=8),
-            }
-        }
-    )
-
+    # Response headers
     response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
-    response.headers["X-RateLimit-Limit"] = str(limit)
+    response.headers["X-RateLimit-Limit"] = str(rate_limit)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     response.headers["X-RateLimit-Reset"] = str(reset_epoch)
-    response.headers["X-RateLimit-Window"] = "60"
+    response.headers["X-RateLimit-Window"] = str(window_seconds)
+    response.headers["X-RateLimit-Tier"] = tier
+
+    # Security Headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    if request.url.scheme == "https" or os.getenv("APP_ENV") == "production":
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+
+    cdn_base = getattr(settings, "CDN_BASE_URL", "")
+    response.headers["Content-Security-Policy"] = (
+        f"default-src 'self'; "
+        f"img-src 'self' {cdn_base} https://i.imgflip.com https://media.giphy.com https://*.giphy.com https://*.tenor.com data: blob:; "
+        f"script-src 'self' 'unsafe-inline'; "
+        f"style-src 'self' 'unsafe-inline' fonts.googleapis.com; "
+        f"font-src 'self' fonts.gstatic.com data:;"
+    )
+
+    if request.url.scheme == "https" or is_prod:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
     return response
 
 
-
-# ── Standardized Exception Handlers ───────────────────────────────────────────
-
+# ── Exception Handlers ────────────────────────────────────────────────────────
 from fastapi.exceptions import RequestValidationError
 from app.core.errors import MemeGPTException
 
@@ -297,23 +350,47 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-
 # ── Static Media Mounting ─────────────────────────────────────────────────────
-
-
 STATIC_DIR = Path(__file__).resolve().parent.parent / "data" / "images"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# ── Mount Versioned API Routers ───────────────────────────────────────────────
-
-
+# ── Mount Versioned API & SEO Routers ─────────────────────────────────────────
 app.include_router(v1_router, prefix="/api/v1")
-app.include_router(v1_router, prefix="/api")  # unversioned /api alias
+app.include_router(v1_router, prefix="/api")
+app.include_router(sitemap_router)
 
 
-# ── Backward-Compatible Legacy Route Aliases ───────────────────────────────────
+# ── Legacy & Frontend Convenience Route Mounts ────────────────────────────────
+@app.get("/api/categories", tags=["Categories & Stats"])
+def legacy_categories(db: Session = Depends(get_db)):
+    return get_categories(db)
+
+
+@app.get("/api/stats", tags=["Categories & Stats"])
+def legacy_stats(db: Session = Depends(get_db)):
+    return get_stats(db)
+
+
+@app.get("/api/favorites", tags=["Favorites & Collections"])
+def legacy_favorites(sessionId: str = Query(default=""), db: Session = Depends(get_db)):
+    from app.api.v1.collections import get_favorites
+    return get_favorites(sessionId=sessionId, db=db)
+
+
+@app.post("/api/favorites/toggle", tags=["Favorites & Collections"])
+def legacy_toggle(body: dict):
+    from app.api.v1.collections import toggle_favorite, ToggleFavoriteRequest
+    return toggle_favorite(ToggleFavoriteRequest(**body))
+
+
+@app.get("/landing", include_in_schema=False)
+def get_landing_page():
+    landing_path = Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "landing.html"
+    if landing_path.exists():
+        return FileResponse(str(landing_path), media_type="text/html")
+    return JSONResponse({"message": "Landing page available at /landing.html"})
 
 
 @app.get("/", tags=["Root"])
@@ -323,7 +400,8 @@ async def root():
         "version": "2.0.0",
         "docs": "/docs",
         "redoc": "/redoc",
-        "status": "online"
+        "status": "online",
+        "landing": "/landing",
     }
 
 

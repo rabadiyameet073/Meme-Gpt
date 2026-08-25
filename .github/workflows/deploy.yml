@@ -1,40 +1,57 @@
-# .github/workflows/deploy.yml
-# Specification: 12_Deployment/CI_CD_Pipeline.md
-name: Deploy
+name: CI/CD Pipeline
+
 on:
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main]
 
 jobs:
-  deploy-backend:
-    name: Deploy FastAPI Backend (Railway)
+  test-backend:
+    name: Backend Tests & Lint
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli || pip install railway-cli
-      - name: Deploy to Railway
-        run: railway up --service api --detach
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        working-directory: ./backend
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          APP_ENV: test
+          SECRET_KEY: test-ci-secret-key-32-chars-minimum-length
+        run: |
+          pytest -v --tb=short
 
-  deploy-frontend:
-    name: Deploy Next.js Frontend (Vercel)
+  test-frontend:
+    name: Frontend Build & Typecheck
     runs-on: ubuntu-latest
+
     steps:
-      # Vercel auto-deploys from Git — this is a fallback
       - uses: actions/checkout@v4
-      - name: Deploy to Vercel
-        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-  smoke-test:
-    name: Post-Deployment Smoke Tests
-    needs: [deploy-backend, deploy-frontend]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for deployments to stabilize
-        run: sleep 30
-      - name: Verify Backend API Health
-        run: curl -f https://api.memegpt.com/api/v1/health || exit 1
-      - name: Verify Frontend Web Health
-        run: curl -f https://memegpt.com || exit 1
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build

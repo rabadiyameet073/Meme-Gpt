@@ -560,7 +560,7 @@ def get_memes_with_vote_aggregations(db, limit: int = 20) -> list[dict[str, Any]
         {
             "id": r[0],
             "name": r[1],
-            "category": r[2],
+            "category": (r[2][0] if isinstance(r[2], list) and r[2] else r[2]) if r[2] else "general",
             "usage_count": r[3],
             "vote_count": r[4],
         }
@@ -792,7 +792,7 @@ def verify_referential_integrity(db) -> dict[str, Any]:
     from app.database import Meme, MemeVote, MemeUsage, Feedback, SavedMeme
 
     # Check for orphan votes
-    meme_ids = {m.id for m in db.query(Meme.id).all()}
+    meme_ids = {row[0] for row in db.query(Meme.id).all()}
     orphan_votes = db.query(MemeVote).filter(~MemeVote.meme_id.in_(meme_ids)).count() if meme_ids else 0
     orphan_usage = db.query(MemeUsage).filter(~MemeUsage.meme_id.in_(meme_ids)).count() if meme_ids else 0
 

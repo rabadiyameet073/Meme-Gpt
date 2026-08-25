@@ -1,212 +1,286 @@
-"""MemeGPT — Multi-Layer Cache Service.
+"""
+MemeGPT — Redis Cache Module (FIXED & FULL SPECIFICATION).
 
-Layer 1: In-Memory LRU cache (sub-1ms reads, always available)
-Layer 2: Redis / Upstash (shared across instances, optional)
+Uses Upstash Redis via redis-py for persistent caching across restarts.
+Falls back to in-memory dict if Redis is unavailable (graceful degradation).
 
-Cache hit flow: L1 → L2 → miss
-Cache set flow: L1 + L2 (write-through)
-
-Specification: 02_TECH_STACK_AND_MODELS.md, Low_Level_Architecture.md
+Specification:
+- 04_Redis_Cache.md
+- Section 2 of GAP_ANALYSIS_FULL.md
 """
 
 import hashlib
 import json
 import logging
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, Dict
+
+from app.config import settings
 
 logger = logging.getLogger("memegpt.cache")
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Redis Client Singleton
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ── Layer 1: In-Memory LRU Cache ─────────────────────────────────────────────
-
-
-class QueryCache:
-    """Thread-safe in-memory cache with TTL and LRU eviction."""
-
-    def __init__(self, default_ttl: int = 3600, max_size: int = 1000):
-        self._cache: dict[str, tuple[float, Any]] = {}
-        self.default_ttl = default_ttl
-        self.max_size = max_size
-        self._hits = 0
-        self._misses = 0
-
-    def _hash_query(self, query: str) -> str:
-        """If query is already a cache key (starts with 'search:'), use it directly."""
-        if query.startswith("search:"):
-            return query
-        clean = " ".join(query.lower().strip().split())
-        return hashlib.sha256(clean.encode("utf-8")).hexdigest()
-
-    def get(self, query: str) -> Any | None:
-        key = self._hash_query(query)
-        if key not in self._cache:
-            self._misses += 1
-            return None
-
-        expires_at, payload = self._cache[key]
-        if time.time() > expires_at:
-            del self._cache[key]
-            self._misses += 1
-            return None
-
-        self._hits += 1
-        return payload
-
-    def set(self, query: str, payload: Any, ttl: int | None = None) -> None:
-        if len(self._cache) >= self.max_size:
-            # Evict the entry that expires soonest
-            oldest_key = min(self._cache, key=lambda k: self._cache[k][0])
-            del self._cache[oldest_key]
-
-        key = self._hash_query(query)
-        ttl = ttl if ttl is not None else self.default_ttl
-        expires_at = time.time() + ttl
-        self._cache[key] = (expires_at, payload)
-
-    def clear(self) -> None:
-        self._cache.clear()
-        self._hits = 0
-        self._misses = 0
-
-    def stats(self) -> dict[str, int]:
-        now = time.time()
-        active = sum(1 for exp, _ in self._cache.values() if exp > now)
-        total_requests = self._hits + self._misses
-        hit_rate = round(self._hits / total_requests * 100, 1) if total_requests > 0 else 0
-        return {
-            "totalEntries": len(self._cache),
-            "activeEntries": active,
-            "maxSize": self.max_size,
-            "hits": self._hits,
-            "misses": self._misses,
-            "hitRate": hit_rate,
-        }
+_redis_client = None
+_fallback_cache: Dict[str, Tuple[Any, float]] = {}  # {key: (value, expires_at)}
+_rate_counts: Dict[str, Dict[str, Any]] = {}
 
 
-# ── Layer 2: Redis Cache (optional) ──────────────────────────────────────────
-
-
-class RedisCache:
-    """Redis-backed cache for shared state across instances."""
-
-    def __init__(self, redis_url: str, default_ttl: int = 3600):
-        self._client = None
-        self._redis_url = redis_url
-        self.default_ttl = default_ttl
-        self._available = None
-
-    def _get_client(self):
-        if self._available is False:
-            return None
-        if self._client is not None:
-            return self._client
-
-        try:
-            import redis
-            self._client = redis.from_url(
-                self._redis_url,
-                decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=5,
-            )
-            self._client.ping()
-            logger.info("✅ Redis cache connected")
-            self._available = True
-            return self._client
-        except Exception as e:
-            logger.warning(f"Redis not available ({e}). Using in-memory cache only.")
-            self._available = False
-            return None
-
-    def get(self, key: str) -> Any | None:
-        client = self._get_client()
-        if client is None:
-            return None
-        try:
-            raw = client.get(f"memegpt:{key}")
-            if raw is None:
-                return None
-            return json.loads(raw)
-        except Exception as e:
-            logger.debug(f"Redis GET error: {e}")
-            return None
-
-    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        client = self._get_client()
-        if client is None:
-            return
-        try:
-            ttl = ttl or self.default_ttl
-            client.setex(f"memegpt:{key}", ttl, json.dumps(value, default=str))
-        except Exception as e:
-            logger.debug(f"Redis SET error: {e}")
-
-
-# ── Combined Cache (L1 + L2) ─────────────────────────────────────────────────
-
-
-class CombinedCache:
-    """Multi-layer cache: L1 in-memory + L2 Redis.
-
-    get(): L1 → L2 → miss
-    set(): L1 + L2 (write-through)
+def get_redis_client():
     """
+    Returns real Redis client connected to Upstash / local Redis.
+    Falls back gracefully if Redis is not configured.
+    """
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
 
-    def __init__(self, l1: QueryCache, l2: Optional[RedisCache] = None):
-        self.l1 = l1
-        self.l2 = l2
+    redis_url = (
+        getattr(settings, "REDIS_URL", "")
+        or getattr(settings, "UPSTASH_REDIS_URL", "")
+        or getattr(settings, "UPSTASH_REDIS_REST_URL", "")
+    )
 
-    def get(self, key: str) -> Any | None:
-        # Try L1 first
-        result = self.l1.get(key)
-        if result is not None:
-            return result
-
-        # Try L2 (Redis)
-        if self.l2 is not None:
-            result = self.l2.get(key)
-            if result is not None:
-                # Backfill L1
-                self.l1.set(key, result)
-                return result
-
+    if not redis_url:
+        logger.info(
+            "REDIS_URL not set — cache is in-memory only. "
+            "Set REDIS_URL in .env for persistent caching."
+        )
         return None
 
-    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        # Write to both layers
-        self.l1.set(key, value, ttl=ttl)
-        if self.l2 is not None:
-            self.l2.set(key, value, ttl=ttl)
+    try:
+        import redis
+
+        _redis_client = redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=3,
+            socket_timeout=2,
+            retry_on_timeout=True,
+            health_check_interval=30,
+        )
+        _redis_client.ping()
+        logger.info("✅ Redis connected (Upstash / Redis)")
+        return _redis_client
+
+    except ImportError:
+        logger.error("redis package not installed. Run: pip install redis")
+        return None
+    except Exception as e:
+        logger.warning(f"Redis connection failed: {e} — using in-memory fallback")
+        return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cache Operations
+# ──────────────────────────────────────────────────────────────────────────────
+
+def make_cache_key(query: str, format_pref: str = "gif", nsfw: bool = False) -> str:
+    """
+    Build cache key from search parameters.
+    Uses MD5 hash — never stores raw query text (GDPR).
+    Format: search:{md5}
+    """
+    raw = f"{str(query).strip().lower()}:{format_pref}:{nsfw}"
+    return f"search:{hashlib.md5(raw.encode('utf-8')).hexdigest()}"
+
+
+def cache_get(key: str) -> Optional[Any]:
+    """
+    Get value from cache. Returns None on miss.
+    Tries Redis first, falls back to in-memory.
+    """
+    client = get_redis_client()
+
+    if client:
+        try:
+            value = client.get(key)
+            if value is not None:
+                logger.debug(f"Cache HIT (Redis): {key[:30]}...")
+                return json.loads(value)
+            return None
+        except Exception as e:
+            logger.warning(f"Redis GET failed: {e} — checking fallback")
+
+    # In-memory fallback
+    if key in _fallback_cache:
+        value, expires_at = _fallback_cache[key]
+        if time.time() < expires_at:
+            logger.debug(f"Cache HIT (memory): {key[:30]}...")
+            return value
+        else:
+            del _fallback_cache[key]
+
+    return None
+
+
+def cache_set(key: str, value: Any, ttl: int = 3600) -> bool:
+    """
+    Set value in cache with TTL (seconds).
+    Default TTL: 1 hour (3600s).
+    Returns True on success.
+    """
+    client = get_redis_client()
+
+    if client:
+        try:
+            client.setex(key, ttl, json.dumps(value))
+            logger.debug(f"Cache SET (Redis): {key[:30]}... TTL={ttl}s")
+            return True
+        except Exception as e:
+            logger.warning(f"Redis SET failed: {e} — using fallback")
+
+    # In-memory fallback
+    _fallback_cache[key] = (value, time.time() + ttl)
+
+    # Prevent unbounded growth — evict oldest if >500 keys
+    if len(_fallback_cache) > 500:
+        try:
+            oldest = min(_fallback_cache, key=lambda k: _fallback_cache[k][1])
+            del _fallback_cache[oldest]
+        except Exception:
+            pass
+
+    logger.debug(f"Cache SET (memory): {key[:30]}... TTL={ttl}s")
+    return True
+
+
+def cache_delete(key: str) -> bool:
+    """Delete a specific cache key."""
+    client = get_redis_client()
+    if client:
+        try:
+            client.delete(key)
+            return True
+        except Exception:
+            pass
+    _fallback_cache.pop(key, None)
+    return True
+
+
+def cache_flush_pattern(pattern: str = "search:*") -> int:
+    """
+    Delete all keys matching pattern.
+    Useful for admin cache invalidation.
+    """
+    client = get_redis_client()
+    if client:
+        try:
+            keys = client.keys(pattern)
+            if keys:
+                return client.delete(*keys)
+            return 0
+        except Exception as e:
+            logger.warning(f"Cache flush failed: {e}")
+
+    # Fallback clear matching in-memory
+    prefix = pattern.replace("*", "")
+    matching = [k for k in list(_fallback_cache.keys()) if k.startswith(prefix)]
+    for k in matching:
+        _fallback_cache.pop(k, None)
+    return len(matching)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Rate Limiting (Redis-backed, persistent)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def rate_limit_check(identifier: str, limit: int, window_seconds: int = 60) -> Tuple[bool, int]:
+    """
+    Check if identifier (IP or API key) has exceeded the rate limit.
+
+    Args:
+        identifier: IP address or API key prefix
+        limit: Max requests per window
+        window_seconds: Time window in seconds
+
+    Returns:
+        (allowed: bool, remaining: int)
+    """
+    key = f"ratelimit:{hashlib.md5(identifier.encode('utf-8')).hexdigest()}"
+    client = get_redis_client()
+
+    if client:
+        try:
+            pipe = client.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, window_seconds)
+            results = pipe.execute()
+            count = results[0]
+            remaining = max(limit - count, 0)
+            return count <= limit, remaining
+        except Exception as e:
+            logger.warning(f"Rate limit Redis check failed: {e} — allowing request")
+            return True, limit
+
+    # In-memory fallback
+    now = time.time()
+    record = _rate_counts.get(key, {"count": 0, "reset_at": now + window_seconds})
+
+    if now > record["reset_at"]:
+        record = {"count": 0, "reset_at": now + window_seconds}
+
+    record["count"] += 1
+    _rate_counts[key] = record
+
+    return record["count"] <= limit, max(limit - record["count"], 0)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cache Stats
+# ──────────────────────────────────────────────────────────────────────────────
+
+def get_cache_stats() -> dict:
+    """Returns cache statistics for health endpoint."""
+    client = get_redis_client()
+    if client:
+        try:
+            info = client.info("stats")
+            return {
+                "backend": "redis",
+                "connected": True,
+                "hits": info.get("keyspace_hits", 0),
+                "misses": info.get("keyspace_misses", 0),
+                "keys": client.dbsize(),
+            }
+        except Exception:
+            pass
+
+    return {
+        "backend": "memory",
+        "connected": False,
+        "keys": len(_fallback_cache),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Legacy Compatibility
+# ──────────────────────────────────────────────────────────────────────────────
+
+class _QueryCache:
+    """
+    Backwards-compatible wrapper.
+    Old code uses query_cache.get(key) / query_cache.set(key, val, ttl).
+    """
+    def get(self, key: str) -> Optional[Any]:
+        return cache_get(key)
+
+    def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
+        return cache_set(key, value, ttl)
+
+    def delete(self, key: str) -> bool:
+        return cache_delete(key)
 
     def clear(self) -> None:
-        self.l1.clear()
+        cache_flush_pattern("search:*")
 
     def stats(self) -> dict:
-        return self.l1.stats()
+        return get_cache_stats()
+
+    def get_stats(self) -> dict:
+        return get_cache_stats()
 
 
-# ── Singleton Instances ──────────────────────────────────────────────────────
-
-# Always-available in-memory cache
-query_cache = QueryCache(default_ttl=3600, max_size=1000)
-
-# Optional Redis layer (initialized lazily)
-_redis_cache: Optional[RedisCache] = None
-
-
-def get_redis_cache() -> Optional[RedisCache]:
-    """Lazy-initialize Redis cache from environment."""
-    global _redis_cache
-    if _redis_cache is not None:
-        return _redis_cache
-
-    from app.config import REDIS_URL
-    if REDIS_URL:
-        _redis_cache = RedisCache(REDIS_URL)
-    return _redis_cache
-
-
-def get_combined_cache() -> CombinedCache:
-    """Get the multi-layer cache instance."""
-    return CombinedCache(l1=query_cache, l2=get_redis_cache())
+query_cache = _QueryCache()
