@@ -646,7 +646,8 @@ def get_collection_info(client: Any = None, collection_name: Optional[str] = Non
 
     try:
         info = target_client.get_collection(target_name)
-        status_val = getattr(info, "status", "green")
+        raw_status = getattr(info, "status", "green")
+        status_val = str(raw_status).lower()
         pts_count = getattr(info, "points_count", None)
         if pts_count is None:
             pts_count = getattr(info, "vectors_count", 0) or 0
@@ -655,14 +656,15 @@ def get_collection_info(client: Any = None, collection_name: Optional[str] = Non
         idx_count = getattr(info, "indexed_vectors_count", 0) or pts_count
 
         return {
-            "status": str(status_val).lower(),
+            "status": status_val,
+            "status_detail": str(raw_status),
             "is_connected": True,
             "points_count": pts_count,
             "vectors_count": vec_count,
             "count": vec_count,
             "indexed_count": idx_count,
-            "status_detail": str(status_val),
         }
+
     except Exception as e:
         return {
             "status": "error",
@@ -674,6 +676,7 @@ def get_collection_info(client: Any = None, collection_name: Optional[str] = Non
         }
 
 
+
 verify_vector_index = get_collection_info
 
 
@@ -681,15 +684,40 @@ verify_vector_index = get_collection_info
 # Search API Response Formatter
 # ──────────────────────────────────────────────────────────────────────────────
 
-def format_search_meme_result(meme_dict: dict, score: float = 0.8) -> dict:
+def format_search_meme_result(
+    meme_dict: Any,
+    score: float = 0.8,
+    relevance_score: Optional[float] = None,
+    query_id: Optional[str] = None,
+    **kwargs: Any,
+) -> dict:
     """Format single meme candidate for API payload."""
-    score_val = round(score, 3)
+    if hasattr(meme_dict, "to_dict"):
+        d = meme_dict.to_dict()
+    elif isinstance(meme_dict, dict):
+        d = dict(meme_dict)
+    else:
+        d = {}
+
+    score_val = round(relevance_score if relevance_score is not None else score, 3)
+    img = d.get("image_url") or d.get("image_ref") or d.get("imageRef")
+    gif = d.get("gif_url") or d.get("gif_ref") or d.get("gifRef")
+    mp4 = d.get("mp4_url") or d.get("video_ref") or d.get("videoRef")
+    thumb = d.get("thumb_url") or d.get("thumbUrl")
+    preview = gif or img or thumb or "https://cdn.memegpt.com/preview.jpg"
+    slug_val = d.get("slug") or d.get("id") or "meme"
+    share = f"https://memegpt.com/meme/{slug_val}"
+
     return {
-        **meme_dict,
+        **d,
         "score": score_val,
         "relevance_score": score_val,
-        "confidence": round(score, 2),
+        "confidence": round(score_val, 2),
+        "preview_url": preview,
+        "share_url": share,
     }
+
+
 
 
 def build_search_response_payload(

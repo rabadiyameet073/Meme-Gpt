@@ -17,6 +17,10 @@ import math
 import hashlib
 from typing import Optional, List, Dict, Any
 
+os.environ.setdefault("USE_TF", "0")
+os.environ.setdefault("USE_TORCH", "1")
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
 from app.config import settings
 
 logger = logging.getLogger("memegpt.embedding")
@@ -44,6 +48,7 @@ def load_models():
             EMBEDDING_MODEL,
             cache_folder=MODELS_CACHE_DIR
         )
+
         logger.info(f"✅ Text embedding model loaded: {EMBEDDING_MODEL}")
     except Exception as e:
         logger.warning(f"SentenceTransformer not loaded ({e}) — using fallback vector generator")
@@ -54,7 +59,7 @@ def load_models():
         _emotion_pipeline = pipeline(
             "text-classification",
             model=EMOTION_MODEL,
-            return_all_scores=True,
+            top_k=None,
             device=-1,  # CPU only
         )
         logger.info(f"✅ Emotion model loaded: {EMOTION_MODEL}")
@@ -117,13 +122,14 @@ def _rule_based_emotion(text: str) -> Dict[str, Any]:
     """Fast keyword-based emotion fallback."""
     text_lower = (text or "").lower()
     emotions = {
-        "joy": ["happy", "great", "awesome", "yay", "win", "love", "celebrate", "proud", "finally", "success"],
-        "anger": ["angry", "hate", "stupid", "annoying", "terrible", "awful", "furious", "rage"],
+        "joy": ["happy", "great", "awesome", "yay", "win", "won", "winner", "prize", "love", "celebrate", "proud", "finally", "success", "promoted"],
+        "anger": ["angry", "hate", "stupid", "annoying", "terrible", "awful", "furious", "rage", "frustrated"],
         "sadness": ["sad", "cry", "upset", "miss", "alone", "lost", "depressed", "disappointed"],
         "surprise": ["wow", "what", "seriously", "shocked", "unexpected", "omg", "unbelievable"],
         "fear": ["scared", "nervous", "worried", "panic", "stress", "anxiety", "deadline"],
-        "disgust": ["disgusting", "gross", "ugh", "eww", "nasty"],
+        "disgust": ["disgusting", "gross", "ugh", "eww", "nasty", "awful"],
     }
+
     for emotion, keywords in emotions.items():
         if any(kw in text_lower for kw in keywords):
             return {
@@ -184,6 +190,27 @@ def embed_meme(meme: dict) -> List[float]:
     return embed_text(text)
 
 
-def get_combined_embedding(text: str, image_vector: Optional[List[float]] = None) -> List[float]:
-    """Return text embedding vector."""
-    return embed_text(text)
+def get_combined_embedding(
+    text_or_emb: Any,
+    image_vector: Optional[List[float]] = None,
+    text_weight: float = 0.65,
+    image_weight: float = 0.35,
+) -> List[float]:
+    """Return weighted 896-dim multimodal or 384-dim text embedding vector."""
+    if isinstance(text_or_emb, list):
+        text_emb = text_or_emb
+    else:
+        text_emb = embed_text(str(text_or_emb or ""))
+
+    if image_vector is None:
+        return text_emb
+
+    import numpy as np
+    text_arr = np.array(text_emb, dtype=np.float32) * float(text_weight)
+    image_arr = np.array(image_vector, dtype=np.float32) * float(image_weight)
+    combined = np.concatenate([text_arr, image_arr])
+    norm = np.linalg.norm(combined)
+    if norm > 0:
+        combined = combined / norm
+    return combined.tolist()
+
