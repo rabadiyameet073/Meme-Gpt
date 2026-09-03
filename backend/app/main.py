@@ -408,7 +408,7 @@ async def root():
 @app.get("/health", tags=["Health & Diagnostics"])
 def legacy_health(db: Session = Depends(get_db)):
     from app.api.v1.health import health_check
-    return health_check(db)
+    return health_check(db=db)
 
 
 @app.post("/search", tags=["Search & Recommendations"])
