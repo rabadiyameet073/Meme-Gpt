@@ -107,15 +107,16 @@ MAX_NAME_LENGTH = 200
 _VALID_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _WS_COLLAPSE = re.compile(r"\s+")
 _SAFE_CHARS = re.compile(r"[^a-zA-Z0-9\s.,!?'\"@#&%$:;=_+()[\]{}<>/~`/|*°€₹¥^\\-]")
-_NULL_BYTE = re.compile(r"\x00")
+_HTML_TAGS = re.compile(r"<[^>]+>")
 
 
 def sanitize_input(value: str, *, max_len: int = MAX_TEXT_LENGTH) -> str:
-    """Sanitize a user-supplied string for safe storage and display."""
-    if not isinstance(value, str):
-        value = str(value)
+    """Sanitize a user-supplied string — remove HTML tags, null bytes, normalize whitespace, truncate."""
+    if not isinstance(value, str) or not value:
+        return ""
     if "\x00" in value:
-        value = value.replace("\x00", " ")
+        value = value.replace("\x00", "")
+    value = _HTML_TAGS.sub("", value)
     value = value.encode("utf-8", errors="replace").decode("utf-8")
     value = _WS_COLLAPSE.sub(" ", value)
     value = _SAFE_CHARS.sub("", value)
@@ -284,6 +285,49 @@ class Meme(Base):
     @category.expression
     def category(cls):
         return cls.categories
+
+    @hybrid_property
+    def emotion(self) -> str:
+        emots = self.emotions_list()
+        return emots[0] if emots else "neutral"
+
+    @emotion.setter
+    def emotion(self, val: str) -> None:
+        if isinstance(val, str):
+            self.emotions = [val]
+        elif isinstance(val, list):
+            self.emotions = val
+
+    @emotion.expression
+    def emotion(cls):
+        return cls.emotions
+
+    @hybrid_property
+    def format(self) -> str:
+        if self.gif_url or self.gif_ref:
+            return "gif"
+        elif self.mp4_url or self.video_ref:
+            return "video"
+        elif self.webp_url:
+            return "webp"
+        return "image"
+
+    @format.setter
+    def format(self, val: str) -> None:
+        pass
+
+    @hybrid_property
+    def is_nsfw(self) -> bool:
+        return bool(self.nsfw)
+
+    @is_nsfw.setter
+    def is_nsfw(self, val: bool) -> None:
+        self.nsfw = bool(val)
+
+    @is_nsfw.expression
+    def is_nsfw(cls):
+        return cls.nsfw
+
 
     def to_dict(self) -> dict:
         """Serialize meme to API response format."""
@@ -487,12 +531,21 @@ class SearchLog(Base):
 
         super().__init__(**kwargs)
 
+    @property
+    def match_count(self) -> int:
+        return self.result_count or 0
+
+    @match_count.setter
+    def match_count(self, val: int):
+        self.result_count = val
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "query_hash": self.query_hash,
             "session_id": self.session_id,
             "result_count": self.result_count,
+            "match_count": self.result_count,
             "top_meme_id": self.top_meme_id,
             "latency_ms": self.latency_ms,
             "cache_hit": self.cache_hit,
@@ -500,6 +553,7 @@ class SearchLog(Base):
             "emotion_detected": self.emotion_detected,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
 
 
 class ApiKey(Base):
