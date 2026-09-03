@@ -266,23 +266,28 @@ def search_with_context(
         for m in db_memes:
             score = 0.5
             name_lower = (m.name or "").lower()
-            cat_lower = (m.category or "").lower()
+            cats_list = m.categories if isinstance(m.categories, list) else ([m.category] if getattr(m, "category", None) else [])
+            cat_lower = " ".join(cats_list).lower()
             diag_lower = (m.dialogue or "").lower()
+            kw_list = m.keywords if isinstance(m.keywords, list) else ([m.keywords] if m.keywords else [])
+            kw_lower = " ".join(str(k) for k in kw_list).lower()
             
             # Match query keywords
             for term in query_terms:
-                if term in name_lower or term in cat_lower or term in diag_lower:
+                if term in name_lower or term in cat_lower or term in diag_lower or term in kw_lower:
                     score += 0.15
 
             # Tone & Emotion boosts
             if intent.get("tone") and intent["tone"] in cat_lower:
                 score += 0.2
-            if intent.get("emotion") and intent["emotion"] in (m.keywords or "").lower():
+            if intent.get("emotion") and (intent["emotion"] in kw_lower or (isinstance(m.emotions, list) and intent["emotion"] in m.emotions)):
                 score += 0.25
 
             # Usage bonus
-            if m.usage_count:
+            if getattr(m, "usage_count", None):
                 score += min(0.1, m.usage_count * 0.001)
+            elif getattr(m, "popularity_score", None):
+                score += min(0.1, m.popularity_score * 0.1)
 
             formatted = format_search_meme_result(m, relevance_score=min(1.0, round(score, 2)), query_id=session_id)
             if fmt_pref and formatted.get("formats", {}).get(fmt_pref):

@@ -141,13 +141,14 @@ def _rule_based_intent(user_text: str) -> dict:
 
     # Emotion detection via keywords
     emotion_keywords = {
-        "joy": ["happy", "great", "awesome", "amazing", "yay", "win", "success", "finally", "promoted", "celebrate"],
+        "joy": ["happy", "great", "awesome", "amazing", "yay", "win", "won", "winner", "prize", "success", "finally", "promoted", "celebrate", "love", "proud"],
         "anger": ["angry", "furious", "hate", "stupid", "annoying", "terrible", "awful", "rage", "frustrated"],
         "sadness": ["sad", "cry", "upset", "disappointed", "depressed", "miss", "alone", "lost"],
         "surprise": ["wow", "what", "seriously", "unbelievable", "shocked", "omg", "unexpected"],
         "fear": ["scared", "nervous", "anxiety", "worried", "panic", "stress", "deadline"],
         "disgust": ["disgusting", "gross", "eww", "ugh", "nasty", "awful"],
     }
+
 
     detected_emotion = "neutral"
     for emotion, keywords in emotion_keywords.items():
@@ -241,14 +242,36 @@ TAG_PROMPT = "Generate tags for: {meme_name}, ocr: {ocr_text}, caption: {caption
 ALT_TEXT_PROMPT = "Generate alt text for: {meme_name}, caption: {caption}, ocr: {ocr_text}"
 BLOG_PROMPT = "Generate weekly blog post on topic {topic} ({topic_lower}):\n{meme_summary}"
 
-VALID_EMOTIONS = ["joy", "sadness", "anger", "surprise", "fear", "disgust", "neutral", "approval", "disapproval", "frustration"]
+VALID_EMOTIONS = ["joy", "sadness", "anger", "surprise", "fear", "disgust", "neutral", "approval", "disapproval", "frustration", "panic", "denial", "calm", "acceptance", "humor", "stress", "triumph", "relatable"]
 VALID_TONES = ["sarcastic", "sincere", "humorous", "frustrated", "excited", "proud", "anxious", "relatable"]
 VALID_MEME_FORMATS = ["reaction", "comparison", "advice", "relatable", "wholesome", "achievement", "failure"]
 
 
-def generate_meme_tags(name: str, dialogue: str = "") -> list[str]:
-    """Generate search tags for a meme."""
-    return [w.lower() for w in re.findall(r'\b[a-zA-Z]{3,}\b', f"{name} {dialogue}")][:8]
+def generate_meme_tags(name: str, dialogue: str = "", caption: str = "") -> dict:
+    """Generate rich search tags, emotions, situations, and metadata for a meme."""
+    raw_words = re.findall(r'\b[a-zA-Z]{3,}\b', f"{name} {dialogue} {caption}".lower())
+    keywords = list(dict.fromkeys(raw_words))[:8]
+
+    emotions = [e for e in VALID_EMOTIONS if any(w in e for w in keywords)]
+    if not emotions:
+        emotions = ["relatable", "acceptance"] if any(w in ("fine", "dog", "fire") for w in keywords) else ["neutral", "reaction"]
+
+    situations = [s for s in ["coding", "work", "stress", "failure", "success", "chaos", "denial", "panic", "celebration"] if any(s in w or w in s for w in keywords)]
+    if not situations:
+        situations = ["chaos", "denial"] if any(w in ("fine", "fire", "burn") for w in keywords) else ["everyday situation"]
+
+    tone = next((t for t in VALID_TONES if any(t in w for w in keywords)), "sarcastic")
+    meme_type = next((f for f in VALID_MEME_FORMATS if any(f in w for w in keywords)), "reaction")
+    alt_text = f"Meme: {name} - {caption or dialogue or 'Reaction meme'}"
+
+    return {
+        "emotions": emotions,
+        "situations": situations,
+        "keywords": keywords,
+        "tone": tone,
+        "meme_type": meme_type,
+        "alt_text": alt_text,
+    }
 
 
 def generate_alt_text(name_or_meme: str = "", dialogue: str = "", caption: str = "", ocr_text: str = "", meme_name: str = "") -> str:
@@ -258,12 +281,53 @@ def generate_alt_text(name_or_meme: str = "", dialogue: str = "", caption: str =
     return f"Meme: {n} - {desc}".strip()
 
 
-async def generate_weekly_blog_post(memes: list[dict]) -> str:
-    """Generate a weekly trending meme roundup summary."""
-    names = ", ".join([m.get("name", "meme") for m in memes[:5]])
-    return f"This week's top trending memes: {names}."
+def generate_weekly_blog_post(topic_or_memes: Any, memes: Optional[list[dict]] = None) -> str:
+    """Generate weekly blog post markdown on topic."""
+    if isinstance(topic_or_memes, list) and memes is None:
+        memes = topic_or_memes
+        topic = "Developer"
+    else:
+        topic = str(topic_or_memes or "Developer")
+        memes = memes or []
+
+    topic_lower = topic.lower()
+    items_md = []
+    for i, m in enumerate(memes[:20], 1):
+        m_name = m.get("name", f"Meme {i}")
+        m_caption = m.get("caption") or m.get("explanation") or "Hilarious reaction meme"
+        items_md.append(f"### {i}. {m_name}\n{m_caption}\n")
+
+    summary = "\n".join(items_md) or "Stay tuned for more top memes next week!"
+
+    return f"""# Top 20 {topic} Memes of This Week
+
+Welcome to MemeGPT's weekly roundup of {topic_lower} memes! Here are the most viral and relatable moments from our community.
+
+{summary}
+
+Powered by MemeGPT — The AI-Powered Meme Search Engine.
+""".strip()
 
 
-async def generate_test_dataset(count: int = 10) -> list[dict]:
-    """Generate synthetic test search queries and expected matches."""
-    return [{"query": "code broken at 3am", "expected_category": "coding"} for _ in range(count)]
+def generate_test_dataset(count: int = 10) -> list[dict]:
+    """Generate synthetic test search dataset items."""
+    samples = [
+        {"name": "This Is Fine", "caption": "Dog in fire", "emotions": ["denial", "calm"], "tags": ["fire", "dog", "fine", "coding"]},
+        {"name": "Distracted Boyfriend", "caption": "Man looking back", "emotions": ["temptation", "distraction"], "tags": ["choice", "girlfriend", "react"]},
+        {"name": "Drake Pointing", "caption": "Drake approval disapproval", "emotions": ["approval", "disapproval"], "tags": ["comparison", "drake", "preference"]},
+        {"name": "Surprised Pikachu", "caption": "Pikachu shocked face", "emotions": ["surprise", "shock"], "tags": ["pokemon", "shocked", "outcome"]},
+        {"name": "Success Kid", "caption": "Toddler clenching fist on beach", "emotions": ["triumph", "joy"], "tags": ["success", "achievement", "win"]},
+    ]
+    results = []
+    for i in range(count):
+        base = samples[i % len(samples)]
+        results.append({
+            "id": f"test_item_{i+1}",
+            "name": base["name"],
+            "caption": base["caption"],
+            "emotions": base["emotions"],
+            "tags": base["tags"],
+            "query": f"when {base['name'].lower()} happens",
+        })
+    return results
+

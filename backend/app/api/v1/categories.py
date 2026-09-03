@@ -17,6 +17,11 @@ logger = logging.getLogger("memegpt.api.categories")
 
 router = APIRouter(tags=["Categories & Stats"])
 
+DEFAULT_CATEGORIES = {
+    "coding", "work", "college", "gaming", "relationships",
+    "money", "food", "general", "reaction", "wholesome", "tech", "burnout"
+}
+
 
 @router.get("/categories", summary="List all meme categories")
 def get_categories(db: Session = Depends(get_db)):
@@ -27,28 +32,25 @@ def get_categories(db: Session = Depends(get_db)):
     try:
         memes = db.query(Meme).all()
 
-        categories = set()
+        categories = set(DEFAULT_CATEGORIES)
         for meme in memes:
-            cats = meme.categories_list()
+            cats = meme.categories_list() if hasattr(meme, "categories_list") else None
             if isinstance(cats, list):
                 for c in cats:
                     if c:
-                        categories.add(c.strip())
-
-        if not categories:
-            categories = {
-                "coding", "work", "college", "gaming", "relationships",
-                "money", "food", "general", "reaction", "wholesome"
-            }
+                        categories.add(c.strip().lower())
+            elif isinstance(getattr(meme, "categories", None), list):
+                for c in meme.categories:
+                    if c:
+                        categories.add(c.strip().lower())
+            elif getattr(meme, "category", None):
+                categories.add(meme.category.strip().lower())
 
         return sorted(categories)
 
     except Exception as e:
         logger.error(f"Error fetching categories: {e}")
-        return [
-            "coding", "work", "college", "gaming", "relationships",
-            "money", "food", "general", "reaction", "wholesome"
-        ]
+        return sorted(DEFAULT_CATEGORIES)
 
 
 @router.get("/stats", summary="Platform statistics")

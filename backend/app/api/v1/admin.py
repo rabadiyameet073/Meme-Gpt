@@ -61,6 +61,7 @@ def list_all_memes(
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
+    auth: AuthContext = Depends(get_api_tier),
 ):
     """Returns paginated list of all memes for admin panel."""
     offset = max(page - 1, 0) * limit
@@ -78,6 +79,7 @@ def list_all_memes(
 def create_meme(
     body: CreateMemeRequest,
     db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
 ):
     """
     Create a new meme record.
@@ -126,6 +128,7 @@ def update_meme(
     meme_id: str,
     body: UpdateMemeRequest,
     db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
 ):
     """Update specific fields of a meme."""
     meme = db.query(Meme).filter((Meme.id == meme_id) | (Meme.slug == meme_id)).first()
@@ -145,6 +148,7 @@ def update_meme(
 def delete_meme(
     meme_id: str,
     db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
 ):
     """
     Delete a meme by ID.
