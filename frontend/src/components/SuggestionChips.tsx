@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 
 export interface SuggestionChipsProps {
   onSelect: (query: string) => void;
@@ -9,73 +8,40 @@ export interface SuggestionChipsProps {
 interface ChipItem {
   label: string;
   query: string;
+  icon: IconName;
 }
 
 const STATIC_CHIPS: ChipItem[] = [
-  { label: "🤦 Monday vibe", query: "Monday morning feeling" },
-  { label: "😤 Frustration", query: "when everything goes wrong" },
-  { label: "🎉 Win", query: "when you finally succeed" },
-  { label: "💻 Programmer life", query: "when the code works on first try" },
-  { label: "🏠 WFH", query: "working from home struggles" },
-  { label: "😴 Tired", query: "when you haven't slept enough" },
-  { label: "🔥 Savage", query: "sarcastic comeback moment" },
-  { label: "💀 Dead", query: "when something is too funny" },
+  { label: "Monday Vibe", icon: "clock", query: "Monday morning feeling and low energy" },
+  { label: "Code Works First Try", icon: "coding", query: "when the code works on first try without bugs" },
+  { label: "Huge Win", icon: "trophy", query: "when you finally succeed after failing" },
+  { label: "Startup Chaos", icon: "startup", query: "working at a fast paced AI startup" },
+  { label: "Work From Home", icon: "office", query: "working from home daily struggles" },
+  { label: "Exams One Night Before", icon: "college", query: "studying entire syllabus one night before exam" },
+  { label: "Clutch Gaming Moment", icon: "gaming", query: "carrying the whole team to victory in gaming" },
+  { label: "Extremely Relatable", icon: "sparkles", query: "this is so relatable it hurts" },
 ];
 
-function getTimeBasedChips(): ChipItem[] {
-  const now = new Date();
-  const day = now.getDay(); // 0 is Sunday, 1 is Monday, 5 is Friday, 6 is Saturday
-  const hour = now.getHours();
-
-  if (day === 1 && hour >= 6 && hour <= 10) {
-    return [
-      { label: "☕ Monday morning", query: "Monday morning feeling" },
-      { label: "☕ Need coffee", query: "need caffeine to survive" },
-      { label: "💼 Back to work", query: "back to work reality check" },
-    ];
-  } else if (day === 5 && hour >= 15 && hour <= 18) {
-    return [
-      { label: "🍻 Friday feeling", query: "Friday afternoon celebration" },
-      { label: "🌴 Weekend plans", query: "weekend ready" },
-      { label: "⏳ Almost there", query: "almost the weekend clock watching" },
-    ];
-  } else if (day === 0 || day === 6) {
-    return [
-      { label: "🏖️ Weekend vibes", query: "relaxing weekend bliss" },
-      { label: "😱 Sunday scaries", query: "Sunday night realizing tomorrow is Monday" },
-      { label: "🛌 No work today", query: "sleeping in no alarms" },
-    ];
-  }
-  return [];
-}
-
 export function SuggestionChips({ onSelect, disabled }: SuggestionChipsProps) {
-  const [chips, setChips] = useState<ChipItem[]>([]);
-
-  useEffect(() => {
-    const dynamic = getTimeBasedChips();
-    const dynamicQueries = new Set(dynamic.map((d) => d.query));
-    const combined = [...dynamic, ...STATIC_CHIPS.filter((s) => !dynamicQueries.has(s.query))];
-    setChips(combined.slice(0, 8)); // 5-8 chips maximum
-  }, []);
-
   return (
-    <div className="suggestion-chips-container" style={{ margin: "14px 0" }}>
+    <div style={{ margin: "18px 0 6px" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "6px",
-          fontSize: "0.78rem",
-          fontWeight: 600,
+          fontSize: "0.76rem",
+          fontWeight: 700,
           color: "var(--text-muted)",
           textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          marginBottom: "8px",
+          letterSpacing: "0.06em",
+          marginBottom: "10px",
         }}
       >
-        <Icon name="sparkles" size={14} /> Quick Situations:
+        <Icon name="sparkles" size={13} color="var(--brand-purple-light)" />
+        <span>Instant AI Prompts:</span>
       </div>
+
       <div
         style={{
           display: "flex",
@@ -85,40 +51,20 @@ export function SuggestionChips({ onSelect, disabled }: SuggestionChipsProps) {
         role="group"
         aria-label="Quick search suggestions"
       >
-        {chips.map((chip) => (
+        {STATIC_CHIPS.map((chip) => (
           <button
             key={chip.query}
             onClick={() => onSelect(chip.query)}
             disabled={disabled}
-            className="chip"
+            type="button"
+            className="chip-btn"
             style={{
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid var(--border)",
-              borderRadius: "20px",
               padding: "6px 14px",
               fontSize: "0.82rem",
-              color: "var(--text-secondary)",
-              cursor: disabled ? "not-allowed" : "pointer",
-              transition: "all var(--transition-fast, 0.15s ease)",
-              textAlign: "left",
-              whiteSpace: "nowrap",
-            }}
-            onMouseEnter={(e) => {
-              if (!disabled) {
-                e.currentTarget.style.borderColor = "var(--brand-purple, #7C3AED)";
-                e.currentTarget.style.color = "#ffffff";
-                e.currentTarget.style.background = "rgba(124, 58, 237, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!disabled) {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.color = "var(--text-secondary)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-              }
             }}
           >
-            {chip.label}
+            <Icon name={chip.icon} size={14} color="var(--brand-cyan)" />
+            <span>{chip.label}</span>
           </button>
         ))}
       </div>

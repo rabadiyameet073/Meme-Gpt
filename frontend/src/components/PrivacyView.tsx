@@ -1,35 +1,56 @@
+import { Icon } from "./Icon";
+
 export function PrivacyView() {
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px 0" }}>
+    <div style={{ maxWidth: "860px", margin: "0 auto", paddingBottom: "40px" }}>
       <div
         style={{
-          background: "var(--bg-surface, #141414)",
+          backgroundColor: "var(--bg-card)",
           border: "1px solid var(--border)",
-          borderRadius: "16px",
-          padding: "32px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+          borderRadius: "var(--radius-md)",
+          padding: "36px",
+          boxShadow: "var(--shadow-md)",
         }}
       >
-        <h1 style={{ fontSize: "1.8rem", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>
-          Privacy Policy 🔒
-        </h1>
-        <p style={{ fontSize: "0.95rem", color: "var(--text-secondary)", lineHeight: "1.6", marginBottom: "20px" }}>
-          Last Updated: August 2026
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <div className="logo-icon-box" style={{ backgroundColor: "var(--accent-emerald)" }}>
+            <Icon name="shield" size={18} color="#ffffff" />
+          </div>
+          <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+            Privacy Policy & Data Security
+          </h1>
+        </div>
+
+        <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "24px" }}>
+          Last Updated: August 2026 • MemeGPT Architecture Standard
         </p>
 
-        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginTop: "20px", marginBottom: "8px", color: "var(--brand-purple, #A78BFA)" }}>
-          1. Data We Do Not Collect
-        </h3>
-        <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
-          MemeGPT is built without mandatory user accounts, tracking cookies, or advertising identifiers. Search queries are processed in memory and aggregated anonymously for latency monitoring.
-        </p>
+        <div style={{ marginBottom: "24px" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px", color: "var(--text-primary)" }}>
+            1. Zero-Tracking Architecture
+          </h2>
+          <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", fontSize: "0.92rem" }}>
+            MemeGPT is engineered from the ground up without mandatory user accounts, tracking pixels, or cross-site behavioral telemetry. Search queries are processed ephemerally for vector cosine matching and cached with cryptographic privacy hashes.
+          </p>
+        </div>
 
-        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginTop: "20px", marginBottom: "8px", color: "var(--brand-purple, #A78BFA)" }}>
-          2. Local Storage
-        </h3>
-        <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
-          Saved memes (Favorites) and format preferences are stored strictly in your local browser storage (`localStorage`) and are never synced to third-party databases without your consent.
-        </p>
+        <div style={{ marginBottom: "24px" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px", color: "var(--text-primary)" }}>
+            2. Local Browser Storage
+          </h2>
+          <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", fontSize: "0.92rem" }}>
+            Bookmarked memes, custom collections, format preferences, and theme choices are stored strictly in your browser's private local storage (<code style={{ color: "var(--brand-primary)" }}>localStorage</code>) and are never uploaded or sold to advertising brokers.
+          </p>
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px", color: "var(--text-primary)" }}>
+            3. Rate Limiting & Abuse Prevention
+          </h2>
+          <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", fontSize: "0.92rem" }}>
+            To safeguard API availability, requests are rate-limited via client IP headers without storing permanent identity logs.
+          </p>
+        </div>
       </div>
     </div>
   );

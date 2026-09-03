@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { api, Meme } from "../api";
 import { Icon } from "./Icon";
+import { soundFx } from "../lib/audio";
 
 export interface MemeDetailProps {
   slug: string;
@@ -44,36 +46,52 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
 
   if (loading) {
     return (
-      <div style={{ padding: "60px 20px", textAlign: "center" }}>
+      <div style={{ padding: "80px 20px", textAlign: "center" }}>
         <div
           style={{
-            width: "48px",
-            height: "48px",
+            width: "40px",
+            height: "40px",
             margin: "0 auto 16px",
-            border: "3px solid rgba(124, 58, 237, 0.2)",
-            borderTopColor: "var(--brand-purple, #7C3AED)",
+            border: "3px solid var(--border)",
+            borderTopColor: "var(--brand-primary)",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }}
         />
-        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Loading meme details...</p>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>Loading meme details...</p>
       </div>
     );
   }
 
   if (error || !meme) {
     return (
-      <div style={{ padding: "40px 20px", textAlign: "center" }}>
-        <p style={{ color: "var(--error, #EF4444)", fontSize: "1rem", marginBottom: "16px" }}>
-          ⚠️ {error || "Meme not found"}
+      <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: "480px", margin: "0 auto" }}>
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            borderRadius: "var(--radius-sm)",
+            backgroundColor: "rgba(244, 63, 94, 0.1)",
+            color: "var(--accent-rose)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 16px",
+          }}
+        >
+          <Icon name="alert" size={24} />
+        </div>
+        <h3 style={{ fontSize: "1.2rem", marginBottom: "8px" }}>Meme Not Found</h3>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "20px" }}>
+          {error || "The requested meme could not be located in our index."}
         </p>
         {onBack && (
           <button
+            type="button"
             onClick={onBack}
             className="btn btn-secondary"
-            style={{ padding: "8px 16px", borderRadius: "8px" }}
           >
-            ← Go Back
+            ← Back to Search
           </button>
         )}
       </div>
@@ -88,71 +106,92 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
     meme.gifRef;
 
   return (
-    <div className="meme-detail-view" style={{ maxWidth: "800px", margin: "0 auto", padding: "20px 0" }}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ maxWidth: "860px", margin: "0 auto", paddingBottom: "40px" }}
+    >
       {onBack && (
         <button
-          onClick={onBack}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "0.9rem",
-            marginBottom: "18px",
+          type="button"
+          onClick={() => {
+            soundFx.playTap();
+            onBack();
           }}
+          className="btn btn-secondary"
+          style={{ marginBottom: "20px", fontSize: "0.84rem" }}
         >
-          ← Back to Search
+          ← Back to Catalog
         </button>
       )}
 
       <div
         style={{
-          background: "var(--bg-surface, #141414)",
+          backgroundColor: "var(--bg-card)",
           border: "1px solid var(--border)",
-          borderRadius: "16px",
-          padding: "24px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+          borderRadius: "var(--radius-md)",
+          padding: "28px",
+          boxShadow: "var(--shadow-md)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+        {/* Title Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
           <div>
-            <h1 style={{ fontSize: "1.6rem", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+            <span className="badge badge-category" style={{ marginBottom: "8px" }}>
+              <Icon name="tag" size={11} /> {meme.category ? meme.category.replace(/_/g, " ") : "general"}
+            </span>
+            <h1 style={{ fontSize: "1.8rem", fontWeight: 800, margin: "4px 0 6px", color: "var(--text-primary)" }}>
               {meme.name}
             </h1>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "4px" }}>
-              Slug: <code style={{ color: "var(--brand-purple, #A78BFA)" }}>{meme.slug}</code>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+              Slug: <code style={{ color: "var(--brand-primary)" }}>{meme.slug}</code>
             </p>
           </div>
 
           <div style={{ display: "flex", gap: "8px" }}>
             <button
+              type="button"
               onClick={() => {
+                soundFx.playClick();
                 navigator.clipboard.writeText(window.location.href);
-                onToast?.("Link copied to clipboard!");
+                onToast?.("Meme URL copied to clipboard!");
               }}
               className="btn btn-secondary"
-              style={{ padding: "6px 12px", fontSize: "0.82rem", borderRadius: "8px" }}
+              style={{ fontSize: "0.84rem" }}
             >
-              <Icon name="link" size={14} /> Share Link
+              <Icon name="share" size={14} /> Share Link
             </button>
           </div>
         </div>
 
-        {/* Media Preview Container */}
+        {/* Dialogue Quote Box */}
+        {meme.dialogue && (
+          <div
+            className="card-dialogue"
+            style={{
+              fontSize: "1rem",
+              padding: "12px 18px",
+              margin: "18px 0",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            "{meme.dialogue}"
+          </div>
+        )}
+
+        {/* Media Preview Box */}
         <div
           style={{
             margin: "20px 0",
-            background: "rgba(0,0,0,0.3)",
-            borderRadius: "12px",
-            padding: "16px",
+            backgroundColor: "var(--bg-input)",
+            borderRadius: "var(--radius-sm)",
+            padding: "20px",
             textAlign: "center",
-            minHeight: "260px",
+            minHeight: "280px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            border: "1px solid var(--border-subtle)",
           }}
         >
           {mediaUrl ? (
@@ -161,43 +200,47 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
               alt={meme.name}
               loading="lazy"
               decoding="async"
-              style={{ maxHeight: "420px", maxWidth: "100%", objectFit: "contain", borderRadius: "8px" }}
+              style={{ maxHeight: "450px", maxWidth: "100%", objectFit: "contain", borderRadius: "var(--radius-xs)" }}
             />
           ) : (
             <span style={{ color: "var(--text-muted)" }}>Preview unavailable</span>
           )}
         </div>
 
-        {/* Format Selector & Download */}
+        {/* Format Selector & Download Toolbar */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             flexWrap: "wrap",
-            gap: "12px",
-            padding: "12px 16px",
-            background: "rgba(255,255,255,0.02)",
-            borderRadius: "10px",
-            border: "1px solid var(--border)",
+            gap: "14px",
+            padding: "14px 18px",
+            backgroundColor: "var(--bg-panel)",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border-subtle)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 600 }}>
-              AVAILABLE FORMATS:
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase" }}>
+              Available Formats:
             </span>
             {(["image", "gif", "video", "webp"] as const).map((fmt) => (
               <button
                 key={fmt}
-                onClick={() => setSelectedFormat(fmt)}
+                type="button"
+                onClick={() => {
+                  soundFx.playTap();
+                  setSelectedFormat(fmt);
+                }}
                 style={{
                   padding: "4px 10px",
-                  fontSize: "0.78rem",
+                  fontSize: "0.75rem",
                   fontWeight: 600,
-                  borderRadius: "6px",
-                  border: selectedFormat === fmt ? "1px solid var(--brand-purple, #7C3AED)" : "1px solid var(--border)",
-                  background: selectedFormat === fmt ? "var(--brand-purple, #7C3AED)" : "transparent",
-                  color: selectedFormat === fmt ? "#fff" : "var(--text-secondary)",
+                  borderRadius: "var(--radius-xs)",
+                  border: selectedFormat === fmt ? "1px solid var(--brand-primary)" : "1px solid var(--border)",
+                  backgroundColor: selectedFormat === fmt ? "var(--brand-primary-subtle)" : "transparent",
+                  color: selectedFormat === fmt ? "var(--brand-primary)" : "var(--text-secondary)",
                   cursor: "pointer",
                 }}
               >
@@ -212,45 +255,40 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
             target="_blank"
             rel="noreferrer"
             className="btn btn-primary"
-            style={{
-              padding: "6px 16px",
-              fontSize: "0.85rem",
-              borderRadius: "8px",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
+            onClick={() => soundFx.playSuccess()}
+            style={{ textDecoration: "none", fontSize: "0.85rem" }}
           >
-            <Icon name="download" size={15} /> Download {selectedFormat.toUpperCase()}
+            <Icon name="download" size={15} color="#ffffff" />
+            Download {selectedFormat.toUpperCase()}
           </a>
         </div>
 
-        {/* Description & Tags */}
+        {/* Context & Description */}
         <div style={{ marginTop: "24px" }}>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "8px", color: "var(--text-primary)" }}>
+          <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "8px" }}>
             Context & Explanation
           </h3>
-          <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", fontSize: "0.95rem" }}>
-            {meme.explanation || meme.description || "No description provided."}
+          <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", fontSize: "0.92rem" }}>
+            {meme.explanation || meme.description || "No context description available."}
           </p>
 
           {meme.tags && meme.tags.length > 0 && (
-            <div style={{ marginTop: "16px" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 600 }}>
-                TAGS & CATEGORIES:
+            <div style={{ marginTop: "18px" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 700, textTransform: "uppercase" }}>
+                Tags & Descriptors:
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {meme.tags.map((tag) => (
+                {meme.tags.map((tag: string) => (
                   <span
                     key={tag}
                     style={{
-                      fontSize: "0.76rem",
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid var(--border)",
+                      fontSize: "0.78rem",
+                      padding: "4px 10px",
+                      borderRadius: "var(--radius-xs)",
+                      backgroundColor: "var(--bg-panel)",
+                      border: "1px solid var(--border-subtle)",
                       color: "var(--text-secondary)",
+                      fontFamily: "var(--font-mono)",
                     }}
                   >
                     #{tag}
@@ -261,6 +299,6 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

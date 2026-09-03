@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api, getSessionId, type MemeRecord } from "../api";
 import { MemeCard } from "./MemeCard";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 import {
   loadUserData,
   createCustomCollection,
   deleteCustomCollection,
-  removeSavedMeme,
   type LocalStorageSchema,
 } from "../lib/storage";
 
@@ -25,7 +25,7 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
     setUserData(local);
     try {
       const serverData = await api.favorites(SESSION_ID);
-      setApiFavs(serverData);
+      setApiFavs(serverData || []);
     } catch {
       /* Fallback to local storage */
     } finally {
@@ -55,13 +55,12 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
     if (name === "Favorites") return;
     if (window.confirm(`Delete collection "${name}"? Memes will move to Favorites.`)) {
       deleteCustomCollection(name);
-      onToast(`Deleted "${name}", memes moved to Favorites`);
+      onToast(`Deleted "${name}"`);
       setSelectedCollection("Favorites");
       refreshData();
     }
   };
 
-  // Determine displayed memes based on active tab
   let displayedMemes: any[] = [];
   if (selectedCollection === "Recently Viewed") {
     displayedMemes = (userData.recentlyViewed || []).map((m) => ({
@@ -84,7 +83,6 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
       preview_url: m.thumbnailUrl,
     }));
   } else {
-    // Custom or Favorites
     const localMatches = userData.favorites.filter((f) => f.collection === selectedCollection);
     if (localMatches.length > 0) {
       displayedMemes = localMatches.map((m) => ({
@@ -101,80 +99,85 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="loading-wrap">
-        <div className="spinner" />
-        <div className="loading-text">Loading your collections…</div>
-      </div>
-    );
-  }
-
-  const collectionsList = [
-    { name: "Favorites", icon: "heart-filled", count: userData.favorites.filter((f) => f.collection === "Favorites").length || apiFavs.length },
+  const collectionsList: { name: string; icon: IconName; count: number }[] = [
+    {
+      name: "Favorites",
+      icon: "heart-filled",
+      count: userData.favorites.filter((f) => f.collection === "Favorites").length || apiFavs.length,
+    },
     { name: "Recently Viewed", icon: "clock", count: (userData.recentlyViewed || []).length },
     { name: "Recently Copied", icon: "copy", count: (userData.recentlyCopied || []).length },
     ...userData.collections
       .filter((c) => c.name !== "Favorites")
       .map((c) => ({
         name: c.name,
-        icon: "folder",
+        icon: "tag" as IconName,
         count: userData.favorites.filter((f) => f.collection === c.name).length,
       })),
   ];
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-        <div className="section-label" style={{ margin: 0 }}>
-          <Icon name="folder" size={16} /> Collections & Favorites
+    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "20px",
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
+            <Icon name="heart" size={22} color="var(--accent-rose)" />
+            Saved Memes & Collections
+          </h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginTop: "4px" }}>
+            Your personal library of bookmarked reaction templates and history
+          </p>
         </div>
+
         <button
-          className="btn-action"
+          type="button"
+          className="btn btn-secondary"
           onClick={() => setShowAddModal(true)}
-          style={{ fontSize: "0.8rem", padding: "4px 10px" }}
+          style={{ fontSize: "0.82rem" }}
         >
-          <Icon name="plus" size={12} /> New Collection
+          <Icon name="plus" size={14} color="var(--brand-primary)" />
+          New Collection
         </button>
       </div>
 
-      {/* Collection tabs */}
-      <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "12px", marginBottom: "16px" }}>
+      {/* Collection Chips Bar */}
+      <div className="chips-carousel" style={{ marginBottom: "24px" }}>
         {collectionsList.map((col) => {
           const isSelected = selectedCollection === col.name;
           return (
             <button
               key={col.name}
+              type="button"
               onClick={() => setSelectedCollection(col.name)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
-                background: isSelected ? "rgba(168, 85, 247, 0.15)" : "var(--bg-card)",
-                color: isSelected ? "var(--accent)" : "var(--text-secondary)",
-                fontSize: "0.82rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
+              className={`chip-btn ${isSelected ? "active" : ""}`}
             >
-              <Icon name={col.icon as any} size={13} />
+              <Icon
+                name={col.icon}
+                size={14}
+                color={isSelected ? "var(--brand-primary)" : col.name === "Favorites" ? "var(--accent-rose)" : "var(--text-muted)"}
+              />
               <span>{col.name}</span>
-              <span style={{ opacity: 0.6, fontSize: "0.75rem" }}>({col.count})</span>
-              {isSelected && col.name !== "Favorites" && col.name !== "Recently Viewed" && col.name !== "Recently Copied" && (
+              <span style={{ opacity: 0.7, fontSize: "0.75rem", fontFamily: "var(--font-mono)" }}>({col.count})</span>
+              {isSelected && !["Favorites", "Recently Viewed", "Recently Copied"].includes(col.name) && (
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteCollection(col.name);
                   }}
                   title="Delete collection"
-                  style={{ marginLeft: "4px", color: "var(--text-muted)", cursor: "pointer" }}
+                  style={{ marginLeft: "4px", opacity: 0.7 }}
                 >
-                  ×
+                  <Icon name="trash" size={12} />
                 </span>
               )}
             </button>
@@ -182,58 +185,151 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
         })}
       </div>
 
-      {/* Create collection modal */}
-      {showAddModal && (
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "8px", padding: "12px", marginBottom: "16px" }}>
-          <form onSubmit={handleCreateCollection} style={{ display: "flex", gap: "8px" }}>
-            <input
-              type="text"
-              placeholder="Collection name (e.g. Work, Discord, Friend Group)"
-              value={newCollectionName}
-              onChange={(e) => setNewCollectionName(e.target.value)}
-              autoFocus
+      {/* Loading Skeleton */}
+      {loading ? (
+        <div className="card-grid">
+          {[1, 2, 3].map((n) => (
+            <div
+              key={n}
               style={{
-                flex: 1,
-                padding: "6px 10px",
-                borderRadius: "6px",
-                border: "1px solid var(--border)",
-                background: "var(--bg-primary)",
-                color: "var(--text-primary)",
-                fontSize: "0.85rem",
+                height: "300px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--bg-card)",
+                border: "1px solid var(--border-subtle)",
               }}
             />
-            <button type="submit" className="btn-action primary-action" style={{ padding: "6px 12px" }}>
-              Create
-            </button>
-            <button type="button" className="btn-action" onClick={() => setShowAddModal(false)} style={{ padding: "6px 12px" }}>
-              Cancel
-            </button>
-          </form>
+          ))}
+        </div>
+      ) : displayedMemes.length === 0 ? (
+        /* Empty State */
+        <div
+          style={{
+            textAlign: "center",
+            padding: "60px 20px",
+            backgroundColor: "var(--bg-card)",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "rgba(244, 63, 94, 0.1)",
+              color: "var(--accent-rose)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+            }}
+          >
+            <Icon name="heart" size={24} />
+          </div>
+          <h3 style={{ fontSize: "1.15rem", marginBottom: "6px" }}>No saved memes in this collection</h3>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", maxWidth: "380px", margin: "0 auto" }}>
+            Click the heart icon on any meme card while searching or browsing to save it here for instant access.
+          </p>
+        </div>
+      ) : (
+        /* Saved Memes Grid */
+        <div className="card-grid">
+          {displayedMemes.map((m) => (
+            <MemeCard key={m.id} meme={m} isFav onToast={onToast} onToggleFav={refreshData} />
+          ))}
         </div>
       )}
 
-      {/* Displayed Memes */}
-      {displayedMemes.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">
-            <Icon name="heart" size={36} />
-          </div>
-          <p>No memes in "{selectedCollection}" yet. Click 'Favorite' on any meme card to save it.</p>
-        </div>
-      ) : (
-        displayedMemes.map((m) => (
-          <MemeCard
-            key={m.id}
-            meme={m}
-            isFav={true}
-            onToggleFav={() => {
-              removeSavedMeme(m.id);
-              refreshData();
+      {/* Add Collection Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "var(--bg-overlay)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 100,
+              padding: "20px",
             }}
-            onToast={onToast}
-          />
-        ))
-      )}
+            onClick={() => setShowAddModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: "var(--bg-panel)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                padding: "24px",
+                width: "100%",
+                maxWidth: "400px",
+                boxShadow: "var(--shadow-lg)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>Create New Collection</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateCollection}>
+                <div style={{ marginBottom: "18px" }}>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                    Collection Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                    placeholder="e.g. Work Chaos, Meeting Reactions"
+                    autoFocus
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      backgroundColor: "var(--bg-input)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-sm)",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-body)",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAddModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={!newCollectionName.trim()}
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
