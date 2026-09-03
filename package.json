@@ -4,16 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:frontend": "npm run dev -w frontend",
+    "dev:frontend": "npm run dev --prefix frontend",
     "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000",
-    "build": "npm run build -w frontend",
+    "build": "npm run build --prefix frontend",
     "setup": "python scripts/setup.py",
     "check": "python scripts/check_env.py",
     "test": "cd backend && python -m pytest tests/ -v",
     "seed": "cd backend && python seed.py",
     "embeddings": "cd backend && python generate_embeddings.py"
   },
-  "workspaces": ["frontend"],
   "devDependencies": {
     "concurrently": "^9.1.2"
   }

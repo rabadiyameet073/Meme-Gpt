@@ -41,6 +41,8 @@ prisma/*.db-journal
 
 # Testing & Coverage
 coverage/
+htmlcov/
+.coverage
 .pytest_cache/
 logs/
 *.log
@@ -49,8 +51,13 @@ logs/
 # IDE & OS Files
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+
+# VS Code — keep extension source, ignore caches
+.vscode/settings.json
+.vscode/progress-cache.json
+.vscode/test-results.json
+.vscode/last-test-output.txt
 
 # Hugging Face & Model Caches
 model_cache/
