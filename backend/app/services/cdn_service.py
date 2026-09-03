@@ -24,31 +24,33 @@ CDN_BASE = getattr(settings, "CDN_BASE_URL", "https://cdn.memegpt.com")
 R2_BUCKET = getattr(settings, "R2_BUCKET", "memegpt-memes")
 
 
-def build_meme_urls(slug_or_meme: Any) -> dict:
-    """Build all CDN URLs for a meme by its slug or dict."""
+def build_meme_urls(slug_or_meme: Any = None, meme_id: Optional[str] = None, slug: Optional[str] = None) -> dict:
+    """Build all CDN URLs for a meme by its slug, meme_id, or dict."""
     base = CDN_BASE.rstrip("/")
     if isinstance(slug_or_meme, dict):
-        slug = slug_or_meme.get("slug") or slug_or_meme.get("id") or "meme"
-        orig = slug_or_meme.get("image_url") or slug_or_meme.get("imageRef") or f"{base}/images/{slug}.jpg"
-        webp = slug_or_meme.get("webp_url") or f"{base}/webp/{slug}.webp"
-        gif = slug_or_meme.get("gif_url") or slug_or_meme.get("gifRef") or f"{base}/gifs/{slug}.gif"
-        mp4 = slug_or_meme.get("mp4_url") or slug_or_meme.get("videoRef") or f"{base}/videos/{slug}.mp4"
-        thumb = slug_or_meme.get("thumb_url") or slug_or_meme.get("thumbUrl") or f"{base}/thumbs/{slug}.webp"
+        s = slug_or_meme.get("slug") or slug_or_meme.get("id") or slug or meme_id or "meme"
+        orig = slug_or_meme.get("image_url") or slug_or_meme.get("imageRef") or f"{base}/images/{s}.jpg"
+        webp = slug_or_meme.get("webp_url") or f"{base}/webp/{s}.webp"
+        gif = slug_or_meme.get("gif_url") or slug_or_meme.get("gifRef") or f"{base}/gifs/{s}.gif"
+        mp4 = slug_or_meme.get("mp4_url") or slug_or_meme.get("videoRef") or f"{base}/videos/{s}.mp4"
+        thumb = slug_or_meme.get("thumb_url") or slug_or_meme.get("thumbUrl") or f"{base}/thumbs/{s}.webp"
     else:
-        slug = str(slug_or_meme)
-        orig = f"{base}/images/{slug}.jpg"
-        webp = f"{base}/webp/{slug}.webp"
-        gif = f"{base}/gifs/{slug}.gif"
-        mp4 = f"{base}/videos/{slug}.mp4"
-        thumb = f"{base}/thumbs/{slug}.webp"
+        s = str(slug or slug_or_meme or meme_id or "meme")
+        orig = f"{base}/images/{s}.jpg"
+        webp = f"{base}/webp/{s}.webp"
+        gif = f"{base}/gifs/{s}.gif"
+        mp4 = f"{base}/videos/{s}.mp4"
+        thumb = f"{base}/thumbs/{s}.webp"
 
     return {
+        "image": orig,
         "image_url": orig,
         "original": orig,
         "webp": webp,
         "webp_url": webp,
         "gif": gif,
         "gif_url": gif,
+        "video": mp4,
         "mp4": mp4,
         "mp4_url": mp4,
         "thumb": thumb,
@@ -56,10 +58,14 @@ def build_meme_urls(slug_or_meme: Any) -> dict:
     }
 
 
-def get_share_url(slug: str) -> str:
-    """Return shareable web URL for a meme."""
+def get_share_url(slug: str, query_id: Optional[str] = None) -> str:
+    """Return shareable web URL for a meme with optional query referral."""
     app_base = getattr(settings, "APP_BASE_URL", "https://app.memegpt.com")
-    return f"{app_base.rstrip('/')}/meme/{slug}"
+    url = f"{app_base.rstrip('/')}/meme/{slug}"
+    if query_id:
+        url += f"?ref={query_id}"
+    return url
+
 
 
 def get_r2_client():
