@@ -95,20 +95,41 @@ export interface TrendingResponse {
   trending?: MemeRecord[];
   category?: string;
   total?: number;
+  data?: {
+    category?: string;
+    period?: string;
+    results?: MemeRecord[];
+    meta?: any;
+  };
+  results?: MemeRecord[];
 }
 
 export interface FeedbackParams {
   queryId?: string;
   memeId: string;
-  action: "copy" | "download" | "upvote" | "downvote" | "share";
+  action: "copy" | "download" | "upvote" | "downvote" | "share" | string;
   format?: string;
 }
 
 // Exported API client object
 export const api = {
   // ── v1 API Specification Endpoints ──────────────────────────────────────────
-  search: (query: string, format: string = "gif", limit: number = 5) =>
-    apiRequest<SearchResponse>("/v1/search", {
+  search: (
+    query: string,
+    formatOrOptions: string | { format?: string; limit?: number } = "gif",
+    limitParam: number = 5
+  ) => {
+    let format = "gif";
+    let limit = limitParam;
+
+    if (typeof formatOrOptions === "object" && formatOrOptions !== null) {
+      format = formatOrOptions.format || "gif";
+      limit = formatOrOptions.limit ?? limitParam;
+    } else if (typeof formatOrOptions === "string") {
+      format = formatOrOptions || "gif";
+    }
+
+    return apiRequest<SearchResponse>("/v1/search", {
       method: "POST",
       body: JSON.stringify({
         query,
@@ -116,26 +137,95 @@ export const api = {
         limit,
         session_id: getSessionId(),
       }),
-    }),
+    });
+  },
 
   getMeme: (slug: string) => apiRequest<MemeDetail>(`/v1/memes/${slug}`),
 
-  getTrending: (category: string = "all", limit: number = 20) =>
-    apiRequest<TrendingResponse | MemeRecord[]>(
-      `/v1/trending?category=${category}&limit=${limit}`
-    ),
+  getTrending: async (
+    categoryOrOptions?: string | { category?: string; limit?: number; period?: string; offset?: number },
+    limitParam: number = 20,
+    periodParam: string = "24h"
+  ) => {
+    let category = "all";
+    let limit = 20;
+    let period = "24h";
+    let offset = 0;
 
-  sendFeedback: (queryId: string, memeId: string, action: string, format = "image") =>
-    apiRequest<{ recorded?: boolean; status?: string }>("/v1/feedback", {
+    if (typeof categoryOrOptions === "object" && categoryOrOptions !== null) {
+      category = categoryOrOptions.category || "all";
+      limit = categoryOrOptions.limit ?? 20;
+      period = categoryOrOptions.period || "24h";
+      offset = categoryOrOptions.offset ?? 0;
+    } else if (typeof categoryOrOptions === "string") {
+      category = categoryOrOptions || "all";
+      limit = limitParam;
+      period = periodParam;
+    }
+
+    const query = new URLSearchParams({
+      category,
+      limit: limit.toString(),
+      period,
+      offset: offset.toString(),
+    });
+
+    return apiRequest<TrendingResponse | MemeRecord[]>(`/v1/trending?${query.toString()}`);
+  },
+
+  trending: async (
+    categoryOrOptions?: string | { category?: string; limit?: number; period?: string; offset?: number },
+    limitParam: number = 20,
+    periodParam: string = "24h"
+  ) => {
+    return api.getTrending(categoryOrOptions, limitParam, periodParam);
+  },
+
+  sendFeedback: (
+    arg1: string | FeedbackParams,
+    arg2?: string,
+    arg3?: string,
+    arg4?: string
+  ) => {
+    let query_id: string | undefined;
+    let meme_id: string;
+    let action: string;
+    let format = "image";
+
+    if (typeof arg1 === "object" && arg1 !== null) {
+      query_id = arg1.queryId;
+      meme_id = arg1.memeId;
+      action = arg1.action;
+      format = arg1.format || "image";
+    } else if (arg4 !== undefined) {
+      query_id = arg1;
+      meme_id = arg2!;
+      action = arg3!;
+      format = arg4;
+    } else if (arg3 !== undefined) {
+      meme_id = arg1;
+      action = arg2!;
+      format = arg3;
+    } else if (arg2 !== undefined) {
+      meme_id = arg1;
+      action = arg2;
+    } else {
+      meme_id = arg1;
+      action = "click";
+    }
+
+    return apiRequest<{ recorded?: boolean; status?: string; message?: string }>("/v1/feedback", {
       method: "POST",
       body: JSON.stringify({
-        query_id: queryId,
-        meme_id: memeId,
+        query_id,
+        meme_id,
+        action,
         signal: action,
         format,
         session_id: getSessionId(),
       }),
-    }),
+    });
+  },
 
   // ── Compatibility and Utility Endpoints ─────────────────────────────────────
   analyze: (query: string) =>
