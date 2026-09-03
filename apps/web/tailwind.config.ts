@@ -24,6 +24,10 @@ const config: Config = {
           elevated:'#1E1E1E',
           hover:   '#252525',
         },
+        'bg-base':     '#0A0A0A',
+        'bg-surface':  '#141414',
+        'bg-elevated': '#1E1E1E',
+        'bg-hover':    '#252525',
         // Border scale
         border: {
           subtle:  '#2A2A2A',
@@ -34,9 +38,9 @@ const config: Config = {
         success: '#22C55E',
       },
       fontFamily: {
-        sans:    ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'Space Grotesk', 'sans-serif'],
-        mono:    ['var(--font-mono)', 'JetBrains Mono', 'monospace'],
+        sans:    ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['var(--font-space-grotesk)', 'Space Grotesk', 'sans-serif'],
+        mono:    ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'monospace'],
       },
       borderRadius: {
         '2xl': '1rem',
