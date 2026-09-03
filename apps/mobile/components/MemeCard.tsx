@@ -1,156 +1,215 @@
-/**
- * MemeCard — React Native meme result card.
- * Features: lazy image, format badges, copy, download, share, vote.
- */
-import React, { useState } from 'react';
+import React, { useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, Image, Pressable,
-} from 'react-native';
-import type { MemeResult } from '../lib/api';
-import { useShare } from '../hooks/useShare';
-import { submitFeedback } from '../lib/api';
-import type { FormatPref } from '../hooks/useMemeSearch';
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Pressable,
+  Image,
+} from "react-native";
+import { CachedMeme } from "../hooks/useOfflineCache";
+import { useMemeActions } from "../hooks/useMemeActions";
+
+let Haptics: any = null;
+try {
+  Haptics = require("expo-haptics");
+} catch {}
 
 interface MemeCardProps {
-  meme: MemeResult;
-  formatPref: FormatPref;
-  queryId?: string | null;
+  meme: CachedMeme;
+  onPress?: () => void;
+  onFavorite?: (id: string) => void;
+  isFavorited?: boolean;
 }
 
-export function MemeCard({ meme, formatPref, queryId }: MemeCardProps) {
-  const { share, downloadToGallery, shareState, downloadState } = useShare();
-  const [voted, setVoted] = useState<'up' | 'down' | null>(null);
+export function MemeCard({
+  meme,
+  onPress,
+  onFavorite,
+  isFavorited = false,
+}: MemeCardProps) {
+  const { shareMeme, copyLink, saveToCameraRoll } = useMemeActions();
+  const [favorited, setFavorited] = useState(isFavorited);
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const lastTap = useRef<number>(0);
 
-  const imageUri =
-    (formatPref === 'gif' && meme.formats.gif) ||
-    (formatPref === 'image' && meme.formats.image) ||
-    meme.formats.webp ||
-    meme.formats.image ||
-    meme.preview_url ||
-    '';
+  // Double-tap to favorite
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
 
-  const score = Math.round(meme.relevance_score * 100);
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      if (Haptics?.impactAsync) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle?.Medium || "medium");
+      }
+      setFavorited(true);
+      onFavorite?.(meme.id);
 
-  const handleVote = (dir: 'up' | 'down') => {
-    setVoted(dir);
-    submitFeedback(meme.id, dir === 'up' ? 'thumbs_up' : 'thumbs_down', queryId ?? undefined);
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true }),
+        Animated.spring(heartScale, { toValue: 1.0, useNativeDriver: true }),
+      ]).start();
+    } else {
+      onPress?.();
+    }
+    lastTap.current = now;
   };
 
+  const imageUrl = meme.thumb_url || meme.image_url || meme.gif_url;
+
   return (
-    <View style={styles.card} accessible={true} accessibilityLabel={`Meme: ${meme.name}`}>
-      {/* Image */}
-      <View style={styles.imageContainer}>
-        {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.image}
-            resizeMode="contain"
-            accessibilityLabel={meme.name}
-          />
-        ) : (
-          <View style={[styles.image, styles.placeholder]}>
-            <Text style={styles.placeholderText}>No preview</Text>
-          </View>
-        )}
-        {score > 0 && (
-          <View style={styles.scoreBadge}>
-            <Text style={styles.scoreText}>🎯 {score}%</Text>
-          </View>
-        )}
-      </View>
+    <Pressable onPress={handleDoubleTap} style={styles.card}>
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.image, styles.placeholder]}>
+          <Text style={styles.placeholderText}>🎭</Text>
+        </View>
+      )}
 
-      {/* Body */}
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>{meme.name}</Text>
+      <View style={styles.content}>
+        <Text style={styles.title} numberOfLines={1}>
+          {meme.name}
+        </Text>
+        {meme.explanation ? (
+          <Text style={styles.explanation} numberOfLines={2}>
+            {meme.explanation}
+          </Text>
+        ) : null}
 
-        {/* Emotions */}
-        {meme.emotions.length > 0 && (
-          <Text style={styles.emotions}>{meme.emotions.slice(0, 3).join(' · ')}</Text>
-        )}
-
-        {/* Action buttons */}
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.btn, styles.btnPrimary]}
-            onPress={() => {
-              const fmt = formatPref === 'image' ? 'image' : 'gif';
-              downloadToGallery(meme.slug, fmt, meme.id);
-              submitFeedback(meme.id, 'download', queryId ?? undefined);
-            }}
-            accessibilityLabel="Download meme"
-            accessibilityRole="button"
+            style={styles.actionBtn}
+            onPress={() => shareMeme(meme)}
+            accessibilityLabel={`Share ${meme.name}`}
           >
-            <Text style={styles.btnTextLight}>
-              {downloadState === 'loading' ? '…' : downloadState === 'done' ? '✓ Saved' : '⬇ Save'}
-            </Text>
+            <Text style={styles.actionIcon}>📤</Text>
+            <Text style={styles.actionText}>Share</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.btn, styles.btnSecondary]}
-            onPress={() => {
-              share(meme.slug, meme.name, meme.id);
-              submitFeedback(meme.id, 'share', queryId ?? undefined);
-            }}
-            accessibilityLabel="Share meme"
-            accessibilityRole="button"
+            style={styles.actionBtn}
+            onPress={() => copyLink(`https://app.memegpt.com/meme/${meme.slug || meme.id}`)}
+            accessibilityLabel={`Copy link for ${meme.name}`}
           >
-            <Text style={styles.btnTextDim}>
-              {shareState === 'loading' ? '…' : '🔗 Share'}
-            </Text>
+            <Text style={styles.actionIcon}>🔗</Text>
+            <Text style={styles.actionText}>Copy</Text>
           </TouchableOpacity>
 
-          <Pressable
-            onPress={() => handleVote('up')}
-            accessibilityLabel="Thumbs up"
-            accessibilityRole="button"
-            style={[styles.voteBtn, voted === 'up' && styles.votedUp]}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.saveBtn]}
+            onPress={() => saveToCameraRoll(meme)}
+            accessibilityLabel={`Save ${meme.name} to camera roll`}
           >
-            <Text>👍</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => handleVote('down')}
-            accessibilityLabel="Thumbs down"
-            accessibilityRole="button"
-            style={[styles.voteBtn, voted === 'down' && styles.votedDown]}
+            <Text style={styles.actionIcon}>⬇️</Text>
+            <Text style={[styles.actionText, styles.saveText]}>Save</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.favBtn}
+            onPress={() => {
+              if (Haptics?.selectionAsync) {
+                Haptics.selectionAsync();
+              }
+              const next = !favorited;
+              setFavorited(next);
+              onFavorite?.(meme.id);
+            }}
+            accessibilityLabel={favorited ? "Unfavorite" : "Favorite"}
           >
-            <Text>👎</Text>
-          </Pressable>
+            <Animated.Text
+              style={[styles.favIcon, { transform: [{ scale: heartScale }] }]}
+            >
+              {favorited ? "❤️" : "🤍"}
+            </Animated.Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: "#18181B",
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
+    marginVertical: 8,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  image: {
+    width: "100%",
+    height: 220,
+    backgroundColor: "#27272A",
+  },
+  placeholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    fontSize: 48,
+  },
+  content: {
+    padding: 14,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FAFAFA",
+    marginBottom: 4,
+  },
+  explanation: {
+    fontSize: 13,
+    color: "#A1A1AA",
+    lineHeight: 18,
     marginBottom: 12,
   },
-  imageContainer: { position: 'relative', backgroundColor: '#0a0a0a' },
-  image: { width: '100%', height: 220 },
-  placeholder: { alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { color: '#525252', fontSize: 12 },
-  scoreBadge: {
-    position: 'absolute', top: 8, left: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 20,
+  actions: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
   },
-  scoreText: { color: '#c4b5fd', fontSize: 11, fontWeight: '600' },
-  body: { padding: 12, gap: 6 },
-  title: { color: '#e5e5e5', fontWeight: '600', fontSize: 14 },
-  emotions: { color: '#737373', fontSize: 11 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 4, alignItems: 'center' },
-  btn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-  btnPrimary: { backgroundColor: '#7C3AED' },
-  btnSecondary: { backgroundColor: '#262626' },
-  btnTextLight: { color: '#fff', fontWeight: '600', fontSize: 12 },
-  btnTextDim: { color: '#a3a3a3', fontWeight: '600', fontSize: 12 },
-  voteBtn: { padding: 8, borderRadius: 8, backgroundColor: '#1e1e1e' },
-  votedUp: { backgroundColor: '#166534' },
-  votedDown: { backgroundColor: '#7f1d1d' },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#27272A",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  actionIcon: {
+    fontSize: 13,
+  },
+  actionText: {
+    color: "#FAFAFA",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  saveBtn: {
+    backgroundColor: "#7C3AED",
+  },
+  saveText: {
+    color: "#FFFFFF",
+  },
+  favBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favIcon: {
+    fontSize: 16,
+  },
 });

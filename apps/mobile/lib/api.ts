@@ -1,89 +1,83 @@
 /**
- * MemeGPT Mobile API Client — mirrors web lib/api.ts for React Native.
- * Uses Axios for reliability (as per tech stack docs).
+ * MemeGPT Mobile — API Client
+ * Connects to the FastAPI backend.
+ * Specification: 05_Mobile_App_Completion.md
  */
 
-const API_BASE = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1';
-
-export interface MemeFormats {
-  gif: string | null;
-  image: string | null;
-  video: string | null;
-  webp: string | null;
-}
+// Change this to your deployed Railway URL when in production
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export interface MemeResult {
-  id: string;
-  name: string;
+  id: number;
   slug: string;
-  relevance_score: number;
-  emotion_match: string[];
-  preview_url: string | null;
-  formats: MemeFormats;
-  share_url: string | null;
-  meme_type: string;
-  categories: string[];
-  emotions: string[];
-  nsfw: boolean;
-  popularity_score: number;
-}
-
-export interface SearchRequest {
-  query: string;
-  format_preference?: 'gif' | 'image' | 'video' | 'any';
-  nsfw?: boolean;
-  limit?: number;
-  session_id?: string;
+  name: string;
+  image_url: string;
+  gif_url?: string;
+  thumb_url?: string;
+  format: "image" | "gif" | "video" | "webp";
+  category?: string;
+  emotion?: string;
+  confidence?: number;
+  explanation?: string;
 }
 
 export interface SearchResponse {
-  success: boolean;
-  query_id: string;
-  results: MemeResult[];
-  response_time_ms: number;
-  cached: boolean;
+  matches: MemeResult[];
+  query: string;
+  total: number;
+  latency_ms: number;
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `API error: ${res.status}`);
+class ApiClient {
+  private baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
   }
-  return res.json();
+
+  async search(
+    query: string,
+    formatPreference: string = "gif",
+    limit: number = 10
+  ): Promise<SearchResponse> {
+    const response = await fetch(`${this.baseUrl}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, format_preference: formatPreference, limit }),
+    });
+    if (!response.ok) throw new Error(`Search failed: ${response.status}`);
+    return response.json();
+  }
+
+  async getTrending(limit: number = 20): Promise<MemeResult[]> {
+    const response = await fetch(`${this.baseUrl}/trending?limit=${limit}`);
+    if (!response.ok) throw new Error(`Trending failed: ${response.status}`);
+    const data = await response.json();
+    return data.memes || data.trending || [];
+  }
+
+  async vote(memeId: number, vote: 1 | -1, sessionId: string): Promise<void> {
+    await fetch(`${this.baseUrl}/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meme_id: memeId, vote, session_id: sessionId }),
+    });
+  }
+
+  async sendFeedback(memeId: number, feedback: string): Promise<void> {
+    await fetch(`${this.baseUrl}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meme_id: memeId, feedback_type: feedback }),
+    });
+  }
 }
 
-export async function searchMemes(req: SearchRequest): Promise<SearchResponse> {
-  return apiFetch('/search', {
-    method: 'POST',
-    body: JSON.stringify({
-      query: req.query,
-      format_preference: req.format_preference ?? 'gif',
-      nsfw: req.nsfw ?? false,
-      limit: req.limit ?? 5,
-      session_id: req.session_id,
-    }),
-  });
-}
+export const api = new ApiClient(API_BASE);
 
-export async function getTrending(category = 'all', limit = 20): Promise<MemeResult[]> {
-  return apiFetch(`/trending?category=${category}&limit=${limit}`);
-}
+export const submitFeedback = (memeId: number | string, feedback: string) =>
+  api.sendFeedback(Number(memeId) || 0, feedback);
 
-export async function getMeme(slug: string) {
-  return apiFetch(`/memes/${slug}`);
-}
+export const voteMeme = (memeId: number | string, vote: 1 | -1, sessionId: string = "mobile_session") =>
+  api.vote(Number(memeId) || 0, vote, sessionId);
 
-export async function submitFeedback(memeId: string, action: string, queryId?: string) {
-  return apiFetch('/feedback', {
-    method: 'POST',
-    body: JSON.stringify({ meme_id: memeId, action, query_id: queryId }),
-  });
-}
-
-export function getDownloadUrl(slug: string, format = 'gif'): string {
-  return `${API_BASE}/memes/${slug}/download?format=${format}`;
-}

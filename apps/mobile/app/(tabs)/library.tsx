@@ -1,125 +1,109 @@
-/**
- * Library Tab — saved memes, offline cached, organized by collection.
- * Uses AsyncStorage for persistence (MMKV upgrade path in Phase 2).
- */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { MemeResult } from '../../lib/api';
-import { BottomSheet } from '../../components/BottomSheet';
+  View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity,
+} from "react-native";
+import { Image } from "expo-image";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, router } from "expo-router";
+import { MemeResult } from "../../lib/api";
 
-const STORAGE_KEY = 'memegpt_saved_memes';
+const FAV_KEY = "memegpt_favorites_v1";
 
-async function loadSaved(): Promise<MemeResult[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+export default function LibraryScreen() {
+  const [favorites, setFavorites] = useState<MemeResult[]>([]);
 
-export default function LibraryTab() {
-  const [saved, setSaved] = useState<MemeResult[]>([]);
-  const [selected, setSelected] = useState<MemeResult | null>(null);
-
-  useEffect(() => {
-    loadSaved().then(setSaved);
+  const loadFavorites = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(FAV_KEY);
+    if (raw) {
+      try {
+        setFavorites(JSON.parse(raw));
+      } catch {
+        setFavorites([]);
+      }
+    }
   }, []);
 
-  const remove = async (id: string) => {
-    const updated = saved.filter((m) => m.id !== id);
-    setSaved(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  useFocusEffect(() => {
+    loadFavorites();
+  });
+
+  const removeFavorite = async (id: number) => {
+    const updated = favorites.filter((f) => f.id !== id);
+    setFavorites(updated);
+    await AsyncStorage.setItem(FAV_KEY, JSON.stringify(updated));
+  };
+
+  if (favorites.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>❤️ Saved Memes</Text>
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>📂</Text>
+          <Text style={styles.emptyText}>No saved memes yet!</Text>
+          <Text style={styles.emptySubtext}>Search and save memes to see them here</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const handleOpenDetail = (item: MemeResult) => {
+    router.push({
+      pathname: "/meme/[id]",
+      params: {
+        id: item.slug || String(item.id),
+        name: item.name,
+        imageUrl: item.image_url,
+        gifUrl: item.gif_url,
+        explanation: item.explanation || "",
+      },
+    });
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📚 Library</Text>
-        <Text style={styles.subtitle}>{saved.length} saved meme{saved.length !== 1 ? 's' : ''}</Text>
-      </View>
-
-      {saved.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyTitle}>No saved memes yet</Text>
-          <Text style={styles.emptyHint}>
-            Tap ⬇ on any meme to save it to your library.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={saved}
-          keyExtractor={(m) => m.id}
-          numColumns={2}
-          contentContainerStyle={styles.grid}
-          columnWrapperStyle={{ gap: 10 }}
-          renderItem={({ item }) => {
-            const img = item.formats.gif || item.formats.image || item.preview_url || '';
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => setSelected(item)}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${item.name}`}
-              >
-                <Image source={{ uri: img }} style={styles.cardImg} resizeMode="contain" />
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                  <TouchableOpacity
-                    onPress={() => remove(item.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${item.name}`}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    <Text style={styles.removeBtn}>✕</Text>
-                  </TouchableOpacity>
-                </View>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>❤️ Saved Memes ({favorites.length})</Text>
+      <FlatList
+        data={favorites}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperStyle={{ gap: 8, marginBottom: 8 }}
+        contentContainerStyle={{ padding: 12 }}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => handleOpenDetail(item)}>
+              <Image
+                source={{ uri: item.thumb_url || item.image_url }}
+                style={styles.image}
+                contentFit="cover"
+                transition={200}
+              />
+            </TouchableOpacity>
+            <View style={styles.cardBottom}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleOpenDetail(item)}>
+                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
               </TouchableOpacity>
-            );
-          }}
-        />
-      )}
-
-      <BottomSheet
-        meme={selected}
-        visible={selected !== null}
-        onClose={() => setSelected(null)}
+              <TouchableOpacity onPress={() => removeFavorite(item.id)}>
+                <Text style={styles.remove}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0A0A0A' },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  title: { color: '#F5F5F5', fontSize: 22, fontWeight: '800' },
-  subtitle: { color: '#737373', fontSize: 13, marginTop: 2 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { color: '#a3a3a3', fontSize: 17, fontWeight: '700' },
-  emptyHint: { color: '#525252', fontSize: 13, textAlign: 'center', maxWidth: 260 },
-  grid: { padding: 16, gap: 10, paddingBottom: 40 },
-  card: {
-    flex: 1,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  cardImg: { width: '100%', height: 130 },
-  cardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 8,
-  },
-  cardName: { color: '#d4d4d4', fontSize: 11, fontWeight: '600', flex: 1 },
-  removeBtn: { color: '#525252', fontSize: 12, paddingLeft: 6 },
+  container: { flex: 1, backgroundColor: "#09090B" },
+  title: { color: "#fff", fontSize: 22, fontWeight: "800", padding: 20, paddingBottom: 12 },
+  empty: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  emptyIcon: { fontSize: 64 },
+  emptyText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  emptySubtext: { color: "#71717a", fontSize: 14, textAlign: "center" },
+  card: { flex: 1, backgroundColor: "#18181B", borderRadius: 12, overflow: "hidden" },
+  image: { width: "100%", aspectRatio: 1 },
+  cardBottom: { flexDirection: "row", justifyContent: "space-between", padding: 8, alignItems: "center" },
+  name: { flex: 1, color: "#e4e4e7", fontSize: 11, fontWeight: "600" },
+  remove: { color: "#71717a", fontSize: 16, paddingLeft: 4 },
 });

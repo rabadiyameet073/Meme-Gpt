@@ -1,19 +1,71 @@
-import React from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Pressable,
+  Image,
+} from "react-native";
 import { MemeItem } from "../hooks/useOfflineCache";
 import { useMemeActions } from "../hooks/useMemeActions";
+
+let Haptics: any = null;
+try {
+  Haptics = require("expo-haptics");
+} catch {}
 
 interface MemeCardProps {
   meme: MemeItem;
   onPress?: () => void;
+  onFavorite?: (id: string) => void;
+  isFavorited?: boolean;
 }
 
-export function MemeCard({ meme, onPress }: MemeCardProps) {
+export function MemeCard({
+  meme,
+  onPress,
+  onFavorite,
+  isFavorited = false,
+}: MemeCardProps) {
   const { shareMeme, copyMemeLink, saveToCameraRoll } = useMemeActions();
-  const imageUrl = meme.thumb_url || meme.image_url || meme.imageRef || meme.gif_url || meme.gifRef;
+  const [favorited, setFavorited] = useState(isFavorited);
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const lastTap = useRef<number>(0);
+
+  // Double-tap to favorite
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      if (Haptics?.impactAsync) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle?.Medium || "medium");
+      }
+      setFavorited(true);
+      onFavorite?.(meme.id);
+
+      // Heart bounce animation
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true }),
+        Animated.spring(heartScale, { toValue: 1.0, useNativeDriver: true }),
+      ]).start();
+    } else {
+      onPress?.();
+    }
+    lastTap.current = now;
+  };
+
+  const imageUrl =
+    meme.thumb_url ||
+    meme.image_url ||
+    meme.imageRef ||
+    meme.gif_url ||
+    meme.gifRef;
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.card}>
+    <Pressable onPress={handleDoubleTap} style={styles.card}>
       {imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
@@ -37,29 +89,58 @@ export function MemeCard({ meme, onPress }: MemeCardProps) {
         ) : null}
 
         <View style={styles.actions}>
+          {/* Share */}
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => shareMeme(meme)}
+            accessibilityLabel={`Share ${meme.name}`}
           >
+            <Text style={styles.actionIcon}>📤</Text>
             <Text style={styles.actionText}>Share</Text>
           </TouchableOpacity>
 
+          {/* Copy Link */}
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => copyMemeLink(meme)}
+            accessibilityLabel={`Copy link for ${meme.name}`}
           >
-            <Text style={styles.actionText}>Copy Link</Text>
+            <Text style={styles.actionIcon}>🔗</Text>
+            <Text style={styles.actionText}>Copy</Text>
           </TouchableOpacity>
 
+          {/* Save to Camera Roll */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.saveBtn]}
             onPress={() => saveToCameraRoll(meme)}
+            accessibilityLabel={`Save ${meme.name} to camera roll`}
           >
+            <Text style={styles.actionIcon}>⬇️</Text>
             <Text style={[styles.actionText, styles.saveText]}>Save</Text>
+          </TouchableOpacity>
+
+          {/* Favorite Toggle */}
+          <TouchableOpacity
+            style={styles.favBtn}
+            onPress={() => {
+              if (Haptics?.selectionAsync) {
+                Haptics.selectionAsync();
+              }
+              const nextFav = !favorited;
+              setFavorited(nextFav);
+              onFavorite?.(meme.id);
+            }}
+            accessibilityLabel={favorited ? "Unfavorite" : "Favorite"}
+          >
+            <Animated.Text
+              style={[styles.favIcon, { transform: [{ scale: heartScale }] }]}
+            >
+              {favorited ? "❤️" : "🤍"}
+            </Animated.Text>
           </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -103,13 +184,21 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: 8,
+    alignItems: "center",
   },
   actionBtn: {
     flex: 1,
+    flexDirection: "row",
     backgroundColor: "#27272A",
     paddingVertical: 8,
+    paddingHorizontal: 10,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  actionIcon: {
+    fontSize: 13,
   },
   actionText: {
     color: "#FAFAFA",
@@ -121,5 +210,16 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: "#FFFFFF",
+  },
+  favBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favIcon: {
+    fontSize: 16,
   },
 });
