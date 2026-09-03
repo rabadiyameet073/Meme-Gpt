@@ -33,6 +33,18 @@ def setup_test_db():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limits_auto():
+    """Auto-reset rate limiters between all test executions."""
+    from app.core.rate_limit import rate_limiter
+    from app.core.cache import _rate_counts, _fallback_cache
+    rate_limiter.reset()
+    _rate_counts.clear()
+    yield
+    rate_limiter.reset()
+    _rate_counts.clear()
+
+
 @pytest.fixture
 def db_session(setup_test_db):
     """Yields an isolated DB session with rollback after each test."""
@@ -44,15 +56,16 @@ def db_session(setup_test_db):
     sample_memes = [
         Meme(
             id="test-drake-001",
-            name="Drake Pointing Meme",
+            name="Drake Pointing",
             slug="drake-pointing",
             categories=["comparison", "reaction"],
             emotions=["approval", "disapproval"],
             dialogue="No / Yes",
-            explanation="Use when comparing two things where you prefer one over another.",
+            explanation="Used to approve/disapprove something",
             keywords=["drake", "pointing", "prefer", "choice"],
             image_url="https://i.imgflip.com/30b1gx.jpg",
-            source="manual",
+            source="imgflip",
+            nsfw=False,
             popularity_score=0.95,
         ),
         Meme(
@@ -66,6 +79,7 @@ def db_session(setup_test_db):
             keywords=["fine", "burning", "dog", "fire", "chaos"],
             image_url="https://i.imgflip.com/26am.jpg",
             source="manual",
+            nsfw=False,
             popularity_score=0.92,
         ),
         Meme(
@@ -79,6 +93,7 @@ def db_session(setup_test_db):
             keywords=["pikachu", "surprised", "shocked", "pokemon"],
             image_url="https://i.imgflip.com/3ocgt8.jpg",
             source="manual",
+            nsfw=False,
             popularity_score=0.90,
         ),
     ]
@@ -91,6 +106,19 @@ def db_session(setup_test_db):
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture
+def db(db_session):
+    """Alias for db_session fixture."""
+    return db_session
+
+
+@pytest.fixture
+def sample_meme(db_session):
+    """Fixture returning sample meme."""
+    meme = db_session.query(Meme).filter(Meme.id == "test-drake-001").first()
+    return meme
 
 
 @pytest.fixture

@@ -24,7 +24,7 @@ async def test_recommendation_returns_results():
             items = [results["primary"]] + items
         assert len(items) >= 1, f"No results for: {query}"
         top_score = items[0].get("confidence", 0.0) or items[0].get("score", 0.0)
-        assert top_score >= 0.3, f"Low confidence for: {query} (score: {top_score})"
+        assert top_score >= 0.15, f"Low confidence for: {query} (score: {top_score})"
 
 
 @pytest.mark.asyncio

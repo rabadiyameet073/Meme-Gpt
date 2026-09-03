@@ -80,8 +80,9 @@ def test_dpa_status_matrix():
 
 
 def test_gdpr_export_and_delete_workflow():
+    import uuid
     db = SessionLocal()
-    test_sid = "test_privacy_session_123"
+    test_sid = f"test_privacy_session_{uuid.uuid4().hex[:8]}"
 
     # Seed test feedback, vote, and favorite
     fb = Feedback(session_id=test_sid, meme_id="meme_priv_1", action="click")
@@ -89,6 +90,7 @@ def test_gdpr_export_and_delete_workflow():
     fav = FavouriteMeme(session_id=test_sid, meme_id="meme_priv_1")
     db.add_all([fb, vote, fav])
     db.commit()
+
 
     # 1. Test Export via API
     export_res = client.get(f"/api/v1/privacy/export?session_id={test_sid}")

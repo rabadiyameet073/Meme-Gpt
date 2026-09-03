@@ -74,6 +74,7 @@ def test_favorites_workflow():
 
 def test_admin_memes_crud():
     unique_slug = "admin-test-meme-crud-123"
+    admin_headers = {"X-API-Key": "memegpt_admin_secret_key"}
 
     # 1. Create Meme
     payload = {
@@ -90,7 +91,7 @@ def test_admin_memes_crud():
         "nsfw": False,
     }
 
-    create_resp = client.post("/api/v1/admin/memes", json=payload)
+    create_resp = client.post("/api/v1/admin/memes", json=payload, headers=admin_headers)
     assert create_resp.status_code == 200
     created_data = create_resp.json()
     assert created_data["success"] is True
@@ -98,7 +99,7 @@ def test_admin_memes_crud():
     meme_id = created_meme["id"]
 
     # 2. List Memes
-    list_resp = client.get("/api/v1/admin/memes?page=1&limit=10")
+    list_resp = client.get("/api/v1/admin/memes?page=1&limit=10", headers=admin_headers)
     assert list_resp.status_code == 200
     list_data = list_resp.json()
     assert "total" in list_data
@@ -107,16 +108,17 @@ def test_admin_memes_crud():
 
     # 3. Update Meme
     update_payload = {"dialogue": "Updated dialogue text"}
-    update_resp = client.patch(f"/api/v1/admin/memes/{meme_id}", json=update_payload)
+    update_resp = client.patch(f"/api/v1/admin/memes/{meme_id}", json=update_payload, headers=admin_headers)
     assert update_resp.status_code == 200
     updated_meme = update_resp.json()["meme"]
     assert updated_meme["dialogue"] == "Updated dialogue text"
 
     # 4. Delete Meme
-    del_resp = client.delete(f"/api/v1/admin/memes/{meme_id}")
+    del_resp = client.delete(f"/api/v1/admin/memes/{meme_id}", headers=admin_headers)
     assert del_resp.status_code == 200
     assert del_resp.json()["success"] is True
 
     # 5. Verify Deletion
-    del_again_resp = client.delete(f"/api/v1/admin/memes/{meme_id}")
+    del_again_resp = client.delete(f"/api/v1/admin/memes/{meme_id}", headers=admin_headers)
     assert del_again_resp.status_code == 404
+

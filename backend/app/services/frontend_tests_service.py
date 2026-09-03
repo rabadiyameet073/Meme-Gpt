@@ -69,11 +69,23 @@ def get_frontend_coverage_targets() -> Dict[str, Any]:
 
 def get_frontend_test_inventory(tests_dir: str = "frontend/src/tests") -> Dict[str, Any]:
     """Discover active test files in frontend test directory."""
+    resolved_dir = tests_dir
+    candidates = [
+        tests_dir,
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "frontend", "src", "tests"),
+        "frontend/src/tests",
+        "../frontend/src/tests",
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            resolved_dir = c
+            break
+
     test_files = []
-    if os.path.exists(tests_dir):
-        for fname in sorted(os.listdir(tests_dir)):
+    if os.path.exists(resolved_dir):
+        for fname in sorted(os.listdir(resolved_dir)):
             if fname.endswith(".test.ts") or fname.endswith(".test.tsx") or fname.endswith(".spec.ts"):
-                fpath = os.path.join(tests_dir, fname)
+                fpath = os.path.join(resolved_dir, fname)
                 size = os.path.getsize(fpath)
                 test_files.append({
                     "filename": fname,
@@ -86,3 +98,4 @@ def get_frontend_test_inventory(tests_dir: str = "frontend/src/tests") -> Dict[s
         "total_test_files": len(test_files),
         "test_files": test_files,
     }
+

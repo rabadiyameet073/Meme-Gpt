@@ -5,6 +5,7 @@ Tests for Redis Cache Module from 04_Redis_Cache.md and GAP_ANALYSIS_FULL.md.
 import time
 from unittest.mock import MagicMock, patch
 from app.core.cache import (
+    get_redis_client,
     make_cache_key,
     cache_get,
     cache_set,
@@ -90,6 +91,18 @@ def test_cache_ttl_expiration():
     assert test_key not in _fallback_cache
 
 
+def test_cache_bounded_growth_eviction():
+    """Verify that in-memory cache evicts oldest entries when exceeding 500 items."""
+    for i in range(505):
+        key = f"search:item_{i}"
+        cache_set(key, {"index": i}, ttl=100 + i)
+
+    assert len(_fallback_cache) <= 501
+    # Oldest key should have been evicted
+    assert cache_get("search:item_0") is None
+    assert cache_get("search:item_504") is not None
+
+
 def test_rate_limit_check_allow_and_block():
     user_id = "test_user_ip_127_0_0_1"
     limit = 3
@@ -133,9 +146,15 @@ def test_query_cache_legacy_wrapper():
 
     stats = query_cache.stats()
     assert isinstance(stats, dict)
+    stats2 = query_cache.get_stats()
+    assert stats2 == stats
 
     query_cache.delete(key)
     assert query_cache.get(key) is None
+
+    query_cache.set("search:one", 1, ttl=60)
+    query_cache.clear()
+    assert query_cache.get("search:one") is None
 
 
 def test_redis_mock_pipeline_operations():
@@ -143,6 +162,8 @@ def test_redis_mock_pipeline_operations():
     mock_redis.get.return_value = '{"id": "cached_redis_meme"}'
     mock_redis.info.return_value = {"keyspace_hits": 42, "keyspace_misses": 8}
     mock_redis.dbsize.return_value = 100
+    mock_redis.keys.return_value = ["search:k1", "search:k2"]
+    mock_redis.delete.return_value = 2
 
     # Pipeline mock for rate limiter
     mock_pipe = MagicMock()
@@ -169,3 +190,21 @@ def test_redis_mock_pipeline_operations():
         allowed, remaining = rate_limit_check("user_redis", limit=5, window_seconds=60)
         assert allowed is True
         assert remaining == 3
+
+        # 5. Test flush pattern with Redis
+        flushed = cache_flush_pattern("search:*")
+        assert flushed == 2
+        mock_redis.keys.assert_called_with("search:*")
+
+
+def test_rate_limit_fail_open_on_redis_error():
+    mock_redis = MagicMock()
+    mock_pipe = MagicMock()
+    mock_pipe.execute.side_effect = Exception("Redis connection timeout")
+    mock_redis.pipeline.return_value = mock_pipe
+
+    with patch("app.core.cache.get_redis_client", return_value=mock_redis):
+        allowed, remaining = rate_limit_check("fail_open_user", limit=10, window_seconds=60)
+        # Should fail open gracefully
+        assert allowed is True
+        assert remaining == 10

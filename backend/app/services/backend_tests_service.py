@@ -58,11 +58,24 @@ def get_coverage_targets() -> Dict[str, Any]:
 
 def get_backend_tests_inventory(tests_dir: str = "backend/tests") -> Dict[str, Any]:
     """Inspect backend/tests directory and list all active test files."""
+    resolved_dir = tests_dir
+    candidates = [
+        tests_dir,
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tests"),
+        "tests",
+        "backend/tests",
+        "../backend/tests",
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            resolved_dir = c
+            break
+
     test_files = []
-    if os.path.exists(tests_dir):
-        for fname in sorted(os.listdir(tests_dir)):
+    if os.path.exists(resolved_dir):
+        for fname in sorted(os.listdir(resolved_dir)):
             if fname.startswith("test_") and fname.endswith(".py"):
-                fpath = os.path.join(tests_dir, fname)
+                fpath = os.path.join(resolved_dir, fname)
                 size = os.path.getsize(fpath)
                 test_files.append({
                     "filename": fname,
@@ -75,3 +88,4 @@ def get_backend_tests_inventory(tests_dir: str = "backend/tests") -> Dict[str, A
         "total_test_files": len(test_files),
         "test_files": test_files,
     }
+
