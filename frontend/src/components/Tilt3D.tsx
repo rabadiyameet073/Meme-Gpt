@@ -11,13 +11,12 @@ interface Tilt3DProps {
 export function Tilt3D({
   children,
   className = "",
-  maxTilt = 10,
+  maxTilt = 8,
   perspective = 1000,
   style = {},
 }: Tilt3DProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [transform, setTransform] = useState<string>("perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)");
-  const [glowStyle, setGlowStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
@@ -33,16 +32,8 @@ export function Tilt3D({
     const rotateX = -((y - centerY) / centerY) * maxTilt;
 
     setTransform(
-      `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.015, 1.015, 1.015)`
+      `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.01, 1.01, 1.01)`
     );
-
-    const glowX = (x / rect.width) * 100;
-    const glowY = (y / rect.height) * 100;
-
-    setGlowStyle({
-      opacity: 0.85,
-      background: `radial-gradient(circle at ${glowX}% ${glowY}%, rgba(255, 255, 255, 0.12) 0%, rgba(99, 102, 241, 0.05) 40%, transparent 80%)`,
-    });
   };
 
   const handleMouseEnter = () => {
@@ -52,7 +43,6 @@ export function Tilt3D({
   const handleMouseLeave = () => {
     setIsHovered(false);
     setTransform(`perspective(${perspective}px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`);
-    setGlowStyle({ opacity: 0 });
   };
 
   return (
@@ -64,7 +54,7 @@ export function Tilt3D({
       onMouseLeave={handleMouseLeave}
       style={{
         transform,
-        transition: isHovered ? "transform 0.08s ease-out" : "transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: isHovered ? "transform 0.08s ease-out" : "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
         transformStyle: "preserve-3d",
         position: "relative",
         willChange: "transform",
@@ -72,19 +62,6 @@ export function Tilt3D({
       }}
     >
       {children}
-      {/* Glossy light sheen overlay */}
-      <div
-        className="tilt-3d-glow"
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "inherit",
-          pointerEvents: "none",
-          transition: "opacity 0.3s ease",
-          zIndex: 10,
-          ...glowStyle,
-        }}
-      />
     </div>
   );
 }
