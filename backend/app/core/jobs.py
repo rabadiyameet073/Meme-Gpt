@@ -151,9 +151,9 @@ def warm_up_cache_task(queries: Optional[List[str]] = None) -> Dict[str, Any]:
     db = SessionLocal()
     warmed = 0
     try:
-        memes = [m.to_dict() for m in db.query(Meme).all()]
+        memes = [m.to_dict() for m in db.query(Meme).limit(20).all()]
         if memes:
-            for q in sample_top_queries:
+            for q in sample_top_queries[:5]:
                 clean_q = sanitize_input(q)
                 cache_key = f"rec:{clean_q}:gif"
                 res = match_memes(clean_q, memes, format_preference="gif")
@@ -162,6 +162,7 @@ def warm_up_cache_task(queries: Optional[List[str]] = None) -> Dict[str, Any]:
                 warmed += 1
         logger.info(f"cache_warmup_completed: warmed_queries={warmed}")
         return {"status": "success", "warmed_queries": warmed}
+
     except Exception as e:
         logger.error(f"cache_warmup_error: {e}")
         return {"status": "error", "message": str(e)}

@@ -1,13 +1,16 @@
 """Rate Limiting module for MemeGPT.
-Provides sliding-window token tracking and per-tier request quota enforcement.
+Provides sliding-window token tracking and per-tier request quota enforcement
+backed by Redis when configured, with graceful in-memory sliding window fallback.
 """
 import time
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
+from app.core.cache import rate_limit_check, get_redis_client, _rate_counts
+
 
 class RateLimiter:
-    """In-memory sliding-window rate limiter per identifier."""
+    """Sliding-window rate limiter per identifier with Redis backing and memory fallback."""
 
     def __init__(self, window_seconds: int = 60):
         self.window_seconds = window_seconds
@@ -29,7 +32,14 @@ class RateLimiter:
             (allowed: bool, remaining: int, retry_after: int, reset_epoch: int)
         """
         now = time.time()
-        # Clean expired timestamps outside the sliding window
+        client = get_redis_client()
+        if client:
+            allowed, remaining = rate_limit_check(identifier, limit, window_seconds)
+            reset_epoch = int(now + window_seconds)
+            retry_after = window_seconds if not allowed else 0
+            return allowed, remaining, retry_after, reset_epoch
+
+        # In-memory sliding window fallback
         self._history[identifier] = [
             t for t in self._history[identifier] if now - t < window_seconds
         ]
@@ -50,8 +60,10 @@ class RateLimiter:
         """Resets rate history for a specific key or all keys."""
         if identifier:
             self._history.pop(identifier, None)
+            _rate_counts.pop(identifier, None)
         else:
             self._history.clear()
+            _rate_counts.clear()
 
 
 # Global singleton instance
