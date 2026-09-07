@@ -210,3 +210,34 @@ def resolve_formats(meme: dict) -> dict:
         "webp": webp,
         "thumb": thumb,
     }
+
+
+class CDNService:
+    """Wrapper class providing object-oriented access to CDN operations."""
+
+    @staticmethod
+    def get_asset_url(key: str) -> str:
+        base = CDN_BASE.rstrip("/")
+        clean_key = key.lstrip("/")
+        return f"{base}/{clean_key}"
+
+    @staticmethod
+    def upload(file_data: bytes, key: str, content_type: str = "image/jpeg") -> Optional[str]:
+        return upload_file(file_data, key, content_type)
+
+    @staticmethod
+    def delete_asset(key: str) -> bool:
+        client = get_r2_client()
+        if not client:
+            return False
+        try:
+            client.delete_object(Bucket=R2_BUCKET, Key=key)
+            logger.info(f"Deleted R2 asset: {key}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to delete R2 asset {key}: {e}")
+            return False
+
+
+cdn_service = CDNService()
+

@@ -4,11 +4,12 @@ Specification: 11_Security/Data_Privacy.md
 
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, User, SavedMeme, Feedback, SearchLog
+from app.core.auth import get_current_user
 from app.services.data_privacy_service import (
     get_privacy_by_design_principles,
     get_data_classification_matrix,
@@ -118,3 +119,47 @@ def get_compliance():
         "success": True,
         **evaluate_privacy_compliance(),
     }
+
+
+@router.delete("/me", status_code=status.HTTP_200_OK, summary="GDPR Right to Be Forgotten")
+async def delete_user_account_and_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id = current_user.id
+    logger.info(f"Initiating full GDPR data purge for user_id={user_id}")
+
+    try:
+        # 1. Delete all saved memes and collections
+        deleted_saved = db.query(SavedMeme).filter(SavedMeme.user_id == user_id).delete()
+
+        # 2. Anonymize feedback logs (remove user association, preserve training signals)
+        db.query(Feedback).filter(Feedback.user_id == str(user_id)).update({
+            "user_id": "anonymized",
+            "session_id": "anonymized"
+        })
+
+        # 3. Anonymize search logs
+        db.query(SearchLog).filter(SearchLog.session_id == str(user_id)).update({
+            "session_id": "anonymized"
+        })
+
+        # 4. Delete user account record
+        db.delete(current_user)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "All personal data has been permanently purged.",
+            "records_deleted": {
+                "saved_memes": deleted_saved,
+                "user_account": 1
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"GDPR purge failed for user_id={user_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete data deletion request."
+        )

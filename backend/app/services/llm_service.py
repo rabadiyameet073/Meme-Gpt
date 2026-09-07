@@ -38,12 +38,16 @@ INTENT_SCHEMA = {
     "categories": [],           # detected categories: work|coding|college|gaming|relationships|etc.
 }
 
-PROMPT_TEMPLATE = '''Analyze this text for meme recommendation. Return ONLY valid JSON, no explanation:
+PROMPT_TEMPLATE = '''You are a multilingual meme expert AI.
+The user input may be in English, Spanish, Hindi, or Portuguese.
+1. Detect language.
+2. If non-English, translate intent to English meme culture concepts.
+3. Return ONLY valid JSON in English, no explanation:
 
 User text: "{user_text}"
 
 {{
-  "situation": "one-sentence description of what is happening",
+  "situation": "one-sentence description of what is happening in English",
   "emotion_hint": "one of: joy|sadness|anger|surprise|fear|disgust|neutral",
   "tone": "one of: sarcastic|sincere|humorous|frustrated|excited|proud|anxious|relatable",
   "keywords": ["keyword1", "keyword2", "keyword3"],

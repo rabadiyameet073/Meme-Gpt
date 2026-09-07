@@ -12,7 +12,9 @@ router = APIRouter(tags=["Search & Recommendations"])
 
 
 def _memes_from_db(db: Session) -> list[dict]:
-    memes = db.query(Meme).all()
+    memes = db.query(Meme).filter(
+        Meme.moderation_status != "removed"
+    ).all()
     return [
         {
             **m.to_dict(),

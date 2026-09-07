@@ -94,6 +94,19 @@ if not SECRET_KEY or SECRET_KEY == "changeme" or len(SECRET_KEY) < 32:
         UserWarning,
     )
 
+# ── OAuth ─────────────────────────────────────────────────────
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/v1/auth/github/callback")
+
+# ── Image AI Models ───────────────────────────────────────────
+BLIP_MODEL = os.getenv("BLIP_MODEL", "Salesforce/blip-image-captioning-base")
+CLIP_MODEL = os.getenv("CLIP_MODEL", "openai/clip-vit-base-patch32")
+ENABLE_IMAGE_PROCESSING = os.getenv("ENABLE_IMAGE_PROCESSING", "true").lower() == "true"
+
 # ── CORS ──────────────────────────────────────────────────────
 def _parse_cors_origins() -> List[str]:
     raw = os.getenv("CORS_ORIGINS", "")
@@ -212,6 +225,17 @@ class Settings:
     JWT_ALGORITHM: str = JWT_ALGORITHM
     ACCESS_TOKEN_EXPIRE_MINUTES: int = ACCESS_TOKEN_EXPIRE_MINUTES
     REFRESH_TOKEN_EXPIRE_DAYS: int = REFRESH_TOKEN_EXPIRE_DAYS
+
+    GOOGLE_CLIENT_ID: str = GOOGLE_CLIENT_ID
+    GOOGLE_CLIENT_SECRET: str = GOOGLE_CLIENT_SECRET
+    GOOGLE_REDIRECT_URI: str = GOOGLE_REDIRECT_URI
+    GITHUB_CLIENT_ID: str = GITHUB_CLIENT_ID
+    GITHUB_CLIENT_SECRET: str = GITHUB_CLIENT_SECRET
+    GITHUB_REDIRECT_URI: str = GITHUB_REDIRECT_URI
+
+    BLIP_MODEL: str = BLIP_MODEL
+    CLIP_MODEL: str = CLIP_MODEL
+    ENABLE_IMAGE_PROCESSING: bool = ENABLE_IMAGE_PROCESSING
 
     CORS_ORIGINS: List[str] = CORS_ORIGINS
 

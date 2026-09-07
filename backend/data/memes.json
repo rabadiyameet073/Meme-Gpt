@@ -762,13 +762,13 @@
     "name": "Drake Hotline Bling",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "coding",
-      "viral",
-      "bling",
+      "hotline",
       "meme",
       "drake",
-      "hotline"
+      "coding",
+      "reaction",
+      "viral",
+      "bling"
     ],
     "dialogue": "Nah / Yeah Drake Reaction",
     "explanation": "The classic 'Drake Hotline Bling' meme template, perfect for coding scenarios.",
@@ -780,12 +780,12 @@
     "name": "Two Buttons",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "two",
+      "meme",
       "coding",
-      "viral",
       "buttons",
-      "meme"
+      "two",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Sweating over two impossible choices",
     "explanation": "The classic 'Two Buttons' meme template, perfect for coding scenarios.",
@@ -797,12 +797,12 @@
     "name": "Distracted Boyfriend",
     "category": "relationship",
     "keywords": [
-      "reaction",
-      "boyfriend",
-      "distracted",
-      "viral",
       "meme",
-      "relationship"
+      "relationship",
+      "distracted",
+      "reaction",
+      "viral",
+      "boyfriend"
     ],
     "dialogue": "Distracted by new shiny options",
     "explanation": "The classic 'Distracted Boyfriend' meme template, perfect for relationship scenarios.",
@@ -814,17 +814,17 @@
     "name": "Bernie I Am Once Again Asking For Your Support",
     "category": "money",
     "keywords": [
-      "reaction",
-      "viral",
-      "your",
-      "bernie",
+      "for",
+      "support",
+      "once",
       "again",
+      "meme",
+      "bernie",
       "money",
       "asking",
-      "once",
-      "meme",
-      "for",
-      "support"
+      "your",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Bernie I Am Once Again Asking For Your Support Reaction",
     "explanation": "The classic 'Bernie I Am Once Again Asking For Your Support' meme template, perfect for money scenarios.",
@@ -836,13 +836,13 @@
     "name": "UNO Draw 25 Cards",
     "category": "unrealistic_goals",
     "keywords": [
-      "reaction",
-      "viral",
-      "unrealistic_goals",
+      "uno",
       "meme",
-      "cards",
       "draw",
-      "uno"
+      "cards",
+      "unrealistic_goals",
+      "reaction",
+      "viral"
     ],
     "dialogue": "UNO Draw 25 Cards Reaction",
     "explanation": "The classic 'UNO Draw 25 Cards' meme template, perfect for unrealistic goals scenarios.",
@@ -854,14 +854,14 @@
     "name": "Left Exit 12 Off Ramp",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "ramp",
-      "coding",
       "exit",
-      "viral",
-      "left",
       "meme",
-      "off"
+      "coding",
+      "off",
+      "left",
+      "reaction",
+      "viral",
+      "ramp"
     ],
     "dialogue": "Left Exit 12 Off Ramp Reaction",
     "explanation": "The classic 'Left Exit 12 Off Ramp' meme template, perfect for coding scenarios.",
@@ -873,13 +873,13 @@
     "name": "Always Has Been",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "been",
-      "viral",
-      "always",
       "meme",
-      "has",
-      "funny"
+      "always",
+      "been",
+      "funny",
+      "reaction",
+      "viral",
+      "has"
     ],
     "dialogue": "Always Has Been Reaction",
     "explanation": "The classic 'Always Has Been' meme template, perfect for funny scenarios.",
@@ -891,13 +891,13 @@
     "name": "Anakin Padme 4 Panel",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "panel",
-      "anakin",
-      "viral",
-      "meme",
       "padme",
-      "funny"
+      "panel",
+      "meme",
+      "anakin",
+      "funny",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Anakin Padme 4 Panel Reaction",
     "explanation": "The classic 'Anakin Padme 4 Panel' meme template, perfect for funny scenarios.",
@@ -909,12 +909,12 @@
     "name": "Epic Handshake",
     "category": "success",
     "keywords": [
-      "reaction",
-      "success",
-      "viral",
       "meme",
+      "viral",
+      "handshake",
       "epic",
-      "handshake"
+      "reaction",
+      "success"
     ],
     "dialogue": "Epic Handshake Reaction",
     "explanation": "The classic 'Epic Handshake' meme template, perfect for success scenarios.",
@@ -923,34 +923,16 @@
     "viralScore": 85.0
   },
   {
-    "name": "Sad Pablo Escobar",
-    "category": "office",
-    "keywords": [
-      "reaction",
-      "office",
-      "pablo",
-      "viral",
-      "meme",
-      "escobar",
-      "sad"
-    ],
-    "dialogue": "Sad Pablo Escobar Reaction",
-    "explanation": "The classic 'Sad Pablo Escobar' meme template, perfect for office scenarios.",
-    "image": "https://i.imgflip.com/1c1uej.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Running Away Balloon",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "running",
       "away",
-      "balloon",
-      "viral",
       "meme",
-      "funny"
+      "funny",
+      "balloon",
+      "running",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Running Away Balloon Reaction",
     "explanation": "The classic 'Running Away Balloon' meme template, perfect for funny scenarios.",
@@ -962,12 +944,12 @@
     "name": "Gru's Plan",
     "category": "failure",
     "keywords": [
-      "reaction",
-      "failure",
-      "viral",
       "meme",
+      "failure",
       "plan",
-      "gru"
+      "gru",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Gru's Plan Reaction",
     "explanation": "The classic 'Gru's Plan' meme template, perfect for failure scenarios.",
@@ -976,32 +958,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "Change My Mind",
-    "category": "coding",
-    "keywords": [
-      "reaction",
-      "coding",
-      "viral",
-      "meme",
-      "mind",
-      "change"
-    ],
-    "dialogue": "Sitting at the table... Change My Mind!",
-    "explanation": "The classic 'Change My Mind' meme template, perfect for coding scenarios.",
-    "image": "https://i.imgflip.com/24y43o.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Waiting Skeleton",
     "category": "ai",
     "keywords": [
-      "reaction",
-      "skeleton",
-      "viral",
-      "ai",
       "meme",
-      "waiting"
+      "ai",
+      "waiting",
+      "reaction",
+      "viral",
+      "skeleton"
     ],
     "dialogue": "Waiting Skeleton Reaction",
     "explanation": "The classic 'Waiting Skeleton' meme template, perfect for ai scenarios.",
@@ -1010,15 +975,50 @@
     "viralScore": 85.0
   },
   {
+    "name": "Sad Pablo Escobar",
+    "category": "office",
+    "keywords": [
+      "pablo",
+      "meme",
+      "office",
+      "sad",
+      "escobar",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Sad Pablo Escobar Reaction",
+    "explanation": "The classic 'Sad Pablo Escobar' meme template, perfect for office scenarios.",
+    "image": "https://i.imgflip.com/1c1uej.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Change My Mind",
+    "category": "coding",
+    "keywords": [
+      "meme",
+      "change",
+      "coding",
+      "reaction",
+      "viral",
+      "mind"
+    ],
+    "dialogue": "Sitting at the table... Change My Mind!",
+    "explanation": "The classic 'Change My Mind' meme template, perfect for coding scenarios.",
+    "image": "https://i.imgflip.com/24y43o.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Disaster Girl",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "coding",
-      "viral",
+      "girl",
       "meme",
       "disaster",
-      "girl"
+      "coding",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Smiling while watching the chaos burn",
     "explanation": "The classic 'Disaster Girl' meme template, perfect for coding scenarios.",
@@ -1027,33 +1027,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "Marked Safe From",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "safe",
-      "viral",
-      "from",
-      "meme",
-      "marked",
-      "funny"
-    ],
-    "dialogue": "Marked Safe From Reaction",
-    "explanation": "The classic 'Marked Safe From' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2odckz.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Trade Offer",
     "category": "unrealistic_goals",
     "keywords": [
-      "reaction",
-      "viral",
-      "offer",
+      "trade",
       "meme",
       "unrealistic_goals",
-      "trade"
+      "reaction",
+      "viral",
+      "offer"
     ],
     "dialogue": "I receive... You receive...",
     "explanation": "The classic 'Trade Offer' meme template, perfect for unrealistic goals scenarios.",
@@ -1062,18 +1044,36 @@
     "viralScore": 85.0
   },
   {
+    "name": "Marked Safe From",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "viral",
+      "funny",
+      "safe",
+      "marked",
+      "reaction",
+      "from"
+    ],
+    "dialogue": "Marked Safe From Reaction",
+    "explanation": "The classic 'Marked Safe From' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2odckz.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Bernie Sanders Once Again Asking",
     "category": "money",
     "keywords": [
-      "reaction",
-      "viral",
-      "bernie",
+      "sanders",
+      "meme",
+      "once",
       "again",
+      "bernie",
       "money",
       "asking",
-      "once",
-      "sanders",
-      "meme"
+      "reaction",
+      "viral"
     ],
     "dialogue": "Bernie Sanders Once Again Asking Reaction",
     "explanation": "The classic 'Bernie Sanders Once Again Asking' meme template, perfect for money scenarios.",
@@ -1082,69 +1082,16 @@
     "viralScore": 85.0
   },
   {
-    "name": "X, X Everywhere",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "everywhere",
-      "meme",
-      "funny"
-    ],
-    "dialogue": "X, X Everywhere Reaction",
-    "explanation": "The classic 'X, X Everywhere' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1ihzfe.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Ancient Aliens",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "meme",
-      "ancient",
-      "funny",
-      "aliens"
-    ],
-    "dialogue": "Ancient Aliens Reaction",
-    "explanation": "The classic 'Ancient Aliens' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/26am.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Y'all Got Any More Of That",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "got",
-      "all",
-      "any",
-      "viral",
-      "that",
-      "meme",
-      "more",
-      "funny"
-    ],
-    "dialogue": "Y'all Got Any More Of That Reaction",
-    "explanation": "The classic 'Y'all Got Any More Of That' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/21uy0f.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Batman Slapping Robin",
     "category": "coding",
     "keywords": [
-      "slapping",
-      "reaction",
-      "coding",
-      "viral",
+      "robin",
       "meme",
       "batman",
-      "robin"
+      "viral",
+      "coding",
+      "reaction",
+      "slapping"
     ],
     "dialogue": "Batman Slapping Robin Reaction",
     "explanation": "The classic 'Batman Slapping Robin' meme template, perfect for coding scenarios.",
@@ -1153,15 +1100,68 @@
     "viralScore": 85.0
   },
   {
+    "name": "Ancient Aliens",
+    "category": "funny",
+    "keywords": [
+      "ancient",
+      "meme",
+      "funny",
+      "aliens",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Ancient Aliens Reaction",
+    "explanation": "The classic 'Ancient Aliens' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/26am.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "X, X Everywhere",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "funny",
+      "everywhere",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "X, X Everywhere Reaction",
+    "explanation": "The classic 'X, X Everywhere' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1ihzfe.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Y'all Got Any More Of That",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "any",
+      "funny",
+      "got",
+      "more",
+      "all",
+      "reaction",
+      "viral",
+      "that"
+    ],
+    "dialogue": "Y'all Got Any More Of That Reaction",
+    "explanation": "The classic 'Y'all Got Any More Of That' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/21uy0f.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Mocking Spongebob",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "meme",
       "mocking",
+      "meme",
       "spongebob",
-      "funny"
+      "funny",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Mocking Spongebob Reaction",
     "explanation": "The classic 'Mocking Spongebob' meme template, perfect for funny scenarios.",
@@ -1173,14 +1173,14 @@
     "name": "One Does Not Simply",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "does",
+      "simply",
       "meme",
       "not",
-      "simply",
+      "funny",
       "one",
-      "funny"
+      "reaction",
+      "viral",
+      "does"
     ],
     "dialogue": "One Does Not Simply Reaction",
     "explanation": "The classic 'One Does Not Simply' meme template, perfect for funny scenarios.",
@@ -1189,33 +1189,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "Woman Yelling At Cat",
-    "category": "office",
-    "keywords": [
-      "reaction",
-      "office",
-      "cat",
-      "viral",
-      "woman",
-      "meme",
-      "yelling"
-    ],
-    "dialogue": "Yelling at someone who has no idea what happened",
-    "explanation": "The classic 'Woman Yelling At Cat' meme template, perfect for office scenarios.",
-    "image": "https://i.imgflip.com/345v97.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Bike Fall",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "fall",
-      "viral",
       "meme",
       "bike",
-      "funny"
+      "funny",
+      "fall",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Bike Fall Reaction",
     "explanation": "The classic 'Bike Fall' meme template, perfect for funny scenarios.",
@@ -1224,15 +1206,50 @@
     "viralScore": 85.0
   },
   {
+    "name": "Woman Yelling At Cat",
+    "category": "office",
+    "keywords": [
+      "meme",
+      "office",
+      "cat",
+      "woman",
+      "yelling",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Yelling at someone who has no idea what happened",
+    "explanation": "The classic 'Woman Yelling At Cat' meme template, perfect for office scenarios.",
+    "image": "https://i.imgflip.com/345v97.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Absolute Cinema",
+    "category": "funny",
+    "keywords": [
+      "cinema",
+      "absolute",
+      "meme",
+      "funny",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Absolute Cinema Reaction",
+    "explanation": "The classic 'Absolute Cinema' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/8d317n.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Is This A Pigeon",
     "category": "office",
     "keywords": [
-      "reaction",
-      "office",
-      "this",
-      "viral",
       "meme",
-      "pigeon"
+      "office",
+      "pigeon",
+      "this",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Is This A Pigeon Reaction",
     "explanation": "The classic 'Is This A Pigeon' meme template, perfect for office scenarios.",
@@ -1241,41 +1258,21 @@
     "viralScore": 85.0
   },
   {
-    "name": "0 days without (Lenny, Simpsons)",
+    "name": "They're The Same Picture",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "lenny",
-      "days",
-      "without",
-      "viral",
       "meme",
-      "simpsons",
-      "funny"
-    ],
-    "dialogue": "0 days without (Lenny, Simpsons) Reaction",
-    "explanation": "The classic '0 days without (Lenny, Simpsons)' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/72epa9.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Mother Ignoring Kid Drowning In A Pool",
-    "category": "funny",
-    "keywords": [
-      "ignoring",
-      "reaction",
-      "mother",
-      "drowning",
-      "viral",
-      "meme",
-      "pool",
+      "the",
       "funny",
-      "kid"
+      "picture",
+      "same",
+      "they",
+      "reaction",
+      "viral"
     ],
-    "dialogue": "Mother Ignoring Kid Drowning In A Pool Reaction",
-    "explanation": "The classic 'Mother Ignoring Kid Drowning In A Pool' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/46hhvr.jpg",
+    "dialogue": "They're The Same Picture Reaction",
+    "explanation": "The classic 'They're The Same Picture' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2za3u1.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -1283,14 +1280,14 @@
     "name": "You Guys are Getting Paid",
     "category": "ai",
     "keywords": [
-      "reaction",
-      "are",
-      "guys",
-      "viral",
-      "ai",
-      "meme",
       "you",
+      "guys",
+      "meme",
+      "ai",
+      "are",
       "getting",
+      "reaction",
+      "viral",
       "paid"
     ],
     "dialogue": "You Guys are Getting Paid Reaction",
@@ -1300,15 +1297,34 @@
     "viralScore": 85.0
   },
   {
+    "name": "0 days without (Lenny, Simpsons)",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "lenny",
+      "funny",
+      "without",
+      "simpsons",
+      "reaction",
+      "viral",
+      "days"
+    ],
+    "dialogue": "0 days without (Lenny, Simpsons) Reaction",
+    "explanation": "The classic '0 days without (Lenny, Simpsons)' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/72epa9.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Expanding Brain",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "coding",
       "brain",
-      "viral",
       "meme",
-      "expanding"
+      "expanding",
+      "coding",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Expanding Brain Reaction",
     "explanation": "The classic 'Expanding Brain' meme template, perfect for coding scenarios.",
@@ -1317,55 +1333,19 @@
     "viralScore": 85.0
   },
   {
-    "name": "They're The Same Picture",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "they",
-      "viral",
-      "meme",
-      "same",
-      "picture",
-      "funny",
-      "the"
-    ],
-    "dialogue": "They're The Same Picture Reaction",
-    "explanation": "The classic 'They're The Same Picture' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2za3u1.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Absolute Cinema",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "absolute",
-      "cinema",
-      "viral",
-      "meme",
-      "funny"
-    ],
-    "dialogue": "Absolute Cinema Reaction",
-    "explanation": "The classic 'Absolute Cinema' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/8d317n.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "This Is Where I'd Put My Trophy If I Had One",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "this",
-      "viral",
       "meme",
-      "put",
-      "had",
-      "funny",
-      "one",
       "where",
-      "trophy"
+      "had",
+      "viral",
+      "funny",
+      "this",
+      "trophy",
+      "one",
+      "reaction",
+      "put"
     ],
     "dialogue": "This Is Where I'd Put My Trophy If I Had One Reaction",
     "explanation": "The classic 'This Is Where I'd Put My Trophy If I Had One' meme template, perfect for funny scenarios.",
@@ -1374,71 +1354,22 @@
     "viralScore": 85.0
   },
   {
-    "name": "Squidward window",
+    "name": "Mother Ignoring Kid Drowning In A Pool",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "squidward",
-      "viral",
       "meme",
-      "window",
-      "funny"
-    ],
-    "dialogue": "Squidward window Reaction",
-    "explanation": "The classic 'Squidward window' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/145qvv.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Megamind peeking",
-    "category": "funny",
-    "keywords": [
+      "ignoring",
+      "kid",
+      "funny",
+      "mother",
+      "pool",
+      "drowning",
       "reaction",
-      "peeking",
-      "viral",
-      "meme",
-      "megamind",
-      "funny"
+      "viral"
     ],
-    "dialogue": "Megamind peeking Reaction",
-    "explanation": "The classic 'Megamind peeking' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/64sz4u.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Buff Doge vs. Cheems",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "buff",
-      "meme",
-      "doge",
-      "cheems",
-      "funny"
-    ],
-    "dialogue": "Buff Doge vs. Cheems Reaction",
-    "explanation": "The classic 'Buff Doge vs. Cheems' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/43a45p.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "This Is Fine",
-    "category": "failure",
-    "keywords": [
-      "reaction",
-      "failure",
-      "this",
-      "viral",
-      "meme",
-      "fine"
-    ],
-    "dialogue": "This is fine. Everything is totally fine.",
-    "explanation": "The classic 'This Is Fine' meme template, perfect for failure scenarios.",
-    "image": "https://i.imgflip.com/wxica.jpg",
+    "dialogue": "Mother Ignoring Kid Drowning In A Pool Reaction",
+    "explanation": "The classic 'Mother Ignoring Kid Drowning In A Pool' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/46hhvr.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -1446,14 +1377,14 @@
     "name": "Tuxedo Winnie The Pooh",
     "category": "funny",
     "keywords": [
+      "meme",
       "winnie",
+      "the",
+      "tuxedo",
+      "funny",
       "reaction",
       "viral",
-      "the",
-      "meme",
-      "pooh",
-      "tuxedo",
-      "funny"
+      "pooh"
     ],
     "dialogue": "Tuxedo Winnie The Pooh Reaction",
     "explanation": "The classic 'Tuxedo Winnie The Pooh' meme template, perfect for funny scenarios.",
@@ -1462,16 +1393,68 @@
     "viralScore": 85.0
   },
   {
+    "name": "Buff Doge vs. Cheems",
+    "category": "funny",
+    "keywords": [
+      "buff",
+      "meme",
+      "doge",
+      "funny",
+      "cheems",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Buff Doge vs. Cheems Reaction",
+    "explanation": "The classic 'Buff Doge vs. Cheems' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/43a45p.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Megamind peeking",
+    "category": "funny",
+    "keywords": [
+      "megamind",
+      "meme",
+      "funny",
+      "reaction",
+      "peeking",
+      "viral"
+    ],
+    "dialogue": "Megamind peeking Reaction",
+    "explanation": "The classic 'Megamind peeking' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/64sz4u.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Squidward window",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "window",
+      "funny",
+      "squidward",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Squidward window Reaction",
+    "explanation": "The classic 'Squidward window' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/145qvv.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Oprah You Get A",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "meme",
-      "oprah",
       "you",
+      "meme",
+      "funny",
+      "reaction",
       "get",
-      "funny"
+      "oprah",
+      "viral"
     ],
     "dialogue": "Oprah You Get A Reaction",
     "explanation": "The classic 'Oprah You Get A' meme template, perfect for funny scenarios.",
@@ -1480,21 +1463,19 @@
     "viralScore": 85.0
   },
   {
-    "name": "Pawn Stars Best I Can Do",
-    "category": "funny",
+    "name": "This Is Fine",
+    "category": "failure",
     "keywords": [
-      "reaction",
-      "best",
-      "viral",
       "meme",
-      "pawn",
-      "funny",
-      "stars",
-      "can"
+      "failure",
+      "fine",
+      "this",
+      "reaction",
+      "viral"
     ],
-    "dialogue": "Pawn Stars Best I Can Do Reaction",
-    "explanation": "The classic 'Pawn Stars Best I Can Do' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/19vcz0.jpg",
+    "dialogue": "This is fine. Everything is totally fine.",
+    "explanation": "The classic 'This Is Fine' meme template, perfect for failure scenarios.",
+    "image": "https://i.imgflip.com/wxica.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -1502,12 +1483,12 @@
     "name": "where monkey",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
       "meme",
+      "where",
       "funny",
       "monkey",
-      "where"
+      "reaction",
+      "viral"
     ],
     "dialogue": "where monkey Reaction",
     "explanation": "The classic 'where monkey' meme template, perfect for funny scenarios.",
@@ -1516,35 +1497,18 @@
     "viralScore": 85.0
   },
   {
-    "name": "Bell Curve",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "meme",
-      "bell",
-      "funny",
-      "curve"
-    ],
-    "dialogue": "Bell Curve Reaction",
-    "explanation": "The classic 'Bell Curve' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/8tw3vb.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "I Bet He's Thinking About Other Women",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "thinking",
-      "viral",
       "meme",
-      "about",
-      "women",
-      "bet",
+      "thinking",
       "funny",
-      "other"
+      "about",
+      "bet",
+      "other",
+      "reaction",
+      "viral",
+      "women"
     ],
     "dialogue": "I Bet He's Thinking About Other Women Reaction",
     "explanation": "The classic 'I Bet He's Thinking About Other Women' meme template, perfect for funny scenarios.",
@@ -1553,16 +1517,52 @@
     "viralScore": 85.0
   },
   {
+    "name": "Pawn Stars Best I Can Do",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "can",
+      "funny",
+      "stars",
+      "pawn",
+      "best",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Pawn Stars Best I Can Do Reaction",
+    "explanation": "The classic 'Pawn Stars Best I Can Do' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/19vcz0.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Bell Curve",
+    "category": "funny",
+    "keywords": [
+      "curve",
+      "meme",
+      "funny",
+      "bell",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Bell Curve Reaction",
+    "explanation": "The classic 'Bell Curve' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/8tw3vb.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Clown Applying Makeup",
     "category": "office",
     "keywords": [
-      "reaction",
-      "office",
       "applying",
-      "viral",
+      "meme",
       "clown",
+      "office",
       "makeup",
-      "meme"
+      "reaction",
+      "viral"
     ],
     "dialogue": "Clown Applying Makeup Reaction",
     "explanation": "The classic 'Clown Applying Makeup' meme template, perfect for office scenarios.",
@@ -1571,34 +1571,17 @@
     "viralScore": 85.0
   },
   {
-    "name": "Monkey Puppet",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "meme",
-      "puppet",
-      "monkey",
-      "funny"
-    ],
-    "dialogue": "Monkey Puppet Reaction",
-    "explanation": "The classic 'Monkey Puppet' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2gnnjh.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Soldier protecting sleeping child",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "soldier",
-      "viral",
       "child",
+      "sleeping",
+      "soldier",
       "meme",
-      "protecting",
       "funny",
-      "sleeping"
+      "protecting",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Soldier protecting sleeping child Reaction",
     "explanation": "The classic 'Soldier protecting sleeping child' meme template, perfect for funny scenarios.",
@@ -1607,16 +1590,33 @@
     "viralScore": 85.0
   },
   {
+    "name": "Monkey Puppet",
+    "category": "funny",
+    "keywords": [
+      "puppet",
+      "meme",
+      "funny",
+      "monkey",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Monkey Puppet Reaction",
+    "explanation": "The classic 'Monkey Puppet' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2gnnjh.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "They don't know",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "they",
-      "viral",
       "meme",
       "don",
+      "funny",
+      "they",
       "know",
-      "funny"
+      "reaction",
+      "viral"
     ],
     "dialogue": "They don't know Reaction",
     "explanation": "The classic 'They don't know' meme template, perfect for funny scenarios.",
@@ -1628,13 +1628,13 @@
     "name": "Spider Man Triple",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "spider",
-      "meme",
       "triple",
+      "meme",
+      "spider",
       "funny",
-      "man"
+      "man",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Spider Man Triple Reaction",
     "explanation": "The classic 'Spider Man Triple' meme template, perfect for funny scenarios.",
@@ -1643,192 +1643,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "Friendship ended",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "friendship",
-      "meme",
-      "funny",
-      "ended"
-    ],
-    "dialogue": "Friendship ended Reaction",
-    "explanation": "The classic 'Friendship ended' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/29v4rt.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Hide the Pain Harold",
-    "category": "office",
-    "keywords": [
-      "reaction",
-      "office",
-      "hide",
-      "viral",
-      "meme",
-      "pain",
-      "harold",
-      "the"
-    ],
-    "dialogue": "Smiling on the outside, pain on the inside",
-    "explanation": "The classic 'Hide the Pain Harold' meme template, perfect for office scenarios.",
-    "image": "https://i.imgflip.com/gk5el.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Two guys on a bus",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "two",
-      "guys",
-      "viral",
-      "meme",
-      "bus",
-      "funny"
-    ],
-    "dialogue": "Two guys on a bus Reaction",
-    "explanation": "The classic 'Two guys on a bus' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/5v6gwj.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "All My Homies Hate",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "all",
-      "homies",
-      "viral",
-      "meme",
-      "hate",
-      "funny"
-    ],
-    "dialogue": "All My Homies Hate Reaction",
-    "explanation": "The classic 'All My Homies Hate' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/3kwur5.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Boardroom Meeting Suggestion",
-    "category": "office",
-    "keywords": [
-      "reaction",
-      "office",
-      "viral",
-      "meme",
-      "meeting",
-      "suggestion",
-      "boardroom"
-    ],
-    "dialogue": "Boardroom Meeting Suggestion Reaction",
-    "explanation": "The classic 'Boardroom Meeting Suggestion' meme template, perfect for office scenarios.",
-    "image": "https://i.imgflip.com/m78d.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Imagination Spongebob",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "imagination",
-      "viral",
-      "meme",
-      "spongebob",
-      "funny"
-    ],
-    "dialogue": "Imagination Spongebob Reaction",
-    "explanation": "The classic 'Imagination Spongebob' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/3i7p.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Roll Safe Think About It",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "safe",
-      "viral",
-      "think",
-      "meme",
-      "about",
-      "funny",
-      "roll"
-    ],
-    "dialogue": "Roll Safe Think About It Reaction",
-    "explanation": "The classic 'Roll Safe Think About It' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1h7in3.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Sleeping Shaq",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "shaq",
-      "meme",
-      "funny",
-      "sleeping"
-    ],
-    "dialogue": "Sleeping Shaq Reaction",
-    "explanation": "The classic 'Sleeping Shaq' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1nck6k.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Flex Tape",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "flex",
-      "viral",
-      "meme",
-      "tape",
-      "funny"
-    ],
-    "dialogue": "Flex Tape Reaction",
-    "explanation": "The classic 'Flex Tape' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2reqtg.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Megamind no bitches",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "bitches",
-      "viral",
-      "meme",
-      "megamind",
-      "funny"
-    ],
-    "dialogue": "Megamind no bitches Reaction",
-    "explanation": "The classic 'Megamind no bitches' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/65939r.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "George Bush 9/11",
     "category": "funny",
     "keywords": [
+      "meme",
+      "funny",
+      "bush",
       "george",
       "reaction",
-      "bush",
-      "viral",
-      "meme",
-      "funny"
+      "viral"
     ],
     "dialogue": "George Bush 9/11 Reaction",
     "explanation": "The classic 'George Bush 9/11' meme template, perfect for funny scenarios.",
@@ -1837,15 +1660,123 @@
     "viralScore": 85.0
   },
   {
+    "name": "Two guys on a bus",
+    "category": "funny",
+    "keywords": [
+      "guys",
+      "meme",
+      "funny",
+      "bus",
+      "two",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Two guys on a bus Reaction",
+    "explanation": "The classic 'Two guys on a bus' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/5v6gwj.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Roll Safe Think About It",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "funny",
+      "safe",
+      "reaction",
+      "about",
+      "roll",
+      "think",
+      "viral"
+    ],
+    "dialogue": "Roll Safe Think About It Reaction",
+    "explanation": "The classic 'Roll Safe Think About It' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1h7in3.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Friendship ended",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "funny",
+      "ended",
+      "reaction",
+      "viral",
+      "friendship"
+    ],
+    "dialogue": "Friendship ended Reaction",
+    "explanation": "The classic 'Friendship ended' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/29v4rt.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Imagination Spongebob",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "spongebob",
+      "funny",
+      "imagination",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Imagination Spongebob Reaction",
+    "explanation": "The classic 'Imagination Spongebob' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/3i7p.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Boardroom Meeting Suggestion",
+    "category": "office",
+    "keywords": [
+      "meme",
+      "suggestion",
+      "boardroom",
+      "office",
+      "meeting",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Boardroom Meeting Suggestion Reaction",
+    "explanation": "The classic 'Boardroom Meeting Suggestion' meme template, perfect for office scenarios.",
+    "image": "https://i.imgflip.com/m78d.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Hide the Pain Harold",
+    "category": "office",
+    "keywords": [
+      "harold",
+      "meme",
+      "the",
+      "office",
+      "hide",
+      "pain",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Smiling on the outside, pain on the inside",
+    "explanation": "The classic 'Hide the Pain Harold' meme template, perfect for office scenarios.",
+    "image": "https://i.imgflip.com/gk5el.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Evil Kermit",
     "category": "funny",
     "keywords": [
-      "kermit",
-      "reaction",
-      "viral",
       "meme",
+      "kermit",
       "funny",
-      "evil"
+      "evil",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Evil Kermit Reaction",
     "explanation": "The classic 'Evil Kermit' meme template, perfect for funny scenarios.",
@@ -1854,19 +1785,20 @@
     "viralScore": 85.0
   },
   {
-    "name": "Inhaling Seagull",
+    "name": "All My Homies Hate",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "seagull",
-      "inhaling",
       "meme",
-      "funny"
+      "homies",
+      "funny",
+      "reaction",
+      "all",
+      "hate",
+      "viral"
     ],
-    "dialogue": "Inhaling Seagull Reaction",
-    "explanation": "The classic 'Inhaling Seagull' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1w7ygt.jpg",
+    "dialogue": "All My Homies Hate Reaction",
+    "explanation": "The classic 'All My Homies Hate' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/3kwur5.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -1874,12 +1806,12 @@
     "name": "Types of Headaches meme",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "headaches",
-      "viral",
-      "meme",
       "types",
-      "funny"
+      "meme",
+      "funny",
+      "reaction",
+      "viral",
+      "headaches"
     ],
     "dialogue": "Types of Headaches meme Reaction",
     "explanation": "The classic 'Types of Headaches meme' meme template, perfect for funny scenarios.",
@@ -1888,15 +1820,161 @@
     "viralScore": 85.0
   },
   {
+    "name": "Flex Tape",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "flex",
+      "funny",
+      "reaction",
+      "viral",
+      "tape"
+    ],
+    "dialogue": "Flex Tape Reaction",
+    "explanation": "The classic 'Flex Tape' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2reqtg.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Sleeping Shaq",
+    "category": "funny",
+    "keywords": [
+      "sleeping",
+      "meme",
+      "funny",
+      "shaq",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Sleeping Shaq Reaction",
+    "explanation": "The classic 'Sleeping Shaq' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1nck6k.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Grandma Finds The Internet",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "the",
+      "grandma",
+      "funny",
+      "finds",
+      "internet",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Grandma Finds The Internet Reaction",
+    "explanation": "The classic 'Grandma Finds The Internet' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1bhw.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "You know, I'm something of a scientist myself",
+    "category": "funny",
+    "keywords": [
+      "you",
+      "myself",
+      "scientist",
+      "something",
+      "meme",
+      "funny",
+      "know",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "You know, I'm something of a scientist myself Reaction",
+    "explanation": "The classic 'You know, I'm something of a scientist myself' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/27qxmb.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Megamind no bitches",
+    "category": "funny",
+    "keywords": [
+      "megamind",
+      "meme",
+      "funny",
+      "bitches",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Megamind no bitches Reaction",
+    "explanation": "The classic 'Megamind no bitches' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/65939r.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Anime Girl Hiding from Terminator",
+    "category": "relationship",
+    "keywords": [
+      "girl",
+      "meme",
+      "terminator",
+      "relationship",
+      "viral",
+      "hiding",
+      "anime",
+      "reaction",
+      "from"
+    ],
+    "dialogue": "Anime Girl Hiding from Terminator Reaction",
+    "explanation": "The classic 'Anime Girl Hiding from Terminator' meme template, perfect for relationship scenarios.",
+    "image": "https://i.imgflip.com/3po4m7.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Inhaling Seagull",
+    "category": "funny",
+    "keywords": [
+      "inhaling",
+      "meme",
+      "funny",
+      "seagull",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Inhaling Seagull Reaction",
+    "explanation": "The classic 'Inhaling Seagull' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1w7ygt.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "A train hitting a school bus",
+    "category": "ai",
+    "keywords": [
+      "train",
+      "ai",
+      "hitting",
+      "school",
+      "meme",
+      "bus",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "A train hitting a school bus Reaction",
+    "explanation": "The classic 'A train hitting a school bus' meme template, perfect for ai scenarios.",
+    "image": "https://i.imgflip.com/434i5j.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Three-headed Dragon",
     "category": "funny",
     "keywords": [
-      "reaction",
+      "meme",
       "dragon",
       "viral",
-      "meme",
-      "headed",
       "funny",
+      "headed",
+      "reaction",
       "three"
     ],
     "dialogue": "Three-headed Dragon Reaction",
@@ -1906,22 +1984,74 @@
     "viralScore": 85.0
   },
   {
-    "name": "Anime Girl Hiding from Terminator",
-    "category": "relationship",
+    "name": "is this butterfly",
+    "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
-      "from",
-      "anime",
+      "butterfly",
       "meme",
-      "hiding",
-      "relationship",
-      "terminator",
-      "girl"
+      "funny",
+      "this",
+      "reaction",
+      "viral"
     ],
-    "dialogue": "Anime Girl Hiding from Terminator Reaction",
-    "explanation": "The classic 'Anime Girl Hiding from Terminator' meme template, perfect for relationship scenarios.",
-    "image": "https://i.imgflip.com/3po4m7.jpg",
+    "dialogue": "is this butterfly Reaction",
+    "explanation": "The classic 'is this butterfly' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2cjr7j.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Panik Kalm Panik",
+    "category": "failure",
+    "keywords": [
+      "panik",
+      "meme",
+      "failure",
+      "kalm",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Panik Kalm Panik Reaction",
+    "explanation": "The classic 'Panik Kalm Panik' meme template, perfect for failure scenarios.",
+    "image": "https://i.imgflip.com/3qqcim.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Scooby doo mask reveal",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "doo",
+      "scooby",
+      "funny",
+      "reveal",
+      "mask",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Scooby doo mask reveal Reaction",
+    "explanation": "The classic 'Scooby doo mask reveal' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2eeunw.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Grant Gustin over grave",
+    "category": "funny",
+    "keywords": [
+      "grant",
+      "gustin",
+      "meme",
+      "funny",
+      "grave",
+      "over",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Grant Gustin over grave Reaction",
+    "explanation": "The classic 'Grant Gustin over grave' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/3nx72a.png",
     "gif": null,
     "viralScore": 85.0
   },
@@ -1929,11 +2059,11 @@
     "name": "No - Yes",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
       "meme",
+      "funny",
       "yes",
-      "funny"
+      "reaction",
+      "viral"
     ],
     "dialogue": "No - Yes Reaction",
     "explanation": "The classic 'No - Yes' meme template, perfect for funny scenarios.",
@@ -1945,12 +2075,12 @@
     "name": "AJ Styles & Undertaker",
     "category": "funny",
     "keywords": [
+      "styles",
+      "meme",
+      "funny",
       "undertaker",
       "reaction",
-      "styles",
-      "viral",
-      "meme",
-      "funny"
+      "viral"
     ],
     "dialogue": "AJ Styles & Undertaker Reaction",
     "explanation": "The classic 'AJ Styles & Undertaker' meme template, perfect for funny scenarios.",
@@ -1959,160 +2089,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "Panik Kalm Panik",
-    "category": "failure",
-    "keywords": [
-      "reaction",
-      "failure",
-      "kalm",
-      "viral",
-      "meme",
-      "panik"
-    ],
-    "dialogue": "Panik Kalm Panik Reaction",
-    "explanation": "The classic 'Panik Kalm Panik' meme template, perfect for failure scenarios.",
-    "image": "https://i.imgflip.com/3qqcim.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "is this butterfly",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "this",
-      "viral",
-      "butterfly",
-      "meme",
-      "funny"
-    ],
-    "dialogue": "is this butterfly Reaction",
-    "explanation": "The classic 'is this butterfly' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2cjr7j.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Whisper and Goosebumps",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "goosebumps",
-      "meme",
-      "and",
-      "whisper",
-      "funny"
-    ],
-    "dialogue": "Whisper and Goosebumps Reaction",
-    "explanation": "The classic 'Whisper and Goosebumps' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1op9wy.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "A train hitting a school bus",
-    "category": "ai",
-    "keywords": [
-      "reaction",
-      "train",
-      "viral",
-      "ai",
-      "meme",
-      "bus",
-      "hitting",
-      "school"
-    ],
-    "dialogue": "A train hitting a school bus Reaction",
-    "explanation": "The classic 'A train hitting a school bus' meme template, perfect for ai scenarios.",
-    "image": "https://i.imgflip.com/434i5j.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Grandma Finds The Internet",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "internet",
-      "meme",
-      "funny",
-      "the",
-      "finds",
-      "grandma"
-    ],
-    "dialogue": "Grandma Finds The Internet Reaction",
-    "explanation": "The classic 'Grandma Finds The Internet' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1bhw.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Grant Gustin over grave",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "over",
-      "viral",
-      "meme",
-      "gustin",
-      "funny",
-      "grave",
-      "grant"
-    ],
-    "dialogue": "Grant Gustin over grave Reaction",
-    "explanation": "The classic 'Grant Gustin over grave' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/3nx72a.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Scooby doo mask reveal",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "reveal",
-      "doo",
-      "meme",
-      "scooby",
-      "mask",
-      "funny"
-    ],
-    "dialogue": "Scooby doo mask reveal Reaction",
-    "explanation": "The classic 'Scooby doo mask reveal' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2eeunw.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Futurama Fry",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "fry",
-      "viral",
-      "meme",
-      "futurama",
-      "funny"
-    ],
-    "dialogue": "Futurama Fry Reaction",
-    "explanation": "The classic 'Futurama Fry' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/1bgw.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Blank Nut Button",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "button",
-      "blank",
-      "viral",
       "meme",
+      "blank",
       "funny",
+      "button",
+      "reaction",
+      "viral",
       "nut"
     ],
     "dialogue": "Blank Nut Button Reaction",
@@ -2122,52 +2107,15 @@
     "viralScore": 85.0
   },
   {
-    "name": "You know, I'm something of a scientist myself",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "myself",
-      "something",
-      "viral",
-      "meme",
-      "you",
-      "know",
-      "funny",
-      "scientist"
-    ],
-    "dialogue": "You know, I'm something of a scientist myself Reaction",
-    "explanation": "The classic 'You know, I'm something of a scientist myself' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/27qxmb.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Domino Effect",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "domino",
-      "meme",
-      "effect",
-      "funny"
-    ],
-    "dialogue": "Domino Effect Reaction",
-    "explanation": "The classic 'Domino Effect' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2oo7h0.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "spiderman pointing at spiderman",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "coding",
+      "meme",
       "spiderman",
-      "viral",
+      "coding",
       "pointing",
-      "meme"
+      "reaction",
+      "viral"
     ],
     "dialogue": "spiderman pointing at spiderman Reaction",
     "explanation": "The classic 'spiderman pointing at spiderman' meme template, perfect for coding scenarios.",
@@ -2179,12 +2127,12 @@
     "name": "Surprised Pikachu",
     "category": "failure",
     "keywords": [
-      "reaction",
-      "failure",
-      "viral",
       "meme",
+      "failure",
       "surprised",
-      "pikachu"
+      "pikachu",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Surprised Pikachu Face!",
     "explanation": "The classic 'Surprised Pikachu' meme template, perfect for failure scenarios.",
@@ -2193,40 +2141,90 @@
     "viralScore": 85.0
   },
   {
-    "name": "I'm The Captain Now",
-    "category": "ai",
+    "name": "Whisper and Goosebumps",
+    "category": "funny",
     "keywords": [
-      "reaction",
-      "now",
-      "viral",
-      "ai",
+      "goosebumps",
       "meme",
-      "captain",
-      "the"
+      "funny",
+      "whisper",
+      "reaction",
+      "viral",
+      "and"
     ],
-    "dialogue": "I'm The Captain Now Reaction",
-    "explanation": "The classic 'I'm The Captain Now' meme template, perfect for ai scenarios.",
-    "image": "https://i.imgflip.com/hlmst.jpg",
+    "dialogue": "Whisper and Goosebumps Reaction",
+    "explanation": "The classic 'Whisper and Goosebumps' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1op9wy.jpg",
     "gif": null,
     "viralScore": 85.0
   },
   {
-    "name": "say the line bart! simpsons",
+    "name": "Futurama Fry",
     "category": "funny",
     "keywords": [
-      "bart",
+      "meme",
+      "funny",
+      "fry",
+      "futurama",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Futurama Fry Reaction",
+    "explanation": "The classic 'Futurama Fry' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1bgw.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Laughing Leo",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "laughing",
+      "funny",
+      "leo",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Laughing Leo Reaction",
+    "explanation": "The classic 'Laughing Leo' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/4acd7j.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Domino Effect",
+    "category": "funny",
+    "keywords": [
+      "domino",
+      "meme",
+      "funny",
       "reaction",
       "viral",
-      "say",
-      "meme",
-      "line",
-      "simpsons",
-      "funny",
-      "the"
+      "effect"
     ],
-    "dialogue": "say the line bart! simpsons Reaction",
-    "explanation": "The classic 'say the line bart! simpsons' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/176h0h.jpg",
+    "dialogue": "Domino Effect Reaction",
+    "explanation": "The classic 'Domino Effect' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2oo7h0.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Third World Skeptical Kid",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "kid",
+      "funny",
+      "viral",
+      "skeptical",
+      "reaction",
+      "world",
+      "third"
+    ],
+    "dialogue": "Third World Skeptical Kid Reaction",
+    "explanation": "The classic 'Third World Skeptical Kid' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/265k.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -2234,13 +2232,13 @@
     "name": "Who Killed Hannibal",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
       "meme",
-      "hannibal",
       "funny",
       "who",
-      "killed"
+      "hannibal",
+      "killed",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Who Killed Hannibal Reaction",
     "explanation": "The classic 'Who Killed Hannibal' meme template, perfect for funny scenarios.",
@@ -2252,12 +2250,12 @@
     "name": "Two Paths",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "two",
-      "viral",
       "meme",
+      "funny",
+      "two",
       "paths",
-      "funny"
+      "reaction",
+      "viral"
     ],
     "dialogue": "Two Paths Reaction",
     "explanation": "The classic 'Two Paths' meme template, perfect for funny scenarios.",
@@ -2266,19 +2264,40 @@
     "viralScore": 85.0
   },
   {
-    "name": "Laughing Leo",
+    "name": "Star Wars Yoda",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
+      "wars",
       "meme",
-      "leo",
+      "yoda",
+      "star",
       "funny",
-      "laughing"
+      "reaction",
+      "viral"
     ],
-    "dialogue": "Laughing Leo Reaction",
-    "explanation": "The classic 'Laughing Leo' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/4acd7j.png",
+    "dialogue": "Star Wars Yoda Reaction",
+    "explanation": "The classic 'Star Wars Yoda' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/8k0sa.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "say the line bart! simpsons",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "the",
+      "funny",
+      "line",
+      "say",
+      "bart",
+      "simpsons",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "say the line bart! simpsons Reaction",
+    "explanation": "The classic 'say the line bart! simpsons' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/176h0h.jpg",
     "gif": null,
     "viralScore": 85.0
   },
@@ -2286,15 +2305,15 @@
     "name": "Charlie Conspiracy (Always Sunny in Philidelphia)",
     "category": "funny",
     "keywords": [
-      "sunny",
-      "reaction",
-      "viral",
-      "always",
       "meme",
-      "conspiracy",
-      "charlie",
       "philidelphia",
-      "funny"
+      "always",
+      "funny",
+      "sunny",
+      "charlie",
+      "conspiracy",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Charlie Conspiracy (Always Sunny in Philidelphia) Reaction",
     "explanation": "The classic 'Charlie Conspiracy (Always Sunny in Philidelphia)' meme template, perfect for funny scenarios.",
@@ -2306,12 +2325,12 @@
     "name": "Drake Blank",
     "category": "coding",
     "keywords": [
-      "reaction",
-      "coding",
-      "blank",
-      "viral",
       "meme",
-      "drake"
+      "blank",
+      "drake",
+      "coding",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Nah / Yeah Drake Reaction",
     "explanation": "The classic 'Drake Blank' meme template, perfect for coding scenarios.",
@@ -2320,17 +2339,53 @@
     "viralScore": 85.0
   },
   {
+    "name": "I'm The Captain Now",
+    "category": "ai",
+    "keywords": [
+      "meme",
+      "captain",
+      "ai",
+      "the",
+      "reaction",
+      "viral",
+      "now"
+    ],
+    "dialogue": "I'm The Captain Now Reaction",
+    "explanation": "The classic 'I'm The Captain Now' meme template, perfect for ai scenarios.",
+    "image": "https://i.imgflip.com/hlmst.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Trump Bill Signing",
+    "category": "funny",
+    "keywords": [
+      "bill",
+      "meme",
+      "funny",
+      "signing",
+      "trump",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Trump Bill Signing Reaction",
+    "explanation": "The classic 'Trump Bill Signing' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/1ii4oc.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "Grim Reaper Knocking Door",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "knocking",
-      "viral",
-      "meme",
       "door",
-      "reaper",
+      "meme",
+      "knocking",
       "funny",
-      "grim"
+      "reaper",
+      "grim",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Grim Reaper Knocking Door Reaction",
     "explanation": "The classic 'Grim Reaper Knocking Door' meme template, perfect for funny scenarios.",
@@ -2339,181 +2394,14 @@
     "viralScore": 85.0
   },
   {
-    "name": "whe i'm in a competition and my opponent is",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "viral",
-      "whe",
-      "meme",
-      "and",
-      "competition",
-      "funny",
-      "opponent"
-    ],
-    "dialogue": "whe i'm in a competition and my opponent is Reaction",
-    "explanation": "The classic 'whe i'm in a competition and my opponent is' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/5youx3.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Star Wars Yoda",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "wars",
-      "viral",
-      "yoda",
-      "meme",
-      "star",
-      "funny"
-    ],
-    "dialogue": "Star Wars Yoda Reaction",
-    "explanation": "The classic 'Star Wars Yoda' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/8k0sa.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Third World Skeptical Kid",
-    "category": "funny",
-    "keywords": [
-      "skeptical",
-      "reaction",
-      "third",
-      "viral",
-      "meme",
-      "funny",
-      "kid",
-      "world"
-    ],
-    "dialogue": "Third World Skeptical Kid Reaction",
-    "explanation": "The classic 'Third World Skeptical Kid' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/265k.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Gus Fring we are not the same",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "are",
-      "viral",
-      "gus",
-      "meme",
-      "same",
-      "not",
-      "funny",
-      "fring",
-      "the"
-    ],
-    "dialogue": "Gus Fring we are not the same Reaction",
-    "explanation": "The classic 'Gus Fring we are not the same' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/5o32tt.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Bugs bunny communist",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "communist",
-      "viral",
-      "meme",
-      "funny",
-      "bugs",
-      "bunny"
-    ],
-    "dialogue": "Bugs bunny communist Reaction",
-    "explanation": "The classic 'Bugs bunny communist' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/44eggm.png",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "American Chopper Argument",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "american",
-      "argument",
-      "viral",
-      "meme",
-      "funny",
-      "chopper"
-    ],
-    "dialogue": "American Chopper Argument Reaction",
-    "explanation": "The classic 'American Chopper Argument' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/2896ro.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Yo Dawg Heard You",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "heard",
-      "viral",
-      "meme",
-      "you",
-      "dawg",
-      "funny"
-    ],
-    "dialogue": "Yo Dawg Heard You Reaction",
-    "explanation": "The classic 'Yo Dawg Heard You' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/26hg.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "The Rock Driving",
-    "category": "funny",
-    "keywords": [
-      "rock",
-      "reaction",
-      "viral",
-      "meme",
-      "driving",
-      "funny",
-      "the"
-    ],
-    "dialogue": "The Rock Driving Reaction",
-    "explanation": "The classic 'The Rock Driving' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/grr.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
-    "name": "Disappointed Black Guy",
-    "category": "funny",
-    "keywords": [
-      "reaction",
-      "disappointed",
-      "viral",
-      "guy",
-      "meme",
-      "funny",
-      "black"
-    ],
-    "dialogue": "Disappointed Black Guy Reaction",
-    "explanation": "The classic 'Disappointed Black Guy' meme template, perfect for funny scenarios.",
-    "image": "https://i.imgflip.com/u0pf0.jpg",
-    "gif": null,
-    "viralScore": 85.0
-  },
-  {
     "name": "Look At Me",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
       "meme",
       "look",
-      "funny"
+      "funny",
+      "reaction",
+      "viral"
     ],
     "dialogue": "Look At Me Reaction",
     "explanation": "The classic 'Look At Me' meme template, perfect for funny scenarios.",
@@ -2522,16 +2410,35 @@
     "viralScore": 85.0
   },
   {
+    "name": "whe i'm in a competition and my opponent is",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "opponent",
+      "funny",
+      "competition",
+      "whe",
+      "reaction",
+      "viral",
+      "and"
+    ],
+    "dialogue": "whe i'm in a competition and my opponent is Reaction",
+    "explanation": "The classic 'whe i'm in a competition and my opponent is' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/5youx3.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "The Scroll Of Truth",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "viral",
       "meme",
+      "the",
       "truth",
       "funny",
       "scroll",
-      "the"
+      "reaction",
+      "viral"
     ],
     "dialogue": "The Scroll Of Truth Reaction",
     "explanation": "The classic 'The Scroll Of Truth' meme template, perfect for funny scenarios.",
@@ -2540,19 +2447,111 @@
     "viralScore": 85.0
   },
   {
+    "name": "Leonardo Dicaprio Cheers",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "leonardo",
+      "funny",
+      "dicaprio",
+      "cheers",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Leonardo Dicaprio Cheers Reaction",
+    "explanation": "The classic 'Leonardo Dicaprio Cheers' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/39t1o.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Yo Dawg Heard You",
+    "category": "funny",
+    "keywords": [
+      "you",
+      "meme",
+      "dawg",
+      "funny",
+      "heard",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Yo Dawg Heard You Reaction",
+    "explanation": "The classic 'Yo Dawg Heard You' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/26hg.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Gus Fring we are not the same",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "the",
+      "are",
+      "not",
+      "funny",
+      "same",
+      "gus",
+      "fring",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Gus Fring we are not the same Reaction",
+    "explanation": "The classic 'Gus Fring we are not the same' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/5o32tt.png",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "Wolverine Remember",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "funny",
+      "wolverine",
+      "remember",
+      "reaction",
+      "viral"
+    ],
+    "dialogue": "Wolverine Remember Reaction",
+    "explanation": "The classic 'Wolverine Remember' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/s2zxn.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
     "name": "c'mon do something",
     "category": "funny",
     "keywords": [
-      "reaction",
-      "something",
-      "viral",
       "meme",
+      "something",
       "funny",
-      "mon"
+      "mon",
+      "reaction",
+      "viral"
     ],
     "dialogue": "c'mon do something Reaction",
     "explanation": "The classic 'c'mon do something' meme template, perfect for funny scenarios.",
     "image": "https://i.imgflip.com/bwu6w.jpg",
+    "gif": null,
+    "viralScore": 85.0
+  },
+  {
+    "name": "American Chopper Argument",
+    "category": "funny",
+    "keywords": [
+      "meme",
+      "american",
+      "chopper",
+      "viral",
+      "funny",
+      "reaction",
+      "argument"
+    ],
+    "dialogue": "American Chopper Argument Reaction",
+    "explanation": "The classic 'American Chopper Argument' meme template, perfect for funny scenarios.",
+    "image": "https://i.imgflip.com/2896ro.jpg",
     "gif": null,
     "viralScore": 85.0
   }

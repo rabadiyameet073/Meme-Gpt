@@ -195,6 +195,13 @@ class Meme(Base):
     # Content flags
     nsfw = Column(Boolean, default=False, index=True)
 
+    # Accessibility
+    alt_text = Column(Text, nullable=True)
+
+    # Moderation
+    flag_count = Column(Integer, default=0)
+    moderation_status = Column(String(20), default="approved")  # 'approved' | 'pending_review' | 'removed'
+
     # Analytics
     view_count = Column(Integer, default=0)
     download_count = Column(Integer, default=0)
@@ -217,6 +224,7 @@ class Meme(Base):
     favourites = relationship("FavouriteMeme", back_populates="meme", cascade="all, delete-orphan")
     feedback_entries = relationship("Feedback", back_populates="meme", cascade="all, delete-orphan")
     saved_memes = relationship("SavedMeme", back_populates="meme", cascade="all, delete-orphan")
+    flags = relationship("MemeFlag", back_populates="meme", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_memes_slug", "slug"),
@@ -231,7 +239,21 @@ class Meme(Base):
             slug_val = re.sub(r"[^a-z0-9\s-]", "", str(name).lower()).strip().replace(" ", "-")
             kwargs["slug"] = slug_val[:180] or str(uuid.uuid4())[:8]
         if "category" in kwargs and "categories" not in kwargs:
-            kwargs["categories"] = [kwargs.pop("category")]
+            cat = kwargs.pop("category")
+            kwargs["categories"] = [cat] if cat else []
+        elif "category" in kwargs:
+            kwargs.pop("category")
+        if "emotion" in kwargs and "emotions" not in kwargs:
+            em = kwargs.pop("emotion")
+            kwargs["emotions"] = [em] if em else []
+        elif "emotion" in kwargs:
+            kwargs.pop("emotion")
+        if "is_nsfw" in kwargs and "nsfw" not in kwargs:
+            kwargs["nsfw"] = kwargs.pop("is_nsfw")
+        elif "is_nsfw" in kwargs:
+            kwargs.pop("is_nsfw")
+        col_names = self.__table__.columns.keys()
+        kwargs = {k: v for k, v in kwargs.items() if k in col_names}
         super().__init__(**kwargs)
 
     def keywords_list(self) -> list[str]:
@@ -367,6 +389,9 @@ class Meme(Base):
             },
             "source": self.source or "manual",
             "nsfw": bool(self.nsfw),
+            "alt_text": self.alt_text or f"Meme: {self.name}",
+            "flag_count": self.flag_count or 0,
+            "moderation_status": self.moderation_status or "approved",
             "view_count": self.view_count or 0,
             "download_count": self.download_count or 0,
             "usage_count": self.usage_count or 0,
@@ -426,19 +451,56 @@ class FavouriteMeme(Base):
 FavoriteMeme = FavouriteMeme
 
 
+class MemeFlag(Base):
+    """Community flagging — users report inappropriate memes."""
+    __tablename__ = "meme_flags"
+
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="CASCADE"), nullable=False, index=True)
+    reporter_ip = Column(String(45), nullable=True)
+    reporter_user_id = Column(String(64), nullable=True)
+    reason = Column(String(50), nullable=False)  # 'nsfw' | 'offensive' | 'copyright' | 'spam' | 'other'
+    details = Column(Text, default="")
+    status = Column(String(20), default="pending")  # 'pending' | 'reviewed' | 'removed' | 'dismissed'
+    reviewed_by = Column(String(64), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    meme = relationship("Meme", back_populates="flags")
+
+    __table_args__ = (
+        Index("idx_flags_meme_status", "meme_id", "status"),
+    )
+
+
 class User(Base):
     """
-    User accounts — matches Schema.md specification.
+    User accounts — supports OAuth, credentials, plan tiers, and preferences.
     """
     __tablename__ = "users"
 
     id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=True, index=True)
     name = Column(String(200), nullable=True)
+    username = Column(String(100), nullable=True)
     avatar_url = Column(String(500), nullable=True)
+    hashed_password = Column(String(255), nullable=True)
+
+    # OAuth
+    oauth_provider = Column(String(50), nullable=True)  # 'google' | 'github' | None
+    oauth_id = Column(String(255), nullable=True)
+
+    # Plan & preferences
     plan = Column(String(20), default="free")
     preferences = Column(JSON, default=dict)
-    hashed_password = Column(String(255), nullable=True)
+    rate_limit = Column(Integer, default=120)
+
+    # Preference shortcuts
+    preferred_format = Column(String(20), default="gif")
+    theme = Column(String(20), default="dark")
+    nsfw_enabled = Column(Boolean, default=False)
+    favourite_categories = Column(JSON, default=list)
+
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utc_now)
@@ -447,14 +509,25 @@ class User(Base):
     saved_memes = relationship("SavedMeme", back_populates="user", cascade="all, delete-orphan")
     feedback_entries = relationship("Feedback", back_populates="user")
 
+    __table_args__ = (
+        Index("idx_users_email", "email"),
+        Index("idx_users_oauth", "oauth_provider", "oauth_id"),
+    )
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "email": self.email,
             "name": self.name,
+            "username": self.username or self.name,
             "avatar_url": self.avatar_url,
             "plan": self.plan,
             "preferences": self.preferences or {},
+            "preferred_format": self.preferred_format or "gif",
+            "theme": self.theme or "dark",
+            "nsfw_enabled": bool(self.nsfw_enabled),
+            "favourite_categories": self.favourite_categories or [],
+            "oauth_provider": self.oauth_provider,
             "is_active": self.is_active,
             "is_admin": self.is_admin,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -595,10 +668,43 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db(drop_all: bool = False) -> None:
-    """Create all tables (optionally removing previous)."""
+    """Create all tables (optionally removing previous) and ensure missing columns are added."""
     if drop_all:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+
+    if is_sqlite:
+        with engine.connect() as conn:
+            # Check memes columns
+            cursor = conn.exec_driver_sql("PRAGMA table_info(memes)")
+            existing_meme_cols = {row[1] for row in cursor.fetchall()}
+            if "alt_text" not in existing_meme_cols:
+                conn.exec_driver_sql("ALTER TABLE memes ADD COLUMN alt_text TEXT")
+            if "flag_count" not in existing_meme_cols:
+                conn.exec_driver_sql("ALTER TABLE memes ADD COLUMN flag_count INTEGER DEFAULT 0")
+            if "moderation_status" not in existing_meme_cols:
+                conn.exec_driver_sql("ALTER TABLE memes ADD COLUMN moderation_status VARCHAR(20) DEFAULT 'approved'")
+
+            # Check users columns
+            cursor = conn.exec_driver_sql("PRAGMA table_info(users)")
+            existing_user_cols = {row[1] for row in cursor.fetchall()}
+            if "oauth_provider" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50)")
+            if "oauth_id" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN oauth_id VARCHAR(255)")
+            if "rate_limit" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN rate_limit INTEGER DEFAULT 120")
+            if "username" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN username VARCHAR(100)")
+            if "preferred_format" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN preferred_format VARCHAR(20) DEFAULT 'gif'")
+            if "theme" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN theme VARCHAR(20) DEFAULT 'dark'")
+            if "nsfw_enabled" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN nsfw_enabled BOOLEAN DEFAULT 0")
+            if "favourite_categories" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN favourite_categories JSON DEFAULT '[]'")
+            conn.commit()
 
 
 def bulk_insert_memes(items: Sequence[dict]) -> int:

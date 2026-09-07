@@ -146,6 +146,19 @@ app.add_middleware(
     max_age=3600,
 )
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class CacheHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/media/") or "/download" in request.url.path:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.url.path.startswith("/api/v1/trending"):
+            response.headers["Cache-Control"] = "public, max-age=1800, stale-while-revalidate=600"
+        return response
+
+app.add_middleware(CacheHeaderMiddleware)
+
 
 @app.middleware("http")
 async def security_and_timing_middleware(request: Request, call_next):
