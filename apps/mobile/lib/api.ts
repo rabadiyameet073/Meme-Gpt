@@ -71,6 +71,15 @@ class ApiClient {
       body: JSON.stringify({ meme_id: memeId, feedback_type: feedback }),
     });
   }
+  async getMeme(slug: string): Promise<MemeResult> {
+    const response = await fetch(`${this.baseUrl}/memes/${slug}`);
+    if (!response.ok) throw new Error(`Meme fetch failed: ${response.status}`);
+    return response.json();
+  }
+
+  getDownloadUrl(slug: string, format: string = "gif"): string {
+    return `${this.baseUrl}/memes/${slug}/download?format=${format}`;
+  }
 }
 
 export const api = new ApiClient(API_BASE);
@@ -80,4 +89,10 @@ export const submitFeedback = (memeId: number | string, feedback: string) =>
 
 export const voteMeme = (memeId: number | string, vote: 1 | -1, sessionId: string = "mobile_session") =>
   api.vote(Number(memeId) || 0, vote, sessionId);
+
+export const getDownloadUrl = (slug: string, format: string = "gif") =>
+  api.getDownloadUrl(slug, format);
+
+export const getMeme = (slug: string) =>
+  api.getMeme(slug);
 
