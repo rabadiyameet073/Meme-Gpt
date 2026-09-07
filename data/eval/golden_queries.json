@@ -1,0 +1,17 @@
+[
+  {
+    "query": "when code works on first try and you don't know why",
+    "expected_slugs": ["confused-math-lady", "success-kid", "it-works-why"],
+    "intent_emotion": "surprise"
+  },
+  {
+    "query": "boss emails at 11pm on Friday night",
+    "expected_slugs": ["this-is-fine", "stressed-michael-scott", "disappointed-face"],
+    "intent_emotion": "frustration"
+  },
+  {
+    "query": "staying up until 3am playing video games with friends",
+    "expected_slugs": ["me-and-the-boys", "sleepy-squidward", "gamer-rage"],
+    "intent_emotion": "joy"
+  }
+]

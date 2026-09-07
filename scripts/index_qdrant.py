@@ -93,6 +93,19 @@ def index_memes(client: QdrantClient, memes: list[dict], batch_size: int = 100, 
         print(f"  Indexed batch {batch_start}–{batch_start + len(batch)}")
 
 
+def index_memes_from_file(filepath: str, batch_size: int = 100, collection_name: str = "memes"):
+    """Index memes that have text, image, and combined embeddings from a JSON file."""
+    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_key = os.getenv("QDRANT_API_KEY")
+    client = QdrantClient(url=qdrant_url, api_key=qdrant_key)
+
+    with open(filepath, encoding="utf-8") as f:
+        memes = json.load(f)
+
+    index_memes(client, memes, batch_size=batch_size, collection_name=collection_name)
+    print(f"Indexed {len(memes)} memes from {filepath} into Qdrant")
+
+
 def verify_index(client: QdrantClient, collection_name: str = "memes"):
     """Verify collection status and point count."""
     info = client.get_collection(collection_name)

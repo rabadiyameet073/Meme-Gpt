@@ -4,7 +4,14 @@ Matches specifications from 05_AI_System/AI_Pipeline.md
 """
 
 import json
+import sys
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 
 def compose_meme_text(meme: dict) -> str:
@@ -46,8 +53,16 @@ def build_meme_text_description(meme: dict, tags: dict | None = None) -> str:
 def preprocess_manifest(input_path: str = "data/raw/dataset_manifest.json", output_path: str = "data/processed/memes_processed.json"):
     in_file = Path(input_path)
     if not in_file.exists():
-        print(f"⚠️ Input manifest {input_path} not found")
-        return []
+        fallback = Path("data/raw/memes_master.json")
+        if fallback.exists():
+            in_file = fallback
+        else:
+            alt = Path("backend/data/memes.json")
+            if alt.exists():
+                in_file = alt
+            else:
+                print(f"⚠️ Input manifest {input_path} not found")
+                return []
 
     with open(in_file, "r", encoding="utf-8") as f:
         memes = json.load(f)

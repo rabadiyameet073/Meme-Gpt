@@ -502,6 +502,12 @@ def main():
     out_file.write_text(json.dumps(master, indent=2), encoding="utf-8")
     print(f"Saved master dataset to {out_file}")
 
+    raw_dir = ROOT_DIR / "data" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_file = raw_dir / "memes_master.json"
+    raw_file.write_text(json.dumps(master, indent=2), encoding="utf-8")
+    print(f"Saved raw master dataset to {raw_file}")
+
 
 if __name__ == "__main__":
     main()
