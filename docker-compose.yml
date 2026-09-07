@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   api:
     build:
-      context: ./services/api
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
@@ -16,8 +14,10 @@ services:
       - qdrant
       - redis
     volumes:
-      - ./services/api:/app
+      - ./backend:/app
       - ./data:/data
+    env_file:
+      - .env
 
   qdrant:
     image: qdrant/qdrant:v1.7.4

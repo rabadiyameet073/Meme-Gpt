@@ -18,7 +18,7 @@ jobs:
           QDRANT_HOST: ${{ secrets.QDRANT_HOST }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
         run: |
-          cd services/api
+          cd backend
           pip install -r requirements.txt
           python scripts/download_datasets.py
           python scripts/preprocess_memes.py
