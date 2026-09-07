@@ -1,0 +1,47 @@
+{
+  "name": "memegpt-progress-tracker",
+  "displayName": "MemeGPT Progress Tracker",
+  "description": "Shows contextual completion/quality percentages on all files in the MemeGPT project explorer",
+  "version": "0.1.0",
+  "publisher": "memegpt",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "memegpt-progress.refresh",
+        "title": "MemeGPT: Refresh Progress Percentages"
+      },
+      {
+        "command": "memegpt-progress.runTests",
+        "title": "MemeGPT: Run Tests & Update Progress"
+      }
+    ],
+    "configuration": {
+      "title": "MemeGPT Progress Tracker",
+      "properties": {
+        "memegpt-progress.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable progress percentage indicators on files"
+        },
+        "memegpt-progress.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh percentages when files change"
+        },
+        "memegpt-progress.refreshOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Refresh percentages when a file is saved"
+        }
+      }
+    }
+  }
+}
