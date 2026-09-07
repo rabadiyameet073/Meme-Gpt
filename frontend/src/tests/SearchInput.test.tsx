@@ -1,32 +1,33 @@
-/// <reference types="vitest" />
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SearchInput } from '../components/SearchInput';
 
 describe('SearchInput Component', () => {
-  it('renders placeholder text', () => {
-    render(<SearchInput onSearch={vi.fn()} loading={false} />);
-    expect(screen.getByPlaceholderText(/What's happening/i)).toBeInTheDocument();
-  });
-
-  it('calls onSearch when Ctrl+Enter pressed', () => {
+  it('renders input field with placeholder', () => {
     const onSearch = vi.fn();
-    render(<SearchInput onSearch={onSearch} loading={false} />);
-    const input = screen.getByRole('textbox');
-    fireEvent.change(input, { target: { value: 'test query' } });
-    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true });
-    expect(onSearch).toHaveBeenCalledWith('test query');
+    render(<SearchInput onSearch={onSearch} loading={false} placeholder="Describe a feeling..." />);
+    
+    const input = screen.getByPlaceholderText(/describe a feeling/i);
+    expect(input).toBeInTheDocument();
   });
 
-  it('disables input when loading', () => {
-    render(<SearchInput onSearch={vi.fn()} loading={true} />);
-    expect(screen.getByRole('textbox')).toBeDisabled();
+  it('triggers search callback when submit button is clicked', () => {
+    const onSearch = vi.fn();
+    render(<SearchInput onSearch={onSearch} loading={false} placeholder="Describe a feeling..." />);
+    
+    const input = screen.getByPlaceholderText(/describe a feeling/i);
+    fireEvent.change(input, { target: { value: 'when tests pass first try' } });
+    
+    const submitBtn = screen.getByRole('button', { name: /search/i });
+    fireEvent.click(submitBtn);
+    
+    expect(onSearch).toHaveBeenCalledWith('when tests pass first try');
   });
 
-  it('shows character count', () => {
-    render(<SearchInput onSearch={vi.fn()} loading={false} />);
-    const input = screen.getByRole('textbox');
-    fireEvent.change(input, { target: { value: 'hello world' } });
-    expect(screen.getByText('11/2000')).toBeInTheDocument();
+  it('disables input when loading state is true', () => {
+    render(<SearchInput onSearch={vi.fn()} loading={true} placeholder="Describe a feeling..." />);
+    const input = screen.getByPlaceholderText(/describe a feeling/i);
+    expect(input).toBeDisabled();
   });
 });

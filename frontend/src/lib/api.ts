@@ -6,9 +6,9 @@
 import type { MemeRecord, MemeSearchResult } from "@/types";
 
 export const API_BASE =
-  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ||
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
-  "/api";
+  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ||
+  "http://localhost:8000";
 
 export class ApiError extends Error {
   status: number;

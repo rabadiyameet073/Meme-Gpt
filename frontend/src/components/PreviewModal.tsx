@@ -163,7 +163,7 @@ export function PreviewModal({
           {mediaUrl ? (
             <img
               src={mediaUrl}
-              alt={meme.name}
+              alt={(meme as any).alt_text || meme.name}
               loading="lazy"
               decoding="async"
               style={{

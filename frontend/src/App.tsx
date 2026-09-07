@@ -168,8 +168,13 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Skip Navigation Link for Screen Readers and Keyboard Navigation */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Interactive 3D Background Canvas */}
-      <div className="bg-canvas-wrapper">
+      <div className="bg-canvas-wrapper" aria-hidden="true">
         <Canvas3DBackground />
       </div>
 
@@ -187,15 +192,19 @@ export default function App() {
       {/* Main Content Area */}
       <div className="main-wrapper">
         {/* Top Header */}
-        <header className="top-header">
+        <header className="top-header" role="banner">
           {/* Quick Access Tabs */}
-          <nav className="header-tab-bar">
+          <nav className="header-tab-bar" role="tablist" aria-label="Main Views">
             {topNavTabs.map((t) => {
               const active = currentTab === t.id;
               return (
                 <button
                   key={t.id}
                   type="button"
+                  role="tab"
+                  id={`tab-${t.id}`}
+                  aria-selected={active}
+                  aria-controls={`panel-${t.id}`}
                   className={`header-tab-btn ${active ? "active" : ""}`}
                   onClick={() => navigateTo({ type: "tab", name: t.id })}
                 >
@@ -269,7 +278,7 @@ export default function App() {
         </header>
 
         {/* Dynamic Route Content with Framer Motion */}
-        <main className="content-area">
+        <main className="content-area" id="main-content" tabIndex={-1}>
           <Suspense fallback={<TabLoadingFallback />}>
             <AnimatePresence mode="wait">
               {view.type === "tab" && view.name === "chat" && (

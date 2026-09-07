@@ -135,6 +135,8 @@ export function MemeCard({
   return (
     <motion.div
       className={`meme-card ${primary ? "primary-match" : ""}`}
+      role="article"
+      aria-label={`Meme: ${meme.name}`}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -192,6 +194,15 @@ export function MemeCard({
             title="Click to copy dialogue"
             onClick={copyMeme}
             style={{ cursor: "pointer" }}
+            tabIndex={0}
+            role="button"
+            aria-label="Copy dialogue to clipboard"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                copyMeme();
+              }
+            }}
           >
             "{meme.dialogue}"
           </div>
@@ -209,7 +220,7 @@ export function MemeCard({
           <div className="card-media-box">
             <img
               src={mediaUrl}
-              alt={meme.name}
+              alt={(meme as any).alt_text || meme.name}
               loading="lazy"
               decoding="async"
               onError={() => setImgError(true)}
@@ -219,6 +230,8 @@ export function MemeCard({
 
         {/* Format Selector Pills */}
         <div
+          role="group"
+          aria-label="Select format"
           style={{
             display: "flex",
             alignItems: "center",
@@ -241,6 +254,8 @@ export function MemeCard({
             <button
               key={fmt}
               type="button"
+              aria-pressed={selectedFormat === fmt}
+              aria-label={`Select ${fmt.toUpperCase()} format`}
               onClick={() => handleFormatChange(fmt)}
               style={{
                 padding: "3px 8px",
@@ -277,6 +292,7 @@ export function MemeCard({
               type="button"
               className={`btn btn-secondary ${vote === 1 ? "active" : ""}`}
               onClick={() => doVote(1)}
+              aria-label="Spot on match"
               style={{
                 padding: "6px 10px",
                 fontSize: "0.78rem",
@@ -291,6 +307,7 @@ export function MemeCard({
               type="button"
               className={`btn btn-secondary ${vote === -1 ? "active" : ""}`}
               onClick={() => doVote(-1)}
+              aria-label="Not quite right"
               style={{
                 padding: "6px 10px",
                 fontSize: "0.78rem",
@@ -309,6 +326,7 @@ export function MemeCard({
               type="button"
               className="btn btn-secondary"
               onClick={toggleFav}
+              aria-label={fav ? "Remove from Favorites" : "Save to Favorites"}
               title={fav ? "Remove from Favorites" : "Save to Favorites"}
               style={{
                 padding: "6px 10px",
@@ -324,6 +342,7 @@ export function MemeCard({
               type="button"
               className="btn btn-secondary"
               onClick={handleShare}
+              aria-label="Share meme link"
               title="Share meme link"
               style={{ padding: "6px 10px", fontSize: "0.8rem" }}
             >
@@ -334,6 +353,7 @@ export function MemeCard({
               type="button"
               className="btn btn-secondary"
               onClick={copyMeme}
+              aria-label="Copy meme image or URL"
               title="Copy meme"
               style={{ padding: "6px 12px", fontSize: "0.8rem", fontWeight: 600 }}
             >
@@ -344,6 +364,7 @@ export function MemeCard({
               type="button"
               className="btn btn-primary"
               onClick={() => downloadMeme(selectedFormat)}
+              aria-label={`Download ${selectedFormat.toUpperCase()} meme file`}
               title="Download meme file"
               style={{ padding: "6px 12px", fontSize: "0.8rem" }}
             >
