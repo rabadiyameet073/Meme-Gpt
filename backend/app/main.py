@@ -41,24 +41,9 @@ from app.core.logging_config import hash_pii
 setup_logging(LOG_LEVEL)
 logger = logging.getLogger("memegpt.api")
 
-# ── Optional Sentry SDK ────────────────────────────────────────────────────────
-sentry_dsn = getattr(settings, "SENTRY_DSN", "")
-if sentry_dsn:
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            integrations=[FastApiIntegration(), SqlalchemyIntegration()],
-            traces_sample_rate=0.1,
-            environment=getattr(settings, "APP_ENV", "development"),
-            release=getattr(settings, "APP_VERSION", "1.0.0"),
-        )
-        logger.info("✅ Sentry initialized")
-    except Exception as e:
-        logger.warning(f"Sentry init skipped: {e}")
+# ── Observability & Monitoring (Sentry) ────────────────────────────────────────
+from app.core.monitoring import init_monitoring
+init_monitoring()
 
 
 # ── Application Lifespan ───────────────────────────────────────────────────────
@@ -333,6 +318,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         "success": False,
         "error": code_str,
         "message": msg,
+        "detail": msg,
     }
     if hasattr(exc, "details") and exc.details is not None:
         payload["details"] = exc.details
@@ -372,26 +358,32 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # ── Mount Versioned API & SEO Routers ─────────────────────────────────────────
 app.include_router(v1_router, prefix="/api/v1")
 app.include_router(v1_router, prefix="/api")
+app.include_router(v1_router, prefix="/v1")
+app.include_router(v1_router)
 app.include_router(sitemap_router)
 
 
 # ── Legacy & Frontend Convenience Route Mounts ────────────────────────────────
+@app.get("/categories", tags=["Categories & Stats"])
 @app.get("/api/categories", tags=["Categories & Stats"])
 def legacy_categories(db: Session = Depends(get_db)):
     return get_categories(db)
 
 
+@app.get("/stats", tags=["Categories & Stats"])
 @app.get("/api/stats", tags=["Categories & Stats"])
 def legacy_stats(db: Session = Depends(get_db)):
     return get_stats(db)
 
 
+@app.get("/favorites", tags=["Favorites & Collections"])
 @app.get("/api/favorites", tags=["Favorites & Collections"])
 def legacy_favorites(sessionId: str = Query(default=""), db: Session = Depends(get_db)):
     from app.api.v1.collections import get_favorites
     return get_favorites(sessionId=sessionId, db=db)
 
 
+@app.post("/favorites/toggle", tags=["Favorites & Collections"])
 @app.post("/api/favorites/toggle", tags=["Favorites & Collections"])
 def legacy_toggle(body: dict):
     from app.api.v1.collections import toggle_favorite, ToggleFavoriteRequest
@@ -434,6 +426,7 @@ async def legacy_search(
     return await search_memes_endpoint(body, background_tasks, db)
 
 
+@app.post("/analyze", tags=["Search & Recommendations"])
 @app.post("/api/analyze", tags=["Search & Recommendations"])
 async def legacy_analyze(
     body: AnalyzeRequest,
@@ -444,6 +437,7 @@ async def legacy_analyze(
     req = SearchRequest(
         query=body.query,
         format_preference=body.format_preference or body.formatPreference or "gif",
-        limit=5
+        limit=15
     )
     return await search_memes_endpoint(req, background_tasks, db)
+

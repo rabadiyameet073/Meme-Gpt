@@ -27,6 +27,7 @@ def rerank(
     intent: dict,
     emotion: dict,
     format_pref: str = "",
+    limit: int = 20,
 ) -> list[dict]:
     """Re-rank search candidates using the composite scoring formula.
 
@@ -35,9 +36,10 @@ def rerank(
         intent: Parsed intent from LLM: keywords, categories, situation, tone
         emotion: Detected emotion: primary, confidence, all
         format_pref: User's format preference (gif, video, image)
+        limit: Number of candidates to return (default 20)
 
     Returns:
-        Re-ranked list of candidates (top 5), deduplicated.
+        Re-ranked list of top candidates, deduplicated.
     """
     if not candidates:
         return []

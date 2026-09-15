@@ -159,8 +159,8 @@ def get_trending_catalog(
     limit = min(max(limit, 1), 50)
     offset = max(0, offset)
 
-    # 1. Fetch all memes to establish overall trending rank
-    all_memes = db.query(Meme).all()
+    # 1. Fetch all memes to establish overall trending rank (excluding removed memes)
+    all_memes = db.query(Meme).filter(Meme.moderation_status != "removed").all()
     overall_scored = []
     for m in all_memes:
         score_info = calculate_advanced_trending_score(m, db=db, period_hours=period_hours)

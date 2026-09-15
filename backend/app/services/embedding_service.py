@@ -37,6 +37,12 @@ def load_models():
     """Load ML models at startup. Called from main.py lifespan."""
     global _text_model, _emotion_pipeline
     try:
+        import torch
+        torch.set_num_threads(2)
+    except Exception:
+        pass
+
+    try:
         os.makedirs(MODELS_CACHE_DIR, exist_ok=True)
     except Exception:
         pass
@@ -65,6 +71,15 @@ def load_models():
         logger.info(f"✅ Emotion model loaded: {EMOTION_MODEL}")
     except Exception as e:
         logger.warning(f"Emotion model not loaded ({e}) — rule-based fallback active")
+
+    try:
+        import gc
+        gc.collect()
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 
 def embed_text(text: str) -> List[float]:

@@ -247,6 +247,9 @@ class Settings:
     RATE_LIMIT_WINDOW: int = RATE_LIMIT_WINDOW
 
     SENTRY_DSN: str = SENTRY_DSN
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "MemeGPT <notifications@memegpt.com>")
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", APP_ENV)
     LOG_LEVEL: str = LOG_LEVEL
 
     @property

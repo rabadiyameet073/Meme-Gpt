@@ -48,13 +48,18 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const storedToken = typeof localStorage !== "undefined" ? localStorage.getItem("memegpt_access_token") : null;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+    ...(options.headers as Record<string, string>),
+  };
 
   const response = await fetch(url, {
+    credentials: "include",
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -295,6 +300,33 @@ export const api = {
       uptime_seconds?: number;
       modelsLoaded?: boolean;
     }>("/health"),
+
+  flagMeme: (memeId: string, reason: string, details?: string) =>
+    apiRequest<{ flagged: boolean; total_flags: number; moderation_status?: string }>(
+      "/api/v1/moderation/flag",
+      {
+        method: "POST",
+        body: JSON.stringify({ meme_id: memeId, reason, details }),
+      }
+    ),
+
+  getModerationQueue: () =>
+    apiRequest<{ queue: any[] }>("/api/v1/moderation/queue"),
+
+  reviewMeme: (memeId: string, action: "approve" | "remove") =>
+    apiRequest<{ meme_id: string; status: string }>("/api/v1/moderation/review", {
+      method: "POST",
+      body: JSON.stringify({ meme_id: memeId, action }),
+    }),
+
+  classifyImage: (imageUrl: string) =>
+    apiRequest<{ is_nsfw: boolean; confidence: number; category: string }>(
+      "/api/v1/moderation/classify",
+      {
+        method: "POST",
+        body: JSON.stringify({ image_url: imageUrl }),
+      }
+    ),
 };
 
 export function getSessionId(): string {

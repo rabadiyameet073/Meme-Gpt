@@ -32,6 +32,8 @@ from app.api.v1.moderation import router as moderation_router
 from app.api.v1.download import router as download_router
 from app.api.v1.users import router as users_router
 from app.api.v1.collections_full import router as collections_full_router
+from app.api.v1.developer import router as developer_router
+from app.api.v1.email import router as email_router
 
 v1_router = APIRouter()
 
@@ -68,7 +70,10 @@ v1_router.include_router(moderation_router)
 v1_router.include_router(download_router)
 v1_router.include_router(users_router)
 v1_router.include_router(collections_full_router)
+v1_router.include_router(developer_router)
+v1_router.include_router(email_router)
 
 __all__ = ["v1_router"]
+
 
 
