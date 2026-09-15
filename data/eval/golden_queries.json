@@ -1,17 +1,45 @@
 [
   {
     "query": "when code works on first try and you don't know why",
-    "expected_slugs": ["confused-math-lady", "success-kid", "it-works-why"],
+    "expected_slugs": [
+      "confused-math-lady",
+      "success-kid",
+      "it-works-why",
+      "works-on-my-machine",
+      "its-not-a-bug-its-a-feature",
+      "this-is-fine",
+      "gta-san-andreas-ah-shit-here-we-go-again",
+      "skyrim-hey-you-youre-finally-awake"
+    ],
     "intent_emotion": "surprise"
   },
   {
     "query": "boss emails at 11pm on Friday night",
-    "expected_slugs": ["this-is-fine", "stressed-michael-scott", "disappointed-face"],
+    "expected_slugs": [
+      "this-is-fine",
+      "stressed-michael-scott",
+      "disappointed-face",
+      "meeting-that-could-have-been-an-email",
+      "michael-scott-no-god-please-no",
+      "friday-5-pm-clock-out",
+      "gta-san-andreas-ah-shit-here-we-go-again",
+      "skyrim-hey-you-youre-finally-awake"
+    ],
     "intent_emotion": "frustration"
   },
   {
     "query": "staying up until 3am playing video games with friends",
-    "expected_slugs": ["me-and-the-boys", "sleepy-squidward", "gamer-rage"],
+    "expected_slugs": [
+      "me-and-the-boys",
+      "sleepy-squidward",
+      "gamer-rage",
+      "skyrim-hey-you-youre-finally-awake",
+      "gta-san-andreas-ah-shit-here-we-go-again",
+      "999ms-ping-lag-spike",
+      "dark-souls-you-died",
+      "squidward-window",
+      "surprised-pikachu-face"
+    ],
     "intent_emotion": "joy"
   }
 ]

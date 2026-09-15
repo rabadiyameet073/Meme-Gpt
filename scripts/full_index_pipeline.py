@@ -19,8 +19,10 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Add backend to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+# Add root and backend to path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 
 from app.services.image_processing_service import (
     load_blip, load_clip,
@@ -56,7 +58,7 @@ def download_image(url: str, meme_id: str) -> str:
     return ""
 
 
-def run_pipeline():
+def run_pipeline(limit: int = None):
     master_file = RAW_DIR / "memes_master.json"
     if not master_file.exists():
         # Fallback to DB or processed if raw master not generated yet
@@ -76,6 +78,9 @@ def run_pipeline():
     with open(master_file, encoding="utf-8") as f:
         memes = json.load(f)
 
+    if limit and limit > 0:
+        memes = memes[:limit]
+
     print(f"[INFO] Loaded {len(memes)} memes for processing")
 
     print("[INFO] Loading BLIP + CLIP models (if available)...")
@@ -89,8 +94,9 @@ def run_pipeline():
 
         # 1. Download image if we only have a URL
         image_path = meme.get("image_path", "")
-        if not image_path and meme.get("image_url"):
-            image_path = download_image(meme["image_url"], m_id)
+        img_url = meme.get("image_url") or meme.get("image") or meme.get("image_ref") or meme.get("url")
+        if not image_path and img_url and img_url.startswith("http"):
+            image_path = download_image(img_url, m_id)
             meme["image_path"] = image_path
 
         # 2. Run image processing (BLIP + OCR + CLIP)
@@ -149,7 +155,12 @@ def run_pipeline():
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="MemeGPT Full Index Pipeline")
+    parser.add_argument("--limit", type=int, default=None, help="Limit number of memes to process")
+    args = parser.parse_args()
+
     start = time.time()
-    run_pipeline()
+    run_pipeline(limit=args.limit)
     elapsed = time.time() - start
     print(f"\n[DONE] Total pipeline time: {elapsed:.1f}s ({elapsed/60:.1f} minutes)")
