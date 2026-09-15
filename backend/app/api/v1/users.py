@@ -98,3 +98,55 @@ async def update_preferences(
         favourite_categories=current_user.favourite_categories or [],
         created_at=current_user.created_at.isoformat() if current_user.created_at else None,
     )
+
+
+@router.get("/users/me/preferences", summary="Get current user preferences")
+async def get_my_preferences(
+    current_user: User = Depends(get_current_user),
+):
+    return {
+        "preferred_format": current_user.preferred_format or "gif",
+        "theme": current_user.theme or "dark",
+        "nsfw_enabled": bool(current_user.nsfw_enabled),
+        "favourite_categories": current_user.favourite_categories or [],
+    }
+
+
+@router.put("/users/me", response_model=UserProfileResponse, summary="Update user profile")
+async def update_my_profile(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if "username" in body and body["username"]:
+        current_user.username = str(body["username"])
+    if "name" in body and body["name"]:
+        current_user.name = str(body["name"])
+    if "avatar_url" in body:
+        current_user.avatar_url = str(body["avatar_url"])
+    if "preferred_format" in body and body["preferred_format"]:
+        if body["preferred_format"] in {"gif", "image", "mp4", "webp"}:
+            current_user.preferred_format = str(body["preferred_format"])
+    if "theme" in body and body["theme"]:
+        current_user.theme = str(body["theme"])
+    if "nsfw_enabled" in body:
+        current_user.nsfw_enabled = bool(body["nsfw_enabled"])
+    if "favourite_categories" in body and isinstance(body["favourite_categories"], list):
+        current_user.favourite_categories = body["favourite_categories"]
+
+    db.commit()
+    db.refresh(current_user)
+
+    return UserProfileResponse(
+        id=str(current_user.id),
+        email=current_user.email,
+        username=current_user.username or current_user.name,
+        avatar_url=current_user.avatar_url,
+        plan=current_user.plan or "free",
+        preferred_format=current_user.preferred_format or "gif",
+        theme=current_user.theme or "dark",
+        nsfw_enabled=bool(current_user.nsfw_enabled),
+        favourite_categories=current_user.favourite_categories or [],
+        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
+    )
+

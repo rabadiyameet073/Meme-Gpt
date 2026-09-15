@@ -115,3 +115,79 @@ async def remove_from_collection(
     db.delete(saved)
     db.commit()
     return {"status": "success", "message": "Removed from collection"}
+
+
+@router.post("/collections", status_code=status.HTTP_201_CREATED, summary="Create a new collection")
+async def create_collection(
+    body: CollectionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="Collection name cannot be empty")
+
+    for meme_id in body.meme_ids:
+        meme = db.query(Meme).filter((Meme.id == meme_id) | (Meme.slug == meme_id)).first()
+        if meme:
+            existing = db.query(SavedMeme).filter(
+                SavedMeme.user_id == current_user.id,
+                SavedMeme.meme_id == meme.id,
+                SavedMeme.collection_name == body.name.strip()
+            ).first()
+            if not existing:
+                saved = SavedMeme(
+                    user_id=current_user.id,
+                    meme_id=meme.id,
+                    collection_name=body.name.strip()
+                )
+                db.add(saved)
+    db.commit()
+    return {
+        "status": "success",
+        "message": f"Collection '{body.name.strip()}' created",
+        "collection_name": body.name.strip(),
+    }
+
+
+@router.get("/collections/{collection_name}", summary="Get all memes in a collection")
+async def get_collection(
+    collection_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    items = db.query(SavedMeme).filter(
+        SavedMeme.user_id == current_user.id,
+        SavedMeme.collection_name == collection_name
+    ).all()
+
+    meme_ids = [item.meme_id for item in items]
+    memes = db.query(Meme).filter(Meme.id.in_(meme_ids)).all() if meme_ids else []
+
+    return {
+        "collection_name": collection_name,
+        "item_count": len(items),
+        "items": [m.to_dict() for m in memes]
+    }
+
+
+@router.delete("/collections/{collection_name}", summary="Delete an entire collection")
+async def delete_collection(
+    collection_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    items = db.query(SavedMeme).filter(
+        SavedMeme.user_id == current_user.id,
+        SavedMeme.collection_name == collection_name
+    ).all()
+
+    for item in items:
+        db.delete(item)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Deleted collection '{collection_name}'",
+        "deleted_count": len(items)
+    }
+

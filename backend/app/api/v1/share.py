@@ -5,6 +5,7 @@ Specification: 08_Features/Share_Feature.md
 import logging
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.services.share_service import (
     generate_share_url,
@@ -16,6 +17,33 @@ from app.services.meme_service import get_meme_by_id
 
 logger = logging.getLogger("memegpt.api.share")
 router = APIRouter(prefix="/share", tags=["Share Feature"])
+
+
+class CreateShareRequest(BaseModel):
+    meme_id: str = Field(..., description="Meme ID or slug")
+    query_id: Optional[str] = Field(None, description="Search query ID")
+    platform: Optional[str] = Field("web", description="Target sharing platform: web, whatsapp, twitter, etc.")
+
+
+@router.post("", summary="Generate attributed share link and OpenGraph payload")
+def create_share_link(req: CreateShareRequest):
+    """Create dedicated short-link and OpenGraph social metadata for a meme."""
+    url = generate_share_url(slug_or_id=req.meme_id, query_id=req.query_id)
+    meme = get_meme_by_id(req.meme_id)
+    if not meme:
+        meme = {
+            "id": req.meme_id,
+            "slug": req.meme_id,
+            "name": req.meme_id.replace("-", " ").title(),
+            "explanation": f"Check out {req.meme_id} on MemeGPT",
+        }
+    og = generate_opengraph_metadata(meme, query_id=req.query_id)
+    return {
+        "success": True,
+        "share_url": url,
+        "short_link": url,
+        "og_metadata": og,
+    }
 
 
 @router.get("/url/{slug}", summary="Generate attributed share URL")

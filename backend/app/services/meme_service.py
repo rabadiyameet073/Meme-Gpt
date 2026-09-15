@@ -99,14 +99,15 @@ def get_meme_download_url(meme: Meme, format_type: str = "gif") -> Optional[str]
     fmt = format_type.lower().strip()
     
     if fmt == "gif":
-        return meme.gif_ref
+        return meme.gif_url or meme.gif_ref
     elif fmt in ("image", "png", "jpg", "jpeg"):
-        return meme.image_ref or f"https://cdn.memegpt.com/images/{meme.id}.jpg"
+        return meme.image_url or meme.image_ref
     elif fmt in ("video", "mp4"):
-        return meme.video_ref
+        return meme.mp4_url or meme.video_ref
     elif fmt == "webp":
-        return meme.image_ref or f"https://cdn.memegpt.com/webp/{meme.id}.webp"
+        return meme.webp_url or meme.thumb_url
     return None
+
 
 
 def calculate_trending_score(meme: Meme, db: Optional[Session] = None, time_window_hours: int = 24) -> float:

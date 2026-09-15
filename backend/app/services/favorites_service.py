@@ -66,9 +66,11 @@ def list_collections(user_id: str = "anonymous") -> List[Dict[str, Any]]:
         count = sum(1 for m in memes if m.get("collection", "Favorites") == col["name"])
         result.append({
             "name": col["name"],
+            "collection_name": col["name"],
             "createdAt": col["createdAt"],
             "icon": col.get("icon", "folder"),
             "memeCount": count,
+            "item_count": count,
             "isDefault": col.get("is_default", False),
         })
     return result
@@ -79,9 +81,10 @@ def create_collection(user_id: str = "anonymous", name: str = "My Collection", i
     name = name.strip()
     if not name:
         raise ValueError("Collection name cannot be empty")
+
     store = _get_or_create_user_store(user_id)
-    for col in store["collections"]:
-        if col["name"].lower() == name.lower():
+    for c in store["collections"]:
+        if c["name"].lower() == name.lower():
             raise ValueError(f"Collection '{name}' already exists")
 
     new_col = {
@@ -91,7 +94,7 @@ def create_collection(user_id: str = "anonymous", name: str = "My Collection", i
         "is_default": False,
     }
     store["collections"].append(new_col)
-    return {**new_col, "memeCount": 0}
+    return {**new_col, "memeCount": 0, "status": "success"}
 
 
 def delete_collection(user_id: str = "anonymous", name: str = "") -> Dict[str, Any]:
@@ -115,6 +118,7 @@ def delete_collection(user_id: str = "anonymous", name: str = "") -> Dict[str, A
             moved_count += 1
 
     return {
+        "status": "success",
         "deleted_collection": name,
         "memes_migrated_to_favorites": moved_count,
     }
@@ -134,11 +138,13 @@ def save_meme_to_collection(
 
     # Check for existing meme
     for item in saved_list:
-        if item["memeId"] == meme_id:
+        if item.get("memeId") == meme_id or item.get("id") == meme_id:
             item["savedAt"] = now_iso
             item["collection"] = collection or "Favorites"
-            item["name"] = name or item["name"]
-            item["thumbnailUrl"] = thumbnail_url or item["thumbnailUrl"]
+            item["name"] = name or item.get("name", "")
+            item["thumbnailUrl"] = thumbnail_url or item.get("thumbnailUrl", "")
+            item["id"] = meme_id
+            item["memeId"] = meme_id
             return {"status": "updated", "meme": item}
 
     # If storage capacity exceeded, trim oldest
@@ -146,6 +152,7 @@ def save_meme_to_collection(
         saved_list.pop(0)
 
     new_saved = {
+        "id": meme_id,
         "memeId": meme_id,
         "name": name,
         "thumbnailUrl": thumbnail_url,
@@ -167,10 +174,13 @@ def remove_meme_from_collection(
     if collection:
         store["saved_memes"] = [
             m for m in store["saved_memes"]
-            if not (m["memeId"] == meme_id and m.get("collection", "Favorites").lower() == collection.lower())
+            if not ((m.get("memeId") == meme_id or m.get("id") == meme_id) and m.get("collection", "Favorites").lower() == collection.lower())
         ]
     else:
-        store["saved_memes"] = [m for m in store["saved_memes"] if m["memeId"] != meme_id]
+        store["saved_memes"] = [
+            m for m in store["saved_memes"]
+            if m.get("memeId") != meme_id and m.get("id") != meme_id
+        ]
 
     return len(store["saved_memes"]) < initial_len
 
@@ -199,8 +209,9 @@ def add_recently_viewed(
     now_iso = datetime.now(timezone.utc).isoformat()
 
     # Remove existing instance to move to front
-    store["recent_viewed"] = [r for r in recents if r["memeId"] != meme_id]
+    store["recent_viewed"] = [r for r in recents if r.get("memeId") != meme_id and r.get("id") != meme_id]
     store["recent_viewed"].insert(0, {
+        "id": meme_id,
         "memeId": meme_id,
         "name": name,
         "thumbnailUrl": thumbnail_url,
@@ -224,8 +235,9 @@ def add_recently_copied(
     recents = store["recent_copied"]
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    store["recent_copied"] = [r for r in recents if r["memeId"] != meme_id]
+    store["recent_copied"] = [r for r in recents if r.get("memeId") != meme_id and r.get("id") != meme_id]
     store["recent_copied"].insert(0, {
+        "id": meme_id,
         "memeId": meme_id,
         "name": name,
         "thumbnailUrl": thumbnail_url,

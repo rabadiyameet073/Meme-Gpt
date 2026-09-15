@@ -42,6 +42,7 @@ class ToggleFavoriteRequest(BaseModel):
 class CreateCollectionRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     icon: str = "folder"
+    meme_ids: List[str] = Field(default_factory=list)
 
 
 class SaveMemeToCollectionRequest(BaseModel):
@@ -59,41 +60,28 @@ def get_favorites(
     session_id: str = Query("", description="Session ID alternative"),
     db: Session = Depends(get_db),
 ):
-    """Returns list of memes saved by this session."""
     sid = sessionId or session_id or "anonymous"
-    meme_ids = list(_session_favorites.get(sid, set()))
-
-    # Also check user storage
-    user_store = _USER_STORAGE.get(sid, {})
-    saved_in_store = [m.get("memeId") for m in user_store.get("saved_memes", []) if m.get("memeId")]
-    all_ids = list(dict.fromkeys(meme_ids + saved_in_store))
-
-    if not all_ids:
-        return []
-
-    memes = db.query(Meme).filter(Meme.id.in_(all_ids)).all()
-    return [m.to_dict() for m in memes]
+    memes = svc_list_saved_memes(user_id=sid)
+    return memes
 
 
-@router.post("/favorites/toggle", summary="Save or unsave a meme")
-def toggle_favorite(body: ToggleFavoriteRequest):
-    """
-    Toggle meme in session favorites.
-    Returns {isFavorite: bool}.
-    """
-    session_id = body.sessionId
+@router.post("/favorites", summary="Toggle favorite for meme")
+def toggle_favorite(
+    body: ToggleFavoriteRequest,
+    db: Session = Depends(get_db),
+):
+    session_id = body.sessionId or "anonymous"
     meme_id = body.memeId
 
     if session_id not in _session_favorites:
         _session_favorites[session_id] = set()
 
     favorites = _session_favorites[session_id]
-
     if meme_id in favorites:
         favorites.remove(meme_id)
         is_favorite = False
         try:
-            svc_remove_meme(user_id=session_id, meme_id=meme_id)
+            svc_remove_meme(user_id=session_id, meme_id=meme_id, collection="Favorites")
         except Exception:
             pass
     else:
@@ -126,22 +114,40 @@ def create_collection(
 ):
     sid = sessionId or session_id or "anonymous"
     try:
-        return svc_create_collection(user_id=sid, name=body.name, icon=body.icon)
+        res = svc_create_collection(user_id=sid, name=body.name, icon=body.icon)
+        for m_id in body.meme_ids:
+            try:
+                svc_save_meme(user_id=sid, meme_id=m_id, name="Saved Meme", collection=body.name)
+            except Exception:
+                pass
+        return res
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/collections/{name}", summary="Delete custom collection")
-def delete_collection(
-    name: str,
+@router.get("/collections/recent-viewed", summary="List recently viewed memes")
+def get_recently_viewed(
     session_id: str = Query("anonymous", description="Session / User ID"),
     sessionId: str = Query("", description="Alternative Session ID"),
 ):
     sid = sessionId or session_id or "anonymous"
-    try:
-        return svc_delete_collection(user_id=sid, name=name)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    store = _USER_STORAGE.get(sid, {})
+    return {"recent_viewed": store.get("recent_viewed", [])}
+
+
+@router.get("/collections/recent-copied", summary="List recently copied memes")
+def get_recently_copied(
+    session_id: str = Query("anonymous", description="Session / User ID"),
+    sessionId: str = Query("", description="Alternative Session ID"),
+):
+    sid = sessionId or session_id or "anonymous"
+    store = _USER_STORAGE.get(sid, {})
+    return {"recent_copied": store.get("recent_copied", [])}
+
+
+@router.get("/collections/storage-limits", summary="Get storage capacity and limits")
+def get_storage_limits():
+    return {"limits": svc_get_storage_limits()}
 
 
 @router.post("/collections/memes", summary="Save meme to collection")
@@ -171,26 +177,42 @@ def remove_meme_from_collection(
     return svc_remove_meme(user_id=sid, meme_id=meme_id, collection=collection)
 
 
-@router.get("/collections/recent-viewed", summary="List recently viewed memes")
-def get_recently_viewed(
+# ── Parameterized collection routes (MUST be declared after static paths) ────
+
+@router.get("/collections/{name}", summary="Get memes in collection")
+def get_collection_by_name(
+    name: str,
     session_id: str = Query("anonymous", description="Session / User ID"),
     sessionId: str = Query("", description="Alternative Session ID"),
 ):
     sid = sessionId or session_id or "anonymous"
-    store = _USER_STORAGE.get(sid, {})
-    return {"recent_viewed": store.get("recent_viewed", [])}
+    memes = svc_list_saved_memes(user_id=sid, collection=name)
+    return {
+        "collection_name": name,
+        "item_count": len(memes),
+        "items": memes,
+    }
 
 
-@router.get("/collections/recent-copied", summary="List recently copied memes")
-def get_recently_copied(
+@router.delete("/collections/{name}", summary="Delete custom collection")
+def delete_collection(
+    name: str,
     session_id: str = Query("anonymous", description="Session / User ID"),
     sessionId: str = Query("", description="Alternative Session ID"),
 ):
     sid = sessionId or session_id or "anonymous"
-    store = _USER_STORAGE.get(sid, {})
-    return {"recent_copied": store.get("recent_copied", [])}
+    try:
+        return svc_delete_collection(user_id=sid, name=name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/collections/storage-limits", summary="Get storage capacity and limits")
-def get_storage_limits():
-    return {"limits": svc_get_storage_limits()}
+@router.delete("/collections/{collection_name}/items/{meme_id}", summary="Remove meme from named collection")
+def remove_item_from_named_collection(
+    collection_name: str,
+    meme_id: str,
+    session_id: str = Query("anonymous", description="Session / User ID"),
+    sessionId: str = Query("", description="Alternative Session ID"),
+):
+    sid = sessionId or session_id or "anonymous"
+    return svc_remove_meme(user_id=sid, meme_id=meme_id, collection=collection_name)

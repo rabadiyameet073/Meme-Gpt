@@ -36,6 +36,24 @@ def _record_feedback_background(meme_id: str, signal: str, fmt: str = "image"):
         db.close()
 
 
+CATEGORY_SYNONYMS = {
+    "work": ["work", "office", "corporate", "job", "career", "meeting", "boss", "monday"],
+    "office": ["office", "work", "corporate", "job", "career", "meeting"],
+    "tech": ["tech", "coding", "programming", "developer", "software", "computer", "linux", "git", "bug"],
+    "coding": ["coding", "tech", "programming", "developer", "software", "bug"],
+    "gaming": ["gaming", "games", "game", "gamer", "play", "nintendo", "playstation", "xbox"],
+    "relationships": ["relationships", "relationship", "dating", "love", "romance", "crush", "couple", "boyfriend", "girlfriend"],
+    "relationship": ["relationships", "relationship", "dating", "love", "romance", "crush", "couple", "boyfriend", "girlfriend"],
+    "wholesome": ["wholesome", "heartwarming", "cute", "animals", "kindness", "sweet", "dog", "puppy", "cat"],
+    "tv": ["tv", "cinema", "movie", "movies", "show", "series", "popculture", "film", "hollywood", "actor"],
+    "sports": ["sports", "sport", "fitness", "football", "soccer", "cricket", "basketball", "gym", "athlete", "workout"],
+    "funny": ["funny", "humor", "comedy", "laugh", "hilarious", "meme"],
+    "money": ["money", "crypto", "finance", "stonks", "rich", "cash", "bank"],
+    "failure": ["failure", "fail", "sad", "defeat", "loss", "stress"],
+    "success": ["success", "win", "pride", "champion", "winner"],
+}
+
+
 @router.get("/memes", summary="List and filter memes with pagination")
 def list_memes(
     q: str = "",
@@ -45,26 +63,63 @@ def list_memes(
     db: Session = Depends(get_db)
 ):
     """List memes ordered by popularity and filtered by keyword or category."""
+    from sqlalchemy import or_, func
     limit = min(max(limit, 1), 100)
-    query = db.query(Meme)
+    query = db.query(Meme).filter(Meme.moderation_status != "removed")
+
     if category:
-        query = query.filter(Meme.category == category)
-    memes = query.order_by(Meme.usage_count.desc()).all()
+        cat_clean = sanitize_input(category).lower().strip()
+        synonyms = CATEGORY_SYNONYMS.get(cat_clean, [cat_clean])
+        conds = []
+        for syn in synonyms:
+            conds.append(func.lower(Meme.categories).like(f'%"{syn}"%'))
+            conds.append(func.lower(Meme.categories).like(f'%{syn}%'))
+            conds.append(func.lower(Meme.keywords).like(f'%"{syn}"%'))
+        
+        filtered_query = query.filter(or_(*conds))
+        if filtered_query.count() > 0:
+            query = filtered_query
+
+    memes = query.order_by(Meme.popularity_score.desc(), Meme.usage_count.desc()).all()
 
     if q:
         search = sanitize_input(q).lower().strip()
         if search:
-            filtered = []
+            terms = [t for t in search.split() if len(t) > 1]
+            scored_memes = []
             for m in memes:
-                kws = m.keywords_list()
-                if (
-                    search in m.name.lower()
-                    or search in m.dialogue.lower()
-                    or search in m.category.lower()
-                    or any(search in k.lower() for k in kws)
-                ):
-                    filtered.append(m)
-            memes = filtered
+                m_name = m.name.lower()
+                m_dial = (m.dialogue or "").lower()
+                m_exp = (m.explanation or "").lower()
+                kws = [k.lower() for k in m.keywords_list()]
+                cats = [c.lower() for c in m.categories_list()]
+
+                score = 0
+                if search in m_name:
+                    score += 10
+                if search in m_dial or search in m_exp:
+                    score += 6
+                if any(search in k for k in kws):
+                    score += 5
+                if any(search in c for c in cats):
+                    score += 4
+                for term in terms:
+                    if term in m_name:
+                        score += 3
+                    if any(term in k for k in kws):
+                        score += 2
+                    if any(term in c for c in cats):
+                        score += 1
+
+                if score > 0:
+                    scored_memes.append((score, m))
+
+            if scored_memes:
+                scored_memes.sort(key=lambda x: x[0], reverse=True)
+                memes = [m for _, m in scored_memes]
+            elif not category:
+                # If no exact match and no category filter, provide diverse top memes
+                memes = memes[:limit]
 
     offset = (page - 1) * limit
     paged = memes[offset : offset + limit]
