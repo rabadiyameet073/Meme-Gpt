@@ -34,7 +34,7 @@ export function useDownload(): UseDownloadReturn {
       a.click();
       document.body.removeChild(a);
       setDownloadState('done');
-      if (memeId) submitFeedback({ meme_id: memeId, action: 'download' }).catch(() => {});
+      if (memeId) submitFeedback({ meme_id: memeId, signal: 'download', action: 'download' }).catch(() => {});
       setTimeout(() => setDownloadState('idle'), 2000);
     } catch {
       setDownloadState('error');
@@ -49,7 +49,8 @@ export function useDownload(): UseDownloadReturn {
       const blob = await res.blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       setCopyState('done');
-      if (memeId) submitFeedback({ meme_id: memeId, action: 'copy' }).catch(() => {});
+      if (memeId) submitFeedback({ meme_id: memeId, signal: 'copy', action: 'copy' }).catch(() => {});
+
       setTimeout(() => setCopyState('idle'), 2000);
     } catch {
       // Fallback: copy URL

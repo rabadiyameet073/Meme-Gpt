@@ -4,11 +4,14 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.memegpt.com' },
+      { protocol: 'https', hostname: '*.r2.dev' },
       { protocol: 'https', hostname: 'i.imgflip.com' },
+      { protocol: 'https', hostname: 'media.giphy.com' },
       { protocol: 'https', hostname: 'media.tenor.com' },
       { protocol: 'https', hostname: 'media1.tenor.com' },
       { protocol: 'http', hostname: 'localhost' },
     ],
+
   },
 
   async rewrites() {

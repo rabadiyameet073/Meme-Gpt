@@ -49,7 +49,11 @@ export const metadata: Metadata = {
     images: ['/og-image.jpg'],
   },
   robots: { index: true, follow: true },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || 'google-site-verification-token',
+  },
 };
+
 
 export const viewport: Viewport = {
   themeColor: '#7C3AED',
@@ -57,9 +61,23 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+import Script from 'next/script';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+  const umamiHostUrl = process.env.NEXT_PUBLIC_UMAMI_HOST_URL || 'https://analytics.umami.is/script.js';
+
   return (
     <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        {umamiWebsiteId && (
+          <Script
+            src={umamiHostUrl}
+            data-website-id={umamiWebsiteId}
+            strategy="afterInteractive"
+          />
+        )}
+      </head>
       <body className="bg-neutral-950 text-neutral-100 antialiased min-h-screen font-sans">
         {children}
       </body>

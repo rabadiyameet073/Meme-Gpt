@@ -79,11 +79,12 @@ export interface SearchRequest {
 export interface FeedbackRequest {
   query_id?: string;
   meme_id: string;
-  signal: string;
+  signal?: string;
   action?: string;
   session_id?: string;
   format?: string;
 }
+
 
 export interface MemeListItem {
   id: string;
@@ -206,13 +207,17 @@ export function getDownloadUrl(slug: string, format: 'gif' | 'image' | 'mp4' | '
 
 // ── Trending ───────────────────────────────────────────────────────────────
 
-export async function getTrending(category = 'all', limit = 12): Promise<MemeListItem[]> {
+export async function getTrending(category = 'all', limit = 12): Promise<MemeResult[]> {
   const params = new URLSearchParams({ category, limit: String(limit) });
   const res = await fetch(`${API_BASE}/api/v1/trending?${params}`);
   if (!res.ok) throw new Error('Failed to fetch trending');
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  const rawList = Array.isArray(data)
+    ? data
+    : data.data?.results || data.results || data.memes || [];
+  return rawList.map(normalizeResult);
 }
+
 
 // ── Meme list ──────────────────────────────────────────────────────────────
 
