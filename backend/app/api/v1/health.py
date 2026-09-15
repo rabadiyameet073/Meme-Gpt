@@ -1,6 +1,6 @@
 import time
 from typing import Dict, Any
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -69,6 +69,15 @@ def sentry_test():
     except Exception:
         pass
     return {"status": "ok", "message": "Sentry simulation complete (SENTRY_DSN optional)"}
+
+
+@router.get("/health/sentry-error", summary="Trigger an intentional error for Sentry verification")
+def sentry_error():
+    """Triggers an intentional RuntimeError to verify Sentry unhandled exception capturing."""
+    from app.core.monitoring import capture_exception
+    err = RuntimeError("MemeGPT Test Exception for Sentry Verification")
+    capture_exception(err)
+    raise HTTPException(status_code=500, detail="Intentional test error for Sentry verification")
 
 
 
