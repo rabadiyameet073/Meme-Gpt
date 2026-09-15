@@ -6,10 +6,12 @@ import {
   StyleSheet,
   Animated,
   Pressable,
-  Image,
+  Alert,
 } from "react-native";
+import { Image } from "expo-image";
+import * as Clipboard from "expo-clipboard";
 import { CachedMeme } from "../hooks/useOfflineCache";
-import { useMemeActions } from "../hooks/useMemeActions";
+import { useShareAndDownload } from "../hooks/useShareAndDownload";
 
 let Haptics: any = null;
 try {
@@ -17,7 +19,7 @@ try {
 } catch {}
 
 interface MemeCardProps {
-  meme: CachedMeme;
+  meme: CachedMeme | any;
   onPress?: () => void;
   onFavorite?: (id: string) => void;
   isFavorited?: boolean;
@@ -29,7 +31,7 @@ export function MemeCard({
   onFavorite,
   isFavorited = false,
 }: MemeCardProps) {
-  const { shareMeme, copyLink, saveToCameraRoll } = useMemeActions();
+  const { shareMeme, downloadMeme } = useShareAndDownload();
   const [favorited, setFavorited] = useState(isFavorited);
   const heartScale = useRef(new Animated.Value(1)).current;
   const lastTap = useRef<number>(0);
@@ -44,7 +46,7 @@ export function MemeCard({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle?.Medium || "medium");
       }
       setFavorited(true);
-      onFavorite?.(meme.id);
+      onFavorite?.(String(meme.id));
 
       Animated.sequence([
         Animated.spring(heartScale, { toValue: 1.5, useNativeDriver: true }),
@@ -56,15 +58,16 @@ export function MemeCard({
     lastTap.current = now;
   };
 
-  const imageUrl = meme.thumb_url || meme.image_url || meme.gif_url;
+  const mediaUrl = meme.gif_url || meme.image_url || meme.thumb_url || "";
 
   return (
     <Pressable onPress={handleDoubleTap} style={styles.card}>
-      {imageUrl ? (
+      {mediaUrl ? (
         <Image
-          source={{ uri: imageUrl }}
+          source={{ uri: mediaUrl }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
         />
       ) : (
         <View style={[styles.image, styles.placeholder]}>
@@ -85,7 +88,7 @@ export function MemeCard({
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => shareMeme(meme)}
+            onPress={() => shareMeme(mediaUrl, meme.name)}
             accessibilityLabel={`Share ${meme.name}`}
           >
             <Text style={styles.actionIcon}>📤</Text>
@@ -94,7 +97,14 @@ export function MemeCard({
 
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => copyLink(`https://app.memegpt.com/meme/${meme.slug || meme.id}`)}
+            onPress={async () => {
+              if (Haptics?.impactAsync) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle?.Light || "light");
+              }
+              const link = `https://app.memegpt.com/meme/${meme.slug || meme.id}`;
+              await Clipboard.setStringAsync(link);
+              Alert.alert("Copied!", "Link copied to clipboard.");
+            }}
             accessibilityLabel={`Copy link for ${meme.name}`}
           >
             <Text style={styles.actionIcon}>🔗</Text>
@@ -103,10 +113,15 @@ export function MemeCard({
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.saveBtn]}
-            onPress={() => saveToCameraRoll(meme)}
+            onPress={async () => {
+              const ok = await downloadMeme(mediaUrl);
+              if (ok) {
+                Alert.alert("Saved!", "Meme saved to your photo library.");
+              }
+            }}
             accessibilityLabel={`Save ${meme.name} to camera roll`}
           >
-            <Text style={styles.actionIcon}>⬇️</Text>
+            <Text style={styles.actionIcon}>💾</Text>
             <Text style={[styles.actionText, styles.saveText]}>Save</Text>
           </TouchableOpacity>
 
@@ -118,7 +133,7 @@ export function MemeCard({
               }
               const next = !favorited;
               setFavorited(next);
-              onFavorite?.(meme.id);
+              onFavorite?.(String(meme.id));
             }}
             accessibilityLabel={favorited ? "Unfavorite" : "Favorite"}
           >

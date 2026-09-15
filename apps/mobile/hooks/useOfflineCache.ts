@@ -1,69 +1,89 @@
-import { useState, useEffect } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
+
+const CACHE_KEY = 'memegpt_offline_cache';
+const MAX_CACHED_MEMES = 50;
 
 export interface CachedMeme {
   id: string;
   name: string;
   slug: string;
+  image_url: string;
   gif_url?: string;
-  image_url?: string;
   thumb_url?: string;
   explanation?: string;
   cachedAt?: number;
 }
 
-const CACHE_KEY = "memegpt_offline_memes";
-const MAX_CACHED = 50;
-
-let mmkvStorage: any = null;
-try {
-  const { MMKV } = require("react-native-mmkv");
-  mmkvStorage = new MMKV({ id: "memegpt-cache" });
-} catch {}
-
 export function useOfflineCache() {
-  const [offlineMemes, setOfflineMemes] = useState<CachedMeme[]>([]);
+  const [cachedMemes, setCachedMemes] = useState<CachedMeme[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getCachedMemes = (): CachedMeme[] => {
+  // Load cache on mount
+  useEffect(() => {
+    loadCache();
+  }, []);
+
+  const loadCache = async () => {
     try {
-      if (mmkvStorage) {
-        const raw = mmkvStorage.getString(CACHE_KEY);
-        return raw ? JSON.parse(raw) : [];
+      const raw = await AsyncStorage.getItem(CACHE_KEY);
+      if (raw) {
+        setCachedMemes(JSON.parse(raw));
       }
-      return offlineMemes;
-    } catch {
-      return [];
-    }
-  };
-
-  const cacheMemes = (memes: CachedMeme[]) => {
-    try {
-      const existing = getCachedMemes();
-      const existingIds = new Set(existing.map((m) => m.id));
-      const filtered = memes.filter((m) => !existingIds.has(m.id));
-      const merged = [
-        ...filtered.map((m) => ({ ...m, cachedAt: Date.now() })),
-        ...existing,
-      ].slice(0, MAX_CACHED);
-
-      if (mmkvStorage) {
-        mmkvStorage.set(CACHE_KEY, JSON.stringify(merged));
-      }
-      setOfflineMemes(merged);
     } catch (e) {
-      console.warn("Failed to cache memes", e);
+      console.warn('Failed to load offline cache:', e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const clearCache = () => {
-    try {
-      if (mmkvStorage) {
-        mmkvStorage.delete(CACHE_KEY);
-      }
-      setOfflineMemes([]);
-    } catch (e) {
-      console.warn("Failed to clear cache", e);
-    }
-  };
+  const addToCache = useCallback(async (meme: Omit<CachedMeme, 'cachedAt'>) => {
+    setCachedMemes((prev) => {
+      const exists = prev.some((m) => String(m.id) === String(meme.id));
+      if (exists) return prev;
 
-  return { getCachedMemes, cacheMemes, clearCache, offlineMemes };
+      const updated = [
+        { ...meme, id: String(meme.id), cachedAt: Date.now() },
+        ...prev,
+      ].slice(0, MAX_CACHED_MEMES);
+
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
+
+  const removeFromCache = useCallback(async (memeId: string) => {
+    setCachedMemes((prev) => {
+      const updated = prev.filter((m) => String(m.id) !== String(memeId));
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
+
+  const clearCache = useCallback(async () => {
+    await AsyncStorage.removeItem(CACHE_KEY);
+    setCachedMemes([]);
+  }, []);
+
+  // Backwards compatibility helpers
+  const cacheMemes = useCallback(async (memes: CachedMeme[]) => {
+    for (const m of memes) {
+      await addToCache(m);
+    }
+  }, [addToCache]);
+
+  const getCachedMemes = useCallback((): CachedMeme[] => {
+    return cachedMemes;
+  }, [cachedMemes]);
+
+  return {
+    cachedMemes,
+    isLoading,
+    addToCache,
+    removeFromCache,
+    clearCache,
+    cacheMemes,
+    getCachedMemes,
+    offlineMemes: cachedMemes,
+  };
 }

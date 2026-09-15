@@ -1,8 +1,11 @@
 /**
  * useShare — Native share sheet + download to camera roll.
- * Uses Expo Sharing and Expo FileSystem as per tech stack docs.
+ * Uses Expo Sharing and Expo FileSystem.
  */
 import { useState, useCallback } from 'react';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { getDownloadUrl } from '../lib/api';
 
 type ShareState = 'idle' | 'loading' | 'done' | 'error';
@@ -10,22 +13,19 @@ type ShareState = 'idle' | 'loading' | 'done' | 'error';
 interface UseShareReturn {
   shareState: ShareState;
   downloadState: ShareState;
-  share: (slug: string, name: string, memeId?: string) => Promise<void>;
-  downloadToGallery: (slug: string, format?: 'gif' | 'image', memeId?: string) => Promise<void>;
+  share: (slug: string, name: string, memeId?: string | number) => Promise<void>;
+  downloadToGallery: (slug: string, format?: 'gif' | 'image', memeId?: string | number) => Promise<void>;
 }
 
 export function useShare(): UseShareReturn {
   const [shareState, setShareState] = useState<ShareState>('idle');
   const [downloadState, setDownloadState] = useState<ShareState>('idle');
 
-  const share = useCallback(async (slug: string, name: string, memeId?: string) => {
+  const share = useCallback(async (slug: string, name: string, _memeId?: string | number) => {
     setShareState('loading');
     try {
-      const { Sharing } = await import('expo-sharing');
-      const { FileSystem } = await import('expo-file-system');
-
       const url = getDownloadUrl(slug, 'gif');
-      const fileUri = FileSystem.cacheDirectory + `${slug}.gif`;
+      const fileUri = (FileSystem.cacheDirectory || '') + `${slug}.gif`;
       await FileSystem.downloadAsync(url, fileUri);
 
       const isAvailable = await Sharing.isAvailableAsync();
@@ -45,12 +45,9 @@ export function useShare(): UseShareReturn {
     }
   }, []);
 
-  const downloadToGallery = useCallback(async (slug: string, format: 'gif' | 'image' = 'gif', memeId?: string) => {
+  const downloadToGallery = useCallback(async (slug: string, format: 'gif' | 'image' = 'gif', _memeId?: string | number) => {
     setDownloadState('loading');
     try {
-      const { MediaLibrary } = await import('expo-media-library');
-      const { FileSystem } = await import('expo-file-system');
-
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         setDownloadState('error');
@@ -59,7 +56,7 @@ export function useShare(): UseShareReturn {
 
       const url = getDownloadUrl(slug, format);
       const ext = format === 'gif' ? 'gif' : 'jpg';
-      const fileUri = FileSystem.cacheDirectory + `${slug}.${ext}`;
+      const fileUri = (FileSystem.cacheDirectory || '') + `${slug}.${ext}`;
       await FileSystem.downloadAsync(url, fileUri);
       await MediaLibrary.saveToLibraryAsync(fileUri);
       setDownloadState('done');

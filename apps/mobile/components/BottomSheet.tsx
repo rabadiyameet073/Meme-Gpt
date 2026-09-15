@@ -33,7 +33,16 @@ export function BottomSheet({ meme, visible, onClose, queryId }: BottomSheetProp
 
   if (!meme) return null;
 
-  const imgSrc = meme.formats.gif || meme.formats.image || meme.preview_url || '';
+  const imgSrc =
+    meme.formats?.gif ||
+    meme.formats?.image ||
+    meme.gif_url ||
+    meme.image_url ||
+    meme.thumb_url ||
+    meme.preview_url ||
+    '';
+
+  const categories = meme.categories || (meme.category ? [meme.category] : []);
 
   return (
     <Modal transparent visible={visible} onRequestClose={onClose} animationType="none">
@@ -62,15 +71,16 @@ export function BottomSheet({ meme, visible, onClose, queryId }: BottomSheetProp
             </View>
 
             {/* Categories */}
-            {meme.categories.length > 0 && (
+            {categories.length > 0 && (
               <View style={styles.tags}>
-                {meme.categories.map((c) => (
+                {categories.map((c) => (
                   <View key={c} style={styles.tag}>
                     <Text style={styles.tagText}>{c}</Text>
                   </View>
                 ))}
               </View>
             )}
+
 
             {/* Action buttons */}
             <View style={styles.actions}>

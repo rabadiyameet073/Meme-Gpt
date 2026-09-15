@@ -34,17 +34,17 @@ export function useMemeSearch(formatPref: FormatPref = 'gif'): UseMemeSearchRetu
     try {
       const res: SearchResponse = await searchMemes({
         query: query.trim(),
-        format_preference: formatPref,
-        nsfw: false,
+        format_preference: formatPref === 'any' ? 'gif' : formatPref,
         limit: 5,
       });
-      setResults(res.results);
-      setQueryId(res.query_id);
-      setResponseTimeMs(res.response_time_ms);
-      setCached(res.cached);
+      const matches = res.results || res.matches || [];
+      setResults(matches);
+      setQueryId(res.query_id || res.queryId || null);
+      setResponseTimeMs(res.response_time_ms || res.latency_ms || null);
+      setCached(Boolean(res.cached));
       // Log view signals
-      res.results.forEach((m) => {
-        submitFeedback(m.id, 'view', res.query_id).catch(() => {});
+      matches.forEach((m) => {
+        submitFeedback(m.id, 'view', res.query_id || res.queryId).catch(() => {});
       });
     } catch (e: any) {
       setError(e?.message || 'Search failed. Check your connection.');

@@ -27,11 +27,12 @@ export default function LibraryScreen() {
     loadFavorites();
   });
 
-  const removeFavorite = async (id: number) => {
-    const updated = favorites.filter((f) => f.id !== id);
+  const removeFavorite = async (id: number | string) => {
+    const updated = favorites.filter((f) => String(f.id) !== String(id));
     setFavorites(updated);
     await AsyncStorage.setItem(FAV_KEY, JSON.stringify(updated));
   };
+
 
   if (favorites.length === 0) {
     return (

@@ -1,88 +1,75 @@
-/**
- * Push Notification Hook for MemeGPT Mobile
- * Handles notification permissions and registration token retrieval.
- */
+import { useEffect, useRef, useState } from 'react';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
-import { useState, useEffect } from "react";
-import { Platform } from "react-native";
-
-export interface PushNotificationState {
-  expoPushToken: string | null;
-  notification: any | null;
-  error: Error | null;
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // Graceful fallback for non-native test environments
 }
 
-export function usePushNotifications(): PushNotificationState {
-  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<any | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+export function usePushNotifications() {
+  const [expoPushToken, setExpoPushToken] = useState<string>('');
+  const notificationListener = useRef<Notifications.Subscription | any>();
+
 
   useEffect(() => {
-    let isMounted = true;
+    registerForPushNotifications().then((token) => {
+      if (token) setExpoPushToken(token);
+    });
 
-    async function registerForPushNotifications() {
-      try {
-        let Notifications: any = null;
-        let Device: any = null;
-
-        try {
-          Notifications = require("expo-notifications");
-          Device = require("expo-device");
-        } catch {
-          // Native modules not available (e.g. standard browser preview)
-          return;
-        }
-
-        if (!Device || !Device.isDevice) {
-          return;
-        }
-
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== "granted") {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-
-        if (finalStatus !== "granted") {
-          return;
-        }
-
-        const tokenData = await Notifications.getExpoPushTokenAsync();
-        if (isMounted) {
-          setExpoPushToken(tokenData.data);
-        }
-
-        if (Platform.OS === "android") {
-          Notifications.setNotificationChannelAsync("default", {
-            name: "default",
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: "#7C3AED",
-          });
-        }
-
-        const subscription = Notifications.addNotificationReceivedListener((notif: any) => {
-          if (isMounted) {
-            setNotification(notif);
-          }
-        });
-
-        return () => subscription.remove();
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err);
-        }
-      }
-    }
-
-    registerForPushNotifications();
+    try {
+      notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+        console.log('Notification received:', notification);
+      });
+    } catch {}
 
     return () => {
-      isMounted = false;
+      if (notificationListener.current && notificationListener.current.remove) {
+        notificationListener.current.remove();
+      }
     };
   }, []);
 
-  return { expoPushToken, notification, error };
+  return { expoPushToken };
+}
+
+async function registerForPushNotifications(): Promise<string | null> {
+  try {
+    if (!Device.isDevice) {
+      console.log('Push notifications only work on physical devices');
+      return null;
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return null;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'MemeGPT',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    return tokenData.data;
+  } catch (err) {
+    console.warn('Could not register for push notifications:', err);
+    return null;
+  }
 }

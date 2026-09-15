@@ -3,6 +3,8 @@
     "name": "MemeGPT",
     "slug": "memegpt",
     "version": "1.0.0",
+    "description": "Find the perfect meme for any situation using AI",
+    "primaryColor": "#7C3AED",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,8 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.memegpt.app",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSPhotoLibraryAddUsageDescription": "MemeGPT needs permission to save memes to your camera roll."
+        "NSPhotoLibraryUsageDescription": "Save memes to your photo library",
+        "NSPhotoLibraryAddUsageDescription": "Save memes to your photo library"
       }
     },
     "android": {
@@ -24,7 +28,11 @@
         "backgroundColor": "#09090B"
       },
       "package": "com.memegpt.app",
-      "permissions": ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"]
+      "versionCode": 1,
+      "permissions": [
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

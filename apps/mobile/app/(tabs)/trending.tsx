@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, SafeAreaView, RefreshControl,
+  View, Text, FlatList, StyleSheet, ActivityIndicator, SafeAreaView, RefreshControl, TouchableOpacity,
 } from "react-native";
+
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { api, MemeResult } from "../../lib/api";
