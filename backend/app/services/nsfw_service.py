@@ -8,11 +8,20 @@ import os
 import tempfile
 from typing import Tuple
 
+from pathlib import Path
+
 logger = logging.getLogger("memegpt.nsfw")
 
 _clip_model = None
 _clip_processor = None
-MODELS_CACHE_DIR = os.getenv("MODELS_CACHE_DIR", "./model_cache")
+
+_project_root = Path(__file__).resolve().parent.parent.parent.parent
+_candidate_cache = _project_root / "model_cache"
+MODELS_CACHE_DIR = os.getenv("MODELS_CACHE_DIR") or (str(_candidate_cache) if _candidate_cache.exists() else "./model_cache")
+if not os.path.isabs(MODELS_CACHE_DIR):
+    resolved = _project_root / MODELS_CACHE_DIR
+    if resolved.exists():
+        MODELS_CACHE_DIR = str(resolved)
 
 NSFW_LABELS = ["safe content", "nsfw adult content", "violent content", "hate speech imagery"]
 NSFW_THRESHOLD = 0.45  # Score above this = flagged

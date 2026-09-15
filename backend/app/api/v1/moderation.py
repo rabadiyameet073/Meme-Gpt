@@ -99,3 +99,26 @@ async def review_meme(body: ReviewAction, db: Session = Depends(get_db)):
 
     db.commit()
     return {"meme_id": meme.id, "status": meme.moderation_status}
+
+
+class ClassifyRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_path: Optional[str] = None
+
+
+@router.post("/classify", summary="Classify image for NSFW content using CLIP")
+async def classify_content(body: ClassifyRequest):
+    """Zero-shot CLIP classification for safe vs. NSFW / violent content."""
+    from app.services.nsfw_service import classify_image, classify_image_from_url
+    if body.image_url:
+        is_nsfw, confidence, category = classify_image_from_url(body.image_url)
+    elif body.image_path:
+        is_nsfw, confidence, category = classify_image(body.image_path)
+    else:
+        raise HTTPException(status_code=400, detail="Provide either image_url or image_path")
+    return {
+        "is_nsfw": is_nsfw,
+        "confidence": round(confidence, 4),
+        "category": category,
+    }
+
