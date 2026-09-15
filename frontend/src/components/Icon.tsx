@@ -52,6 +52,8 @@ export type IconName =
   | "x"
   | "volume"
   | "volume-x"
+  | "user"
+  | "logout"
   // Category specific icons
   | "coding"
   | "startup"
@@ -613,6 +615,23 @@ export function Icon({ name, size = 18, className = "", style = {}, color }: Ico
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
           <line x1="22" y1="9" x2="16" y2="15" />
           <line x1="16" y1="9" x2="22" y2="15" />
+        </svg>
+      );
+
+    case "user":
+      return (
+        <svg {...props}>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      );
+
+    case "logout":
+      return (
+        <svg {...props}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       );
 

@@ -31,6 +31,7 @@
   --text-primary: #F1ECE6;       /* Alabaster Cream */
   --text-secondary: #DDD5CD;     /* Warm Greige */
   --text-muted: #7A7F90;        /* Muted Slate */
+  --text-disabled: #6B6B6B;     /* High Contrast Disabled Text (4.5:1 ratio) */
   --text-gold: #C29B72;         /* Antique Gold / Beige */
   --text-inverse: #0D0E11;
 

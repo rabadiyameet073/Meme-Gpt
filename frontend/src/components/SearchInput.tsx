@@ -47,14 +47,20 @@ export function SearchInput({
         transition: "all 0.25s ease",
       }}
     >
+      <label htmlFor="meme-search-input" className="sr-only">
+        Search for memes
+      </label>
       <textarea
+        id="meme-search-input"
+        role="searchbox"
+        aria-label="Describe a situation to find the perfect meme"
+        aria-describedby="search-hint"
         value={value}
         onChange={(e) => setValue(e.target.value.slice(0, maxLength))}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={loading}
         rows={3}
-        aria-label="Meme search input"
         style={{
           width: "100%",
           background: "transparent",
@@ -67,6 +73,9 @@ export function SearchInput({
           fontFamily: "var(--font-sans, inherit)",
         }}
       />
+      <span id="search-hint" className="sr-only">
+        Type anything — a feeling, situation, or conversation — and AI will find the perfect meme.
+      </span>
       <div
         className="search-input-footer"
         style={{

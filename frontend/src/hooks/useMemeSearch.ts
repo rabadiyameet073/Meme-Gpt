@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { api, MemeResult } from "../lib/api";
+import { trackMemeSearch } from "../lib/analytics";
 
 export function useMemeSearch() {
   const [results, setResults] = useState<MemeResult[]>([]);
@@ -10,6 +11,7 @@ export function useMemeSearch() {
     if (!query.trim()) return;
     setLoading(true);
     setError(null);
+    trackMemeSearch(query);
     try {
       const res = await api.search(query);
       setResults(res?.results || []);

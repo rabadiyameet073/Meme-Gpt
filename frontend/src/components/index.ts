@@ -23,3 +23,5 @@ export * from "./TrendingTab";
 export * from "./FavoritesTab";
 export * from "./StatsTab";
 export * from "./AdminTab";
+export * from "./AuthModal";
+

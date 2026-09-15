@@ -12,9 +12,13 @@ describe('useMemeSearch Hook', () => {
 
   it('sets loading state during search', async () => {
     const { result } = renderHook(() => useMemeSearch());
+    let p: Promise<void> | undefined;
     act(() => {
-      result.current.search('test');
+      p = result.current.search('test') as any;
     });
     expect(result.current.loading).toBe(true);
+    await act(async () => {
+      await p;
+    });
   });
 });

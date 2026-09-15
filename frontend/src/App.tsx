@@ -8,6 +8,9 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { Canvas3DBackground } from "./components/Canvas3DBackground";
 import { useSearchHistory } from "./hooks/useSearchHistory";
 import { soundFx } from "./lib/audio";
+import { AuthModal } from "./components/AuthModal";
+import { fetchCurrentUser, getCachedUser, setStoredTokens } from "./lib/auth";
+import type { User } from "@/types";
 
 // Code splitting: Lazy load views
 const SearchTab = lazy(() => import("./components/SearchTab").then((m) => ({ default: m.SearchTab })));
@@ -54,6 +57,8 @@ export default function App() {
   const [memeCount, setMemeCount] = useState<number | null>(null);
   const [audioEnabled, setAudioEnabled] = useState<boolean>(soundFx.isEnabled());
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(getCachedUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const { history, addToHistory, clearHistory, removeFromHistory } = useSearchHistory();
 
   // Hash route parsing
@@ -104,6 +109,18 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Check if OAuth callback passed token in URL params
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token") || params.get("access_token");
+    if (tokenParam) {
+      setStoredTokens(tokenParam);
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    }
+
+    fetchCurrentUser().then((u) => {
+      if (u) setCurrentUser(u);
+    });
+
     api
       .health()
       .then((h: any) => setMemeCount(h.memeCount || h.totalMemes || null))
@@ -271,6 +288,64 @@ export default function App() {
             >
               <Icon name={audioEnabled ? "volume" : "volume-x"} size={14} />
               <span style={{ display: "none" }}>Audio</span>
+            </button>
+
+            {/* User Account / Sign In Button */}
+            <button
+              type="button"
+              onClick={() => {
+                soundFx.playTap();
+                setIsAuthModalOpen(true);
+              }}
+              title={currentUser ? `Signed in as ${currentUser.name || currentUser.email}` : "Sign In or Register"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: currentUser ? "4px 10px 4px 6px" : "6px 12px",
+                borderRadius: "var(--radius-sm)",
+                border: currentUser ? "1px solid rgba(99, 102, 241, 0.4)" : "1px solid var(--border-subtle)",
+                backgroundColor: currentUser ? "rgba(99, 102, 241, 0.12)" : "var(--bg-card)",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                transition: "all var(--transition-fast)",
+              }}
+            >
+              {currentUser ? (
+                <>
+                  <div
+                    style={{
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "50%",
+                      backgroundColor: "var(--brand-primary)",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {currentUser.avatar_url ? (
+                      <img src={currentUser.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      (currentUser.name?.[0] || currentUser.email[0]).toUpperCase()
+                    )}
+                  </div>
+                  <span style={{ maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {currentUser.name || currentUser.email.split("@")[0]}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Icon name="user" size={13} color="var(--brand-primary)" />
+                  <span>Sign In</span>
+                </>
+              )}
             </button>
 
             <ThemeToggle />
@@ -469,6 +544,21 @@ export default function App() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* User Authentication & Profile Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          addToast(`Welcome, ${user.name || user.email}!`);
+        }}
+        onLogout={() => {
+          setCurrentUser(null);
+          addToast("Logged out successfully");
+        }}
+      />
     </div>
   );
 }

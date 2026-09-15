@@ -74,3 +74,27 @@ export const CATEGORY_LABELS: Record<string, string> = {
   bollywood: "Bollywood",
   youtube: "YouTube",
 };
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+  plan?: string;
+  preferences?: Record<string, any>;
+  preferred_format?: string;
+  theme?: string;
+  nsfw_enabled?: boolean;
+  favourite_categories?: string[];
+  oauth_provider?: string;
+  is_admin?: boolean;
+  created_at?: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: User;
+}
+

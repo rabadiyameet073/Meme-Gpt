@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { api, SearchResponse } from "../lib/api";
+import { trackMemeSearch } from "../lib/analytics";
 
 export function useSearch() {
   const [data, setData] = useState<SearchResponse | null>(null);
@@ -9,6 +10,7 @@ export function useSearch() {
   const mutate = useCallback(async (params: { query: string; format?: string; limit?: number }) => {
     setIsLoading(true);
     setError(null);
+    trackMemeSearch(params.query, { format: params.format });
     try {
       const res = await api.search(params.query, {
         format: params.format,

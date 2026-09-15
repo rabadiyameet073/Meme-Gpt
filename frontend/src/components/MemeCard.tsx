@@ -8,6 +8,12 @@ import {
   downloadMeme as execDownloadMeme,
   shareMeme as execShareMeme,
 } from "../lib/clipboard";
+import {
+  trackMemeDownload,
+  trackMemeShare,
+  trackMemeFavorite,
+  trackEvent,
+} from "../lib/analytics";
 
 const SESSION_ID = getSessionId();
 
@@ -34,6 +40,7 @@ export function MemeCard({
   const [fav, setFav] = useState<boolean>(!!isFav);
   const [selectedFormat, setSelectedFormat] = useState<"gif" | "image" | "video" | "webp">("image");
   const [imgError, setImgError] = useState(false);
+  const [flagged, setFlagged] = useState(false);
 
   useEffect(() => {
     setFav(!!isFav);
@@ -62,6 +69,7 @@ export function MemeCard({
   const toggleFav = async () => {
     const next = !fav;
     setFav(next);
+    trackMemeFavorite(meme.id, next);
     if (next) {
       confetti({
         particleCount: 20,
@@ -86,6 +94,7 @@ export function MemeCard({
   };
 
   const handleShare = async () => {
+    trackMemeShare(meme.slug || meme.id, "web");
     await execShareMeme(
       meme,
       queryId,
@@ -96,7 +105,22 @@ export function MemeCard({
     );
   };
 
+  const handleFlag = async () => {
+    if (flagged) {
+      onToast?.("You have already reported this meme.");
+      return;
+    }
+    try {
+      await api.flagMeme(meme.id, "offensive", "Flagged by user");
+      setFlagged(true);
+      onToast?.("Meme reported to moderation team. Thank you.");
+    } catch {
+      onToast?.("Could not submit report.");
+    }
+  };
+
   const copyMeme = async () => {
+    trackEvent("meme_copy", { meme_slug: meme.slug || meme.id });
     const copyResult = await execCopyMeme(meme);
     confetti({
       particleCount: 18,
@@ -116,6 +140,7 @@ export function MemeCard({
   };
 
   const downloadMeme = (format: "gif" | "image" | "video" | "webp") => {
+    trackMemeDownload(meme.slug || meme.id, format);
     execDownloadMeme(meme, format);
     api.sendFeedback(meme.id, "download", format);
     onToast?.(`Downloading ${format.toUpperCase()}...`);
@@ -137,6 +162,12 @@ export function MemeCard({
       className={`meme-card ${primary ? "primary-match" : ""}`}
       role="article"
       aria-label={`Meme: ${meme.name}`}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && e.target === e.currentTarget) {
+          copyMeme();
+        }
+      }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -293,6 +324,7 @@ export function MemeCard({
               className={`btn btn-secondary ${vote === 1 ? "active" : ""}`}
               onClick={() => doVote(1)}
               aria-label="Spot on match"
+              aria-pressed={vote === 1}
               style={{
                 padding: "6px 10px",
                 fontSize: "0.78rem",
@@ -308,6 +340,7 @@ export function MemeCard({
               className={`btn btn-secondary ${vote === -1 ? "active" : ""}`}
               onClick={() => doVote(-1)}
               aria-label="Not quite right"
+              aria-pressed={vote === -1}
               style={{
                 padding: "6px 10px",
                 fontSize: "0.78rem",
@@ -327,6 +360,7 @@ export function MemeCard({
               className="btn btn-secondary"
               onClick={toggleFav}
               aria-label={fav ? "Remove from Favorites" : "Save to Favorites"}
+              aria-pressed={fav}
               title={fav ? "Remove from Favorites" : "Save to Favorites"}
               style={{
                 padding: "6px 10px",
@@ -347,6 +381,22 @@ export function MemeCard({
               style={{ padding: "6px 10px", fontSize: "0.8rem" }}
             >
               <Icon name="share" size={13} />
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleFlag}
+              aria-label="Report or flag inappropriate meme"
+              title={flagged ? "Reported" : "Report inappropriate content"}
+              style={{
+                padding: "6px 9px",
+                fontSize: "0.8rem",
+                color: flagged ? "var(--accent-rose)" : undefined,
+                borderColor: flagged ? "var(--accent-rose)" : undefined,
+              }}
+            >
+              <Icon name="alert" size={13} color={flagged ? "var(--accent-rose)" : undefined} />
             </button>
 
             <button

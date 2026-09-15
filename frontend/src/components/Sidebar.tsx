@@ -66,13 +66,18 @@ export function Sidebar({
           <div className="sidebar-section-title">
             <span>Main Menu</span>
           </div>
-          <ul className="sidebar-nav">
+          <ul className="sidebar-nav" role="tablist" aria-label="Sidebar navigation views">
             {navItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <li key={item.id}>
+               const active = activeTab === item.id;
+               return (
+                <li key={item.id} role="presentation">
                   <button
                     type="button"
+                    role="tab"
+                    id={`sidebar-tab-${item.id}`}
+                    aria-selected={active}
+                    aria-controls={`panel-${item.id}`}
+                    tabIndex={active ? 0 : -1}
                     className={`sidebar-nav-item ${active ? "active" : ""}`}
                     onClick={() => onNavigateTab && onNavigateTab(item.id)}
                   >

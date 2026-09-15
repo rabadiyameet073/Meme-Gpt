@@ -263,6 +263,9 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Create New Collection"
               onClick={(e) => e.stopPropagation()}
               style={{
                 backgroundColor: "var(--bg-panel)",
