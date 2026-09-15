@@ -304,7 +304,7 @@ def get_jwt_cookie_settings() -> dict:
 
 
 async def get_current_user(request: Request, db: Session = Depends(get_db)) -> Any:
-    """FastAPI dependency to extract current User from Bearer token."""
+    """FastAPI dependency to extract current User from Bearer token or session cookie."""
     from app.database import User
     auth_header = request.headers.get("Authorization", "")
     token = ""
@@ -314,10 +314,6 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> A
         token = request.cookies.get("access_token", "").strip()
 
     if not token:
-        # Dev fallback: if running locally and users exist, allow testing
-        user = db.query(User).filter(User.is_active == True).first()
-        if user and getattr(settings, "APP_ENV", "development") in ("development", "dev", "test"):
-            return user
         raise HTTPException(status_code=401, detail="Not authenticated: Bearer token required")
 
     payload = None
@@ -330,8 +326,11 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> A
     if not payload:
         try:
             payload = verify_jwt_token(token)
-        except Exception as e:
-            raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+        except Exception:
+            pass
+
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user_id = payload.get("sub") or payload.get("user_id")
     if not user_id:
