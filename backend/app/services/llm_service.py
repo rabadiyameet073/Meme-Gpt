@@ -145,7 +145,7 @@ def _rule_based_intent(user_text: str) -> dict:
 
     # Emotion detection via keywords
     emotion_keywords = {
-        "joy": ["happy", "celebrate", "win", "excited", "awesome", "great", "love", "yes", "woo", "feliz", "felicidad", "alegria", "khushi", "maja"],
+        "joy": ["happy", "celebrate", "win", "won", "yay", "promote", "promoted", "excited", "awesome", "great", "love", "yes", "woo", "feliz", "felicidad", "alegria", "khushi", "maja"],
         "anger": ["angry", "mad", "furious", "hate", "annoying", "annoyed", "pissed", "rage", "enojado", "raiva", "gussa"],
         "sadness": ["sad", "cry", "upset", "disappointed", "depressed", "miss", "alone", "lost", "triste", "tristeza", "dukh"],
         "surprise": ["wow", "what", "seriously", "unbelievable", "shocked", "omg", "unexpected", "sorpresa", "surpresa", "asombro", "kya", "hein"],
@@ -162,7 +162,7 @@ def _rule_based_intent(user_text: str) -> dict:
     # Category detection (Multilingual: English, Spanish, Portuguese, Hindi)
     category_keywords = {
         "coding": ["code", "código", "codigo", "bug", "error", "compile", "deploy", "git", "programming", "programar", "programação", "python", "javascript", "react", "sql"],
-        "work": ["boss", "jefe", "chefe", "meeting", "reunión", "reuniao", "office", "oficina", "escritorio", "trabalho", "trabajo", "kaam", "naukri", "deadline", "manager", "coworker", "salary", "monday", "work", "job", "email"],
+        "work": ["boss", "jefe", "chefe", "meeting", "reunión", "reuniao", "office", "oficina", "escritorio", "trabalho", "trabajo", "kaam", "naukri", "deadline", "manager", "coworker", "salary", "monday", "work", "job", "email", "promoted", "promotion", "hackathon"],
         "college": ["exam", "study", "assignment", "professor", "semester", "lecture", "marks", "homework", "class", "estudiar", "faculdade", "padhai"],
         "gaming": ["game", "juego", "jogo", "khel", "player", "level", "boss", "respawn", "noob", "lag", "steam"],
         "relationships": ["girlfriend", "boyfriend", "crush", "date", "breakup", "ex", "wife", "husband", "novia", "novio", "namorado"],

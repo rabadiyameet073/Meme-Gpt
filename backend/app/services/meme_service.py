@@ -99,14 +99,14 @@ def get_meme_download_url(meme: Meme, format_type: str = "gif") -> Optional[str]
     fmt = format_type.lower().strip()
     
     if fmt == "gif":
-        return meme.gif_url or meme.gif_ref
+        return meme.gif_url or meme.gif_ref or meme.image_url
     elif fmt in ("image", "png", "jpg", "jpeg"):
-        return meme.image_url or meme.image_ref
+        return meme.image_url or meme.image_ref or meme.webp_url
     elif fmt in ("video", "mp4"):
-        return meme.mp4_url or meme.video_ref
+        return meme.mp4_url or meme.video_ref or meme.gif_url or meme.image_url
     elif fmt == "webp":
-        return meme.webp_url or meme.thumb_url
-    return None
+        return meme.webp_url or meme.thumb_url or meme.image_url
+    return meme.image_url or meme.gif_url
 
 
 
