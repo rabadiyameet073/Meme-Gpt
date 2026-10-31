@@ -32,7 +32,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       # Frontend
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - name: Cache Node dependencies
