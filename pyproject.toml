@@ -1,7 +1,17 @@
+# NOTE: settings live under [tool.ruff.lint]. The previous top-level `select`
+# and `isort` keys are deprecated in ruff >= 0.5 and emitted a warning on every
+# invocation ("The top-level linter settings are deprecated in favour of their
+# counterparts in the `lint` section").
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+# The full house style. Selecting all of these currently reports 3458 findings
+# (mostly E501 and I001 import ordering), so `.github/workflows/ci.yml` blocks on
+# the correctness subset only and reports the style debt separately instead of
+# running a lint step that has never been green.
+[tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["app"]

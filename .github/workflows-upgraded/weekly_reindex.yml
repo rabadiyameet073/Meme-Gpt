@@ -1,3 +1,13 @@
+# .github/workflows/weekly_reindex.yml
+# Specification: 03_Backend/Background_Jobs.md ("Weekly indexing | Sun 2:00 UTC |
+# Index new memes from Reddit/Imgflip") and
+# 02_Project_Architecture/Product_Workflow.md § Weekly Meme Indexing Pipeline.
+#
+# Every command below runs a script that exists in scripts/. The previous
+# version referenced scripts/collect_giphy_full.py, scripts/reindex_all_to_qdrant.py
+# and scripts/upload_to_r2_full.py — none of which were ever written — and ran
+# with `working-directory: backend`, so even the real script paths resolved to
+# backend/scripts/*.
 name: Weekly Meme Re-Index
 
 on:
@@ -8,15 +18,13 @@ on:
 
 jobs:
   reindex:
-    name: 🔄 Collect + Re-Index Memes
+    name: Collect + Re-Index Memes
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: backend
-
     env:
+      APP_ENV: production
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
       QDRANT_URL: ${{ secrets.QDRANT_URL }}
       QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
       GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
@@ -27,6 +35,7 @@ jobs:
       CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
       EMBEDDING_MODEL: all-MiniLM-L6-v2
       MODELS_CACHE_DIR: ./model_cache
+      HF_HOME: ./model_cache
 
     steps:
       - uses: actions/checkout@v4
@@ -37,26 +46,47 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      # The embedding models are ~4GB. Caching them turns a ~30 minute run into
+      # a couple of minutes on repeat invocations.
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ./model_cache
+          key: ${{ runner.os }}-hf-${{ env.EMBEDDING_MODEL }}-blip-clip
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r backend/requirements.txt
 
-      - name: Collect new memes from Giphy
-        run: python scripts/collect_giphy_full.py
-        continue-on-error: true
+      - name: Require indexing secrets
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+          test -n "${QDRANT_URL:-}" || { echo "::error::QDRANT_URL is not set"; exit 1; }
 
-      - name: Re-index all memes to Qdrant
-        run: python scripts/reindex_all_to_qdrant.py
+      - name: Collect new memes from Reddit / Imgflip
+        run: python scripts/download_datasets.py
+
+      - name: Index all memes into Qdrant (BLIP + CLIP + MiniLM)
+        run: python scripts/full_index_pipeline.py
 
       - name: Upload new media to R2
-        run: python scripts/upload_to_r2_full.py
+        run: python scripts/upload_to_r2.py --source data/raw/
         continue-on-error: true
+
+      # Confirms the run actually reached Qdrant instead of silently indexing
+      # nothing (index_qdrant stamps `memes.indexed_at` on every upsert).
+      - name: Verify index coverage
+        run: python scripts/verify_index.py
 
       - name: Report results
         run: |
           python -c "
           from app.database import SessionLocal, Meme
           db = SessionLocal()
-          count = db.query(Meme).count()
-          db.close()
-          print(f'Total memes in DB: {count}')
+          try:
+              total = db.query(Meme).count()
+              indexed = db.query(Meme).filter(Meme.indexed_at.isnot(None)).count()
+              print(f'Total memes in DB: {total} (indexed: {indexed})')
+          finally:
+              db.close()
           "
+        working-directory: backend

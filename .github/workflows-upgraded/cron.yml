@@ -1,27 +1,138 @@
 # .github/workflows/cron.yml
-# Specification: 12_Deployment/CI_CD_Pipeline.md
-name: Weekly Jobs
+# Specification: 03_Backend/Background_Jobs.md § Scheduled Jobs (GitHub Actions Cron)
+#
+#   | Job                   | Schedule       | Invokes                                   |
+#   |-----------------------|----------------|-------------------------------------------|
+#   | Weekly indexing       | Sun 2:00 UTC   | .github/workflows/weekly_reindex.yml      |
+#   | Analytics aggregation | Daily 3:00 UTC | scripts/run_maintenance_job.py analytics  |
+#   | Popularity update     | Daily 4:00 UTC | scripts/sync_popularity_scores.py         |
+#   | Cache warm-up         | Daily 5:00 UTC | scripts/run_maintenance_job.py warm-cache |
+#   | Trending refresh      | Hourly         | scripts/refresh_trending.py               |
+#   | Re-ranker calibration | Sun 6:00 UTC   | scripts/optimize_rerank_weights.py        |
+#
+# Every job below runs a script that exists and is exercised by the backend test
+# suite. The previous version called `scripts/recalculate_popularity.py`, which
+# was never written, and a trending script that only replayed hardcoded sample
+# memes inside its own process.
+name: Scheduled Jobs
+
 on:
   schedule:
-    - cron: '0 3 * * 0'  # Sunday 3 AM UTC
+    - cron: '0 3 * * *'    # analytics aggregation
+    - cron: '0 4 * * *'    # popularity update
+    - cron: '0 5 * * *'    # cache warm-up
+    - cron: '0 * * * *'    # trending refresh (hourly)
+    - cron: '0 6 * * 0'    # weekly re-ranker calibration
+  workflow_dispatch:
+
+env:
+  APP_ENV: production
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  REDIS_URL: ${{ secrets.REDIS_URL }}
+  UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+  UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
 jobs:
-  recalculate-popularity:
+  analytics:
+    name: Aggregation analytics (03:00 UTC)
     runs-on: ubuntu-latest
+    if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
       - run: pip install -r backend/requirements.txt
-      - run: python scripts/recalculate_popularity.py
+      # Without a real DATABASE_URL the app silently falls back to an empty
+      # local SQLite file, so the job would "succeed" against nothing.
+      - name: Require DATABASE_URL
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+      - name: Aggregate search analytics
+        run: python scripts/run_maintenance_job.py analytics
 
-  refresh-trending:
+  popularity:
+    name: Popularity update (04:00 UTC)
     runs-on: ubuntu-latest
+    if: github.event.schedule == '0 4 * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
       - run: pip install -r backend/requirements.txt
-      - run: python scripts/refresh_trending.py
+      - name: Require DATABASE_URL
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+      - name: Recalculate popularity scores
+        run: python scripts/sync_popularity_scores.py --window-days 30
+
+  warm-cache:
+    name: Cache warm-up (05:00 UTC)
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Require DATABASE_URL
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+      - name: Pre-cache top queries
+        run: python scripts/run_maintenance_job.py warm-cache
+
+  trending:
+    name: Trending refresh (hourly)
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Require DATABASE_URL
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+      - name: Warm the trending cache
+        run: python scripts/refresh_trending.py
+
+  rerank-calibration:
+    name: Re-ranker calibration (Sun 06:00 UTC)
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * 0' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Require DATABASE_URL
+        run: |
+          test -n "${DATABASE_URL:-}" || { echo "::error::DATABASE_URL is not set"; exit 1; }
+      # Fails the workflow when the stored popularity ranking is anti-correlated
+      # with user thumbs, which is the only way "the feedback loop tunes the
+      # ranking" is observable (15_Non_Functional_Requirements.md §4).
+      - name: Measure feedback calibration
+        run: python scripts/optimize_rerank_weights.py --window-days 7
+      - name: Upload calibration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rerank-calibration
+          path: data/reports/rerank_calibration.json
+          if-no-files-found: ignore
