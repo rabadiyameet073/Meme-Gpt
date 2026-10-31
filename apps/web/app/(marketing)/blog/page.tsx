@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { BLOG_CATEGORIES, BLOG_POSTS } from '../../../lib/blog';
 
 export const metadata: Metadata = {
   title: 'Blog — MemeGPT | AI Memes, Vector Search & Meme Culture',
@@ -13,82 +14,7 @@ export const metadata: Metadata = {
   },
 };
 
-const BLOG_POSTS = [
-  {
-    slug: 'how-ai-finds-the-perfect-meme',
-    title: 'How AI Finds the Perfect Meme for Any Situation',
-    excerpt:
-      'We built a 5-stage AI pipeline combining Groq LLM intent parsing, DistilRoBERTa emotion detection, MiniLM embeddings, Qdrant vector search, and business-logic re-ranking. Here\'s exactly how it works.',
-    date: 'August 2, 2026',
-    readTime: '8 min read',
-    category: 'Engineering',
-    emoji: '🤖',
-    color: 'border-violet-700/40 bg-violet-900/10',
-    badge: 'border-violet-700 text-violet-400',
-  },
-  {
-    slug: 'vector-search-vs-keyword-search-memes',
-    title: 'Why Keyword Search Fails for Memes (And What We Did Instead)',
-    excerpt:
-      'Keyword search returns "monday morning" when you search "monday morning". Semantic vector search returns the exact meme you\'re thinking of — even if you can\'t describe it precisely. Here\'s the difference.',
-    date: 'July 28, 2026',
-    readTime: '6 min read',
-    category: 'AI/ML',
-    emoji: '🔍',
-    color: 'border-blue-700/40 bg-blue-900/10',
-    badge: 'border-blue-700 text-blue-400',
-  },
-  {
-    slug: 'emotion-detection-meme-matching',
-    title: 'Using Emotion Detection to Match Memes: A Deep Dive',
-    excerpt:
-      'We run j-hartmann/emotion-english-distilroberta-base locally (250MB, CPU, ~100ms) on every query. Seven emotions. The emotion signal boosts matching memes by up to 23% in the ranking layer.',
-    date: 'July 22, 2026',
-    readTime: '7 min read',
-    category: 'AI/ML',
-    emoji: '💜',
-    color: 'border-pink-700/40 bg-pink-900/10',
-    badge: 'border-pink-700 text-pink-400',
-  },
-  {
-    slug: 'building-memegpt-on-zero-dollars',
-    title: 'Building MemeGPT on $0/Month: Our Free-Tier Stack',
-    excerpt:
-      'Groq (free LLM API), Qdrant Cloud (1M vectors free), Supabase (PostgreSQL free), Cloudflare R2 (10GB free), Upstash Redis (free), Vercel (frontend free), Railway (backend). Total: $0.',
-    date: 'July 15, 2026',
-    readTime: '5 min read',
-    category: 'Startup',
-    emoji: '💰',
-    color: 'border-green-700/40 bg-green-900/10',
-    badge: 'border-green-700 text-green-400',
-  },
-  {
-    slug: 'top-memes-for-programmers-2026',
-    title: 'Top 50 Programming Memes of 2026 — Ranked by AI',
-    excerpt:
-      'We ran our own AI ranking engine on the top 50 programming memes of 2026. "It works on my machine", "Stack Overflow copy-paste", and "Friday deploy" memes dominate the charts.',
-    date: 'July 8, 2026',
-    readTime: '4 min read',
-    category: 'Meme Culture',
-    emoji: '😂',
-    color: 'border-amber-700/40 bg-amber-900/10',
-    badge: 'border-amber-700 text-amber-400',
-  },
-  {
-    slug: 'meme-data-pipeline-explained',
-    title: 'MemeGPT Data Pipeline: From Reddit to Vector DB in 5 Steps',
-    excerpt:
-      'How we collect, clean, OCR, caption (via BLIP), embed (via CLIP + MiniLM), and index 10,000+ memes into Qdrant. The offline pipeline that powers the entire recommendation engine.',
-    date: 'July 1, 2026',
-    readTime: '10 min read',
-    category: 'Engineering',
-    emoji: '⚙️',
-    color: 'border-orange-700/40 bg-orange-900/10',
-    badge: 'border-orange-700 text-orange-400',
-  },
-];
-
-const CATEGORIES = ['All', 'Engineering', 'AI/ML', 'Startup', 'Meme Culture'];
+const CATEGORIES = BLOG_CATEGORIES;
 
 export default function BlogPage() {
   return (

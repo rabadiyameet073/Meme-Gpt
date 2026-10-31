@@ -93,7 +93,7 @@ export default function LibraryPage() {
                     src={meme.formats.gif || meme.formats.image || meme.preview_url || ''}
                     alt={meme.name}
                     className="w-full h-full object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-meme.png'; }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-meme.svg'; }}
                   />
                 </div>
                 <div className="p-2">

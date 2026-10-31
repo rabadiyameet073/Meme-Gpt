@@ -31,7 +31,7 @@ export function MemeCard({ meme, activeFormat, onFeedback }: MemeCardProps) {
     meme.formats.webp ||
     meme.formats.image ||
     meme.preview_url ||
-    '/placeholder-meme.png';
+    '/placeholder-meme.svg';
 
   const handleDownload = () => {
     const fmt = activeFormat === 'any' ? 'gif' : activeFormat === 'image' ? 'image' : activeFormat as any;
@@ -66,7 +66,7 @@ export function MemeCard({ meme, activeFormat, onFeedback }: MemeCardProps) {
           alt={meme.name}
           loading="lazy"
           className="w-full h-full object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-meme.png'; }}
+          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-meme.svg'; }}
         />
         {/* Relevance score badge */}
         {score > 0 && (
