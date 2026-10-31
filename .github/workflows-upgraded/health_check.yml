@@ -1,0 +1,25 @@
+name: Health Check
+
+on:
+  schedule:
+    # Every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check backend health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://your-app.railway.app/api/v1/health")
+          echo "Backend status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠️ Backend health status returned $STATUS"
+          fi
+
+      - name: Check frontend
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://memegpt.vercel.app")
+          echo "Frontend status: $STATUS"

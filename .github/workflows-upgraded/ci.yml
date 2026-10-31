@@ -1,0 +1,47 @@
+# .github/workflows/ci.yml
+# Specification: 12_Deployment/CI_CD_Pipeline.md
+name: CI
+on: [pull_request]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - run: pip install -r backend/requirements.txt
+      - run: pip install ruff pytest pytest-asyncio httpx
+      - run: ruff check backend/  # Lint
+      - run: pytest backend/tests/ -v --tb=short
+        env:
+          APP_ENV: test
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # Frontend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cache Node dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

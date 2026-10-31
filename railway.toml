@@ -4,7 +4,14 @@ dockerfilePath = "backend/Dockerfile"
 watchPatterns = ["backend/**"]
 
 [deploy]
-startCommand = "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"
+# The Docker build context is backend/ and WORKDIR is /app, so the image already
+# contains app/ at its root. `cd backend` here would fail on a container that has
+# no backend/ directory (AUDIT-REPORT D-2).
+#
+# Single worker is mandatory, not cosmetic: embedded Qdrant takes an exclusive
+# file lock on QDRANT_LOCAL_PATH and chat state is held in-process, so a second
+# worker either fails to open the index or silently loses conversation context.
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

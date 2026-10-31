@@ -1,0 +1,27 @@
+# .github/workflows/cron.yml
+# Specification: 12_Deployment/CI_CD_Pipeline.md
+name: Weekly Jobs
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Sunday 3 AM UTC
+
+jobs:
+  recalculate-popularity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend/requirements.txt
+      - run: python scripts/recalculate_popularity.py
+
+  refresh-trending:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r backend/requirements.txt
+      - run: python scripts/refresh_trending.py
