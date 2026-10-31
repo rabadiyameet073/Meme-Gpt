@@ -9,6 +9,7 @@ Matches specification from:
 import json
 import logging
 import os
+import secrets
 import sys
 import warnings
 from datetime import datetime, timezone
@@ -34,11 +35,49 @@ DATA_DIR = BACKEND_DIR / "data"
 DB_PATH = BACKEND_DIR / "memegpt.db"
 EMBEDDINGS_PATH = DATA_DIR / "embeddings.json"
 
+
+def anchor_to_backend(raw: str) -> str:
+    """Resolve a runtime path against the backend directory instead of the CWD.
+
+    The API can be launched from the repo root or from ``backend/``; a relative
+    path would silently create two different stores depending on where it started.
+    Empty values are preserved so a feature can be explicitly disabled.
+    """
+    value = (raw or "").strip()
+    if not value:
+        return ""
+    candidate = Path(value).expanduser()
+    return str(candidate if candidate.is_absolute() else (BACKEND_DIR / candidate).resolve())
+
+
+def _anchor_sqlite_url(url: str) -> str:
+    """Anchor a relative ``sqlite:///`` URL to the backend directory.
+
+    ``.env`` shipping ``DATABASE_URL=sqlite:///./memegpt.db`` makes the database
+    file depend on the working directory: uvicorn started from ``backend/``
+    writes ``backend/memegpt.db`` while the cron scripts in ``scripts/`` (which
+    CI runs from the repo root) open an empty ``memegpt.db`` next to the project
+    root. Those jobs then report success over zero memes. Anchoring the path
+    makes both entry points share one store. Non-sqlite URLs and absolute paths
+    (including ``:memory:``) are returned untouched.
+    """
+    scheme, separator, path = url.partition(":///")
+    if not separator or not scheme.startswith("sqlite"):
+        return url
+    if not path or path.startswith(":memory:"):
+        return url
+    if path.startswith("/"):
+        # A rooted POSIX path is absolute, but Path().is_absolute() reports False
+        # for it on Windows — delegating would rewrite /opt/x.db into D:\opt\x.db
+        # and silently point a Linux-style deployment config at the wrong file.
+        return url
+    return f"{scheme}:///{anchor_to_backend(path)}"
+
 _env_db_url = os.getenv("DATABASE_URL", "").strip()
 if not _env_db_url or _env_db_url.startswith("file:"):
     DATABASE_URL = f"sqlite:///{DB_PATH}"
 else:
-    DATABASE_URL = _env_db_url
+    DATABASE_URL = _anchor_sqlite_url(_env_db_url)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -64,6 +103,10 @@ QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "memes")
 QDRANT_TIMEOUT = int(os.getenv("QDRANT_TIMEOUT", "5"))
+# Embedded/on-disk Qdrant used when no QDRANT_URL is configured. This keeps the
+# vector pipeline genuinely operational (real ANN search over real embeddings)
+# without requiring a cloud account. Set QDRANT_LOCAL_PATH="" to disable.
+QDRANT_LOCAL_PATH = anchor_to_backend(os.getenv("QDRANT_LOCAL_PATH", "./qdrant_storage"))
 
 # ── Redis Cache (Upstash) ─────────────────────────────────────
 REDIS_URL = os.getenv("REDIS_URL", os.getenv("UPSTASH_REDIS_URL", ""))
@@ -83,14 +126,54 @@ GIPHY_API_KEY = os.getenv("GIPHY_API_KEY", "")
 TENOR_API_KEY = os.getenv("TENOR_API_KEY", "")
 
 # ── Security & JWT ────────────────────────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", "default_secret_key_change_in_production_memegpt_2026")
+#: Values that have already been published in this repository (docs, examples,
+#: older releases). Any token signed with one of them can be forged by anybody
+#: who has read the source, so they are rejected outright rather than warned
+#: about. There is deliberately no built-in default: an unset SECRET_KEY gets an
+#: ephemeral key for the lifetime of the process instead of a shared constant.
+WEAK_SECRET_KEYS = frozenset({
+    "default_secret_key_change_in_production_memegpt_2026",
+    "changeme",
+    "change_me",
+    "secret",
+    "changeme_generate_with_secrets_token_hex_32",
+})
+SECRET_KEY = os.getenv("SECRET_KEY", "")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
-if not SECRET_KEY or SECRET_KEY == "changeme" or len(SECRET_KEY) < 32:
+
+def secret_key_problem(key: str | None = None) -> str | None:
+    """Return why ``key`` cannot sign tokens, or ``None`` when it is acceptable."""
+    candidate = SECRET_KEY if key is None else key
+    trimmed = (candidate or "").strip()
+    if not trimmed:
+        return "SECRET_KEY is not set"
+    if trimmed in WEAK_SECRET_KEYS:
+        return "SECRET_KEY is a value published in the repository, not a generated secret"
+    if len(trimmed) < 32:
+        return f"SECRET_KEY is {len(trimmed)} characters; at least 32 are required"
+    return None
+
+
+_SECRET_KEY_PROBLEM = secret_key_problem()
+if _SECRET_KEY_PROBLEM:
+    if APP_ENV.strip().lower() == "production":
+        # A placeholder key lets anyone mint a session for any account, so a
+        # production process refuses to boot instead of serving forgeable tokens.
+        # It used to only emit a warning and keep running.
+        raise RuntimeError(
+            f"Refusing to start with APP_ENV=production: {_SECRET_KEY_PROBLEM}. "
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+        )
+    # Development and tests: mint a per-process key. It is not published, so
+    # tokens cannot be forged from source, and losing them on restart is an
+    # acceptable trade for not shipping a shared signing key.
+    SECRET_KEY = secrets.token_hex(32)
     warnings.warn(
-        "SECRET_KEY is not set or too short! JWT tokens will be insecure.",
+        f"{_SECRET_KEY_PROBLEM}. Generated an ephemeral signing key for this process "
+        "(tokens will not survive a restart). Set SECRET_KEY to pin it.",
         UserWarning,
     )
 
@@ -108,22 +191,48 @@ CLIP_MODEL = os.getenv("CLIP_MODEL", "openai/clip-vit-base-patch32")
 ENABLE_IMAGE_PROCESSING = os.getenv("ENABLE_IMAGE_PROCESSING", "true").lower() == "true"
 
 # ── CORS ──────────────────────────────────────────────────────
+# First-party app domains. These are always allowed: they serve our own SPA and
+# SEO site, so blocking them is never desirable and would break browser preflight.
+CANONICAL_CORS_ORIGINS = [
+    "https://memegpt.com",
+    "https://app.memegpt.com",
+]
+
+# Local development origins. Only used as the default when CORS_ORIGINS is unset,
+# and never advertised by a production deployment.
+LOCAL_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://localhost:19006",
+    "http://127.0.0.1:5173",
+]
+
+
 def _parse_cors_origins() -> List[str]:
-    raw = os.getenv("CORS_ORIGINS", "")
+    """Resolve allowed CORS origins by merging env config with first-party domains.
+
+    ``CORS_ORIGINS`` is treated as *additional* origins rather than a replacement,
+    so a developer pointing it at localhost no longer silently drops the
+    production app domains (which made preflight requests fail with 400).
+    """
+    raw = os.getenv("CORS_ORIGINS", "").strip()
+    configured: List[str] = []
     if raw.startswith("["):
         try:
-            return json.loads(raw)
+            parsed = json.loads(raw)
         except json.JSONDecodeError:
-            pass
-    defaults = [
-        "https://memegpt.com",
-        "https://app.memegpt.com",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://localhost:19006",
-    ]
-    return [o.strip() for o in raw.split(",") if o.strip()] if raw else defaults
+            parsed = None
+        if isinstance(parsed, list):
+            configured = [str(o).strip() for o in parsed if str(o).strip()]
+    elif raw:
+        configured = [o.strip() for o in raw.split(",") if o.strip()]
+
+    if not configured and os.getenv("APP_ENV", "development").lower() != "production":
+        configured = list(LOCAL_CORS_ORIGINS)
+
+    # dict.fromkeys de-duplicates while preserving declaration order.
+    return list(dict.fromkeys([*CANONICAL_CORS_ORIGINS, *configured]))
 
 CORS_ORIGINS = _parse_cors_origins()
 
@@ -206,6 +315,7 @@ class Settings:
     QDRANT_PORT: int = QDRANT_PORT
     QDRANT_COLLECTION: str = QDRANT_COLLECTION
     QDRANT_TIMEOUT: int = QDRANT_TIMEOUT
+    QDRANT_LOCAL_PATH: str = QDRANT_LOCAL_PATH
 
     REDIS_URL: str = REDIS_URL
     UPSTASH_REDIS_REST_URL: str = UPSTASH_REDIS_REST_URL
@@ -271,6 +381,13 @@ class Settings:
     @property
     def has_qdrant(self) -> bool:
         return bool(self.QDRANT_URL and self.QDRANT_URL.strip())
+
+    @property
+    def uses_local_qdrant(self) -> bool:
+        """True when the embedded on-disk Qdrant backend is in use."""
+        if self.has_qdrant:
+            return False
+        return bool(self.QDRANT_LOCAL_PATH and self.QDRANT_LOCAL_PATH.strip())
 
     @property
     def has_redis(self) -> bool:
