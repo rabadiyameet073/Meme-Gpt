@@ -4,21 +4,22 @@ popularity recalculation, cache warming, and analytics aggregation).
 """
 import hashlib
 import logging
-import time
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.core.cache import query_cache
 from app.database import (
+    Feedback,
     Meme,
     MemeUsage,
     SearchLog,
     SessionLocal,
-    get_db,
     sanitize_input,
 )
-from app.config import settings
-from app.core.cache import query_cache
 
 logger = logging.getLogger("memegpt.jobs")
 
@@ -99,30 +100,118 @@ def update_usage_counts_task(meme_ids: List[str]):
         db.close()
 
 
-def recalculate_popularity_scores(db: Optional[Session] = None) -> Dict[str, Any]:
-    """Scheduled Job: Recalculates popularity scores with recency decay and interaction weights."""
+# `feedback.action` vocabulary accepted by POST /api/v1/feedback → the signal
+# names `rerank_service.calculate_popularity_score` consumes.
+ACTION_TO_SIGNAL = {
+    "view": "views",
+    "click": "clicks",
+    "copy": "copies",
+    "download": "downloads",
+    "share": "shares",
+    "thumbs_up": "thumbs_up",
+    "thumbs_down": "thumbs_down",
+}
+
+
+def _feedback_window_counts(db: Session, window_days: int) -> Dict[str, Dict[str, int]]:
+    """Aggregate trailing `feedback` rows per meme into scoring signals."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    counts: Dict[str, Dict[str, int]] = {}
+    rows = (
+        db.query(Feedback.meme_id, Feedback.action)
+        .filter(Feedback.created_at >= cutoff)
+        .all()
+    )
+    for meme_id, action in rows:
+        signal = ACTION_TO_SIGNAL.get(action)
+        if signal:
+            counts.setdefault(meme_id, {}).setdefault(signal, 0)
+            counts[meme_id][signal] += 1
+    return counts
+
+
+def recalculate_persisted_popularity(db: Session, window_days: int = 30) -> Dict[str, Any]:
+    """Scheduled Job: persist `memes.popularity_score` and `memes.viral_score`.
+
+    Specification: 05_AI_System/Scoring_Logic.md and
+    03_Backend/Background_Jobs.md ("Popularity update | Daily 4:00 UTC |
+    Recalculate popularity_scores").
+
+    `popularity_score` is the documented weighted engagement formula applied to
+    the trailing feedback window; it feeds the composite scorer's popularity
+    term and the fallback catalog ordering in `search_service`.
+
+    `viral_score` is derived purely from the stored counters on the seeded
+    0-100 scale. The previous implementation read `meme.viral_score` back into
+    its own formula, so every run tripled the value — after a week of scheduled
+    runs the column overflowed into nonsense. Nothing here reads its own output,
+    so repeated runs converge on a fixed point instead of compounding.
+    """
+    from app.services.rerank_service import calculate_popularity_score
+
+    recent = _feedback_window_counts(db, window_days)
+    memes = db.query(Meme).all()
+
+    updated = 0
+    with_recent = 0
+    for meme in memes:
+        signals = dict(recent.get(meme.id) or {})
+        if signals:
+            with_recent += 1
+        else:
+            # No feedback inside the window — fall back to the cumulative
+            # counters already recorded on the row rather than inventing data.
+            signals = {
+                "views": meme.view_count or 0,
+                "downloads": meme.download_count or 0,
+                "copies": meme.usage_count or 0,
+                "thumbs_up": meme.upvotes or 0,
+                "thumbs_down": meme.downvotes or 0,
+            }
+
+        popularity = calculate_popularity_score(signals)
+        velocity = round(max(0.0, (
+            (meme.upvotes or 0) * 2.0
+            - (meme.downvotes or 0) * 1.5
+            + (meme.usage_count or 0) * 0.5
+            + (meme.view_count or 0) * 0.1
+            + (meme.download_count or 0) * 2.0
+        )), 2)
+
+        if (
+            abs((meme.popularity_score or 0.0) - popularity) > 1e-6
+            or abs((meme.viral_score or 0.0) - velocity) > 1e-6
+        ):
+            updated += 1
+        meme.popularity_score = popularity
+        meme.viral_score = velocity
+
+    db.commit()
+    logger.info(
+        f"popularity_recalculated: total_memes={len(memes)} updated={updated} "
+        f"with_recent_feedback={with_recent} window_days={window_days}"
+    )
+    return {
+        "status": "success",
+        "total_memes": len(memes),
+        "updated_memes": updated,
+        "with_recent_feedback": with_recent,
+        "window_days": window_days,
+    }
+
+
+def recalculate_popularity_scores(
+    db: Optional[Session] = None,
+    window_days: int = 30,
+) -> Dict[str, Any]:
+    """Scheduled Job: Recalculates popularity scores from the trailing feedback window."""
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
 
     try:
-        memes = db.query(Meme).all()
-        updated_count = 0
-        for meme in memes:
-            # Score formula: (upvotes * 2.0) - (downvotes * 1.5) + (usage_count * 0.5) + (viral_score * 3.0)
-            upvotes = meme.upvotes or 0
-            downvotes = meme.downvotes or 0
-            usage = meme.usage_count or 0
-            viral = meme.viral_score or 0.0
-
-            raw_score = (upvotes * 2.0) - (downvotes * 1.5) + (usage * 0.5) + (viral * 3.0)
-            meme.viral_score = max(0.0, round(raw_score, 2))
-            updated_count += 1
-
-        db.commit()
-        logger.info(f"popularity_recalculated: total_memes={updated_count}")
-        return {"status": "success", "updated_memes": updated_count}
+        return recalculate_persisted_popularity(db, window_days=window_days)
     except Exception as e:
         logger.error(f"popularity_recalculation_error: {e}")
         db.rollback()
@@ -133,33 +222,47 @@ def recalculate_popularity_scores(db: Optional[Session] = None) -> Dict[str, Any
 
 
 def warm_up_cache_task(queries: Optional[List[str]] = None) -> Dict[str, Any]:
-    """Scheduled / Maintenance Job: Pre-caches top search queries for sub-15ms hits."""
-    sample_top_queries = queries or [
-        "when code works on first try",
-        "deploying to production on friday",
-        "fixing bugs in production at 3am",
-        "merge conflict nightmare",
-        "forgot semicolons in javascript",
-        "waiting for docker build to finish",
-        "boss asks for a quick estimate",
-        "junior dev deleting production database",
-        "stack overflow is down",
-        "ai replacing developers meme"
-    ]
+    """Scheduled / Maintenance Job: Pre-caches the documented top queries.
 
+    Writes into the `search:{md5}` keyspace that `recommendation_service`
+    actually reads via `make_cache_key`. The previous implementation wrote
+    `rec:{query}:gif`, a namespace no code path ever looked up, so the job
+    reported success while warming entries that could never be hit.
+
+    `search_logs` stores only an irreversible query hash (GDPR), so the warm set
+    cannot be recovered from history. It comes from the suggestion-chip corpus
+    the UI really offers, which is what users type first.
+    """
+    from app.core.cache import make_cache_key
     from app.meme_matcher import match_memes
+    from app.services.suggestion_chips_service import (
+        get_dynamic_time_based_chips,
+        get_static_suggestion_chips,
+    )
+
+    if queries:
+        warm_queries = [q for q in dict.fromkeys(queries) if q]
+    else:
+        chips = get_dynamic_time_based_chips() + get_static_suggestion_chips()
+        warm_queries = [q for q in dict.fromkeys(c.get("query") for c in chips) if q]
+
     db = SessionLocal()
     warmed = 0
     try:
-        memes = [m.to_dict() for m in db.query(Meme).limit(20).all()]
-        if memes:
-            for q in sample_top_queries[:5]:
-                clean_q = sanitize_input(q)
-                cache_key = f"rec:{clean_q}:gif"
-                res = match_memes(clean_q, memes, format_preference="gif")
-                res["cached"] = True
-                query_cache.set(cache_key, res, ttl=3600)
-                warmed += 1
+        memes = [m.to_dict() for m in db.query(Meme).limit(50).all()]
+        if not memes:
+            logger.warning("cache_warmup_skipped: no memes indexed")
+            return {"status": "skipped", "warmed_queries": 0, "reason": "no memes"}
+
+        for raw_query in warm_queries:
+            clean_q = sanitize_input(raw_query)
+            if not clean_q:
+                continue
+            res = match_memes(clean_q, memes, format_preference="gif")
+            res["cached"] = True
+            query_cache.set(make_cache_key(clean_q, "gif", False), res, ttl=3600)
+            warmed += 1
+
         logger.info(f"cache_warmup_completed: warmed_queries={warmed}")
         return {"status": "success", "warmed_queries": warmed}
 

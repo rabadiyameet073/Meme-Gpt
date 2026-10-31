@@ -3,23 +3,24 @@ MemeGPT — Unit & Integration Tests for Non-Functional Requirements, Privacy & 
 """
 
 import sys
-from pathlib import Path
-import pytest
 import uuid
-from starlette.testclient import TestClient
+from pathlib import Path
+
 from sqlalchemy.orm import Session
+from starlette.testclient import TestClient
 
 # Add workspace root to sys.path so root scripts can be imported during test runs
 workspace_root = str(Path(__file__).resolve().parent.parent.parent)
 if workspace_root not in sys.path:
     sys.path.insert(0, workspace_root)
 
+from app.core.auth import create_access_token
+from app.core.jobs import recalculate_persisted_popularity
+from app.database import Feedback, Meme, SavedMeme, SearchLog, SessionLocal, User
 from app.main import app
-from app.database import get_db, SessionLocal, User, SavedMeme, Feedback, SearchLog, Meme
-from app.core.auth import create_access_token, get_current_user
-from scripts.dmca_takedown import process_takedown
-from scripts.optimize_rerank_weights import optimize_weights
 from app.services.llm_service import _rule_based_intent
+from scripts.dmca_takedown import process_takedown
+from scripts.optimize_rerank_weights import calibrate
 
 client = TestClient(app)
 
@@ -148,9 +149,59 @@ def test_dmca_takedown_execution():
 # ── Step 4: Re-ranker Optimization ───────────────────────────────────────────
 
 def test_optimize_rerank_weights():
-    """Verify optimize_weights analyzes feedback and updates popularity scores."""
-    # Ensure script runs without raising exception
-    optimize_weights()
+    """Verify the weekly calibration job reports on the feedback loop.
+
+    Scoring itself belongs to `sync_popularity_scores.py`; this job only measures
+    whether the stored popularity ranking agrees with the thumbs users cast.
+    """
+    report = calibrate(window_days=7)
+
+    assert report["window_days"] == 7
+    assert report["status"] in {"ok", "insufficient_signal", "anti_correlated"}
+    # Emitted in every branch so the uploaded artifact is always comparable.
+    assert report["composite_weights"]["semantic"] == 0.34
+    assert abs(sum(report["composite_weights"].values()) - 1.0) < 1e-9
+
+
+def test_feedback_recalculates_persisted_popularity(db_session):
+    """Thumbs-up feedback must raise the persisted popularity score."""
+    meme = Meme(
+        id="m_popularity_probe",
+        name="Popularity Probe Meme",
+        slug="popularity-probe-meme",
+        categories=["tech"],
+        emotions=["joy"],
+        dialogue="probe",
+        explanation="probe",
+        keywords=["probe"],
+        source="test",
+        moderation_status="approved",
+        popularity_score=0.0,
+        viral_score=0.0,
+    )
+    db_session.add(meme)
+    db_session.add_all([
+        Feedback(meme_id=meme.id, action="thumbs_up", session_id="probe"),
+        Feedback(meme_id=meme.id, action="download", session_id="probe"),
+        Feedback(meme_id=meme.id, action="share", session_id="probe"),
+    ])
+    db_session.commit()
+
+    result = recalculate_persisted_popularity(db_session, window_days=30)
+    assert result["status"] == "success"
+    assert result["with_recent_feedback"] >= 1
+
+    db_session.refresh(meme)
+    assert meme.popularity_score > 0.0
+
+    # Running the job again must not change the answer: the old implementation
+    # fed `viral_score` back into its own formula and tripled it every run.
+    first_popularity = meme.popularity_score
+    first_viral = meme.viral_score
+    recalculate_persisted_popularity(db_session, window_days=30)
+    db_session.refresh(meme)
+    assert meme.popularity_score == first_popularity
+    assert meme.viral_score == first_viral
 
 
 # ── Step 5: Multi-Language Intent Extraction ─────────────────────────────────

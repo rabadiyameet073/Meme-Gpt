@@ -14,6 +14,37 @@ init_db()
 client = TestClient(app)
 
 
+def _seed_memes(count: int = 3) -> None:
+    """The disposable test database starts empty; the jobs need a corpus."""
+    db = SessionLocal()
+    try:
+        for i in range(count):
+            meme_id = f"job_seed_{i}"
+            if db.query(Meme).filter(Meme.id == meme_id).first():
+                continue
+            db.add(Meme(
+                id=meme_id,
+                name=f"Job Seed Meme {i}",
+                slug=f"job-seed-{i}",
+                categories=["work"],
+                emotions=["humor"],
+                dialogue="seed dialogue",
+                explanation="seed explanation",
+                keywords=["seed", "job"],
+                source="test",
+                nsfw=False,
+                moderation_status="approved",
+                popularity_score=0.5,
+                viral_score=50.0,
+                upvotes=1,
+                downvotes=0,
+                usage_count=1,
+            ))
+        db.commit()
+    finally:
+        db.close()
+
+
 def test_privacy_query_hashing():
     q = "Secret production error with customer email user@example.com"
     h1 = hash_query_privacy(q)
@@ -46,10 +77,12 @@ def test_log_search_background_task():
 
 
 def test_popularity_and_cache_jobs():
+    _seed_memes(3)
+
     # 1. Recalculate popularity
     res = recalculate_popularity_scores()
     assert res["status"] == "success"
-    assert res["updated_memes"] >= 0
+    assert res["updated_memes"] >= 3
 
     # 2. Warm up cache
     warm_res = warm_up_cache_task(["deploy to production", "first try success"])
