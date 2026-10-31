@@ -21,7 +21,7 @@ qdrant-client>=1.9.0,<2.0.0
 
 # Redis & Caching
 redis>=5.0.0,<6.0.0
-upstash-redis>=1.0.0
+upstash-redis>=1.8.0
 
 # Machine Learning & NLP
 sentence-transformers>=2.7.0
