@@ -10,12 +10,16 @@ from app.services.rerank_service import (
 
 
 def test_calculate_composite_score_formula_and_capping():
-    # Base similarity: 0.60
-    # Primary emotion match: +0.15
-    # Secondary emotion match: +0.08
-    # Popularity boost: +0.10 * 0.5 = +0.05
-    # Format match: +0.05
-    # Expected: 0.60 + 0.15 + 0.08 + 0.05 + 0.05 = 0.93
+    """The composite is a convex blend whose weights sum to exactly 1.0.
+
+    This replaces the previous additive ``base + bonuses`` contract. Bonuses
+    stacked on top of an already-high cosine drove most candidates to the 0.99
+    clip, so ordering degenerated into ties and the most relevant meme often
+    was not returned first (AUDIT-REPORT AI-2).
+    """
+    # relevance = 0.34*cosine + 0.30*lexical + 0.14*primary + 0.06*secondary
+    #           + 0.08*popularity + 0.03*recency + 0.05*format
+    #           = 0.34*0.60 + 0.14 + 0.06 + 0.08*0.50 + 0.03*0.50 + 0.05
     score = calculate_composite_score(
         cosine_similarity=0.60,
         meme_emotions=["frustration", "irony"],
@@ -24,17 +28,53 @@ def test_calculate_composite_score_formula_and_capping():
         popularity_score=0.50,
         format_match=True,
     )
-    assert score == 0.93
+    assert score == 0.509
 
-    # Capping at 1.0 test
-    capped_score = calculate_composite_score(
-        cosine_similarity=0.95,
+    # A universally favourable candidate still cannot exceed 1.0: the weights
+    # are normalised, so no clipping is required.
+    best_case = calculate_composite_score(
+        cosine_similarity=1.0,
         meme_emotions=["joy"],
         user_emotion_primary="joy",
+        user_emotion_secondary="joy",
         popularity_score=1.0,
         format_match=True,
+        lexical_score=1.0,
+        recency_score=1.0,
     )
-    assert capped_score == 1.0
+    assert best_case == 1.0
+
+
+def test_calculate_composite_score_preserves_ordering():
+    """A stronger lexical/semantic match must outrank emotion and popularity."""
+    on_topic = calculate_composite_score(
+        cosine_similarity=0.82,
+        meme_emotions=["humor"],
+        user_emotion_primary="sadness",
+        popularity_score=0.1,
+        lexical_score=0.9,
+    )
+    off_topic = calculate_composite_score(
+        cosine_similarity=0.55,
+        meme_emotions=["sad"],
+        user_emotion_primary="sadness",
+        popularity_score=1.0,
+        lexical_score=0.0,
+    )
+    assert on_topic > off_topic
+
+
+def test_emotion_families_map_classifier_labels_to_meme_vocabulary():
+    """Different detected emotions must resolve to different meme tags."""
+    from app.services.rerank_service import _family
+
+    assert "happy" in _family("joy")
+    assert "celebratory" in _family("joy")
+    assert "panic" in _family("fear")
+    assert "frustrated" in _family("anger")
+    assert "sad" in _family("sadness")
+    # And the families must stay disjoint enough to differentiate scenarios.
+    assert not (_family("anger") & _family("sadness"))
 
 
 def test_calculate_popularity_score_30_day_weights():
