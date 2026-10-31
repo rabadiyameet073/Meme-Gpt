@@ -23,20 +23,20 @@ router = APIRouter(prefix="/chat", tags=["Chat Refinement"])
 
 class ChatRefinementRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="User prompt or refinement command")
-    session_id: str = Field(default="default_session", description="Conversation session identifier")
+    session_id: str = Field(default="default_session", max_length=128, description="Conversation session identifier")
     conversation_history: Optional[List[Dict[str, Any]]] = Field(default=None, description="Optional client-managed history")
     format_preference: Optional[str] = Field(default=None, description="Format preference (gif, image, video, webp)")
     limit: int = Field(default=5, ge=1, le=20, description="Max results to return")
 
 
 @router.post("/refine", summary="Multi-turn conversational search and refinement")
-def refine_search(
+async def refine_search(
     body: ChatRefinementRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(optional_auth),
 ):
     """Executes conversational search turn with multi-turn context (last 3 turns)."""
-    return search_with_context(
+    return await search_with_context(
         query=body.query,
         session_id=body.session_id,
         conversation_history=body.conversation_history,
@@ -47,13 +47,13 @@ def refine_search(
 
 
 @router.post("/search", summary="Alias for conversational search turn")
-def chat_search(
+async def chat_search(
     body: ChatRefinementRequest,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(optional_auth),
 ):
     """Alias for /chat/refine supporting conversational search."""
-    return refine_search(body=body, db=db, auth=auth)
+    return await refine_search(body=body, db=db, auth=auth)
 
 
 @router.get("/sessions/{session_id}", summary="Get conversation history for a session")

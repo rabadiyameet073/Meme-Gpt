@@ -5,12 +5,10 @@ Specification: 08_Features/Chat_Refinement.md
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, Meme
-from app.services.search_service import format_search_meme_result, build_search_response_payload
-from app.services.llm_service import parse_intent
 
 logger = logging.getLogger("memegpt.services.chat_refinement")
 
@@ -18,6 +16,8 @@ logger = logging.getLogger("memegpt.services.chat_refinement")
 # Structure: {session_id: {"turns": [{"query": ..., "results": [...], "intent": {...}}], "last_active": float}}
 _CHAT_SESSIONS: Dict[str, Dict[str, Any]] = {}
 SESSION_TTL_SECONDS = 3600  # 1 hour
+MAX_SESSIONS = 500  # hard bound so anonymous traffic cannot exhaust memory
+MAX_STORED_RESULTS = 5  # per turn; also bounds the referencable range
 
 
 WORD_TO_INDEX = {
@@ -42,6 +42,14 @@ WORD_TO_INDEX = {
     "five": 5,
     "5": 5,
 }
+
+# Matches an explicit pointer at a previous result. The first alternative needs a
+# marker word so an incidental number ("3 AM", "5 minutes") is never mistaken
+# for a selection.
+_REFERENCE_PATTERN = re.compile(
+    r"(?:(?:the|number|result|option)\s+|#)\s*(first|second|third|fourth|fifth|[1-5])\b"
+    r"|\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b"
+)
 
 
 def get_session_history(session_id: str) -> List[Dict[str, Any]]:
@@ -71,7 +79,7 @@ def add_session_turn(
     session["last_active"] = now
     session["turns"].append({
         "query": query,
-        "results": results,
+        "results": list(results or [])[:MAX_STORED_RESULTS],
         "intent": intent or {},
         "timestamp": now,
     })
@@ -86,6 +94,23 @@ def clear_session_history(session_id: str) -> bool:
         del _CHAT_SESSIONS[session_id]
         return True
     return False
+
+
+def _prune_sessions() -> None:
+    """Evict expired sessions, then the oldest ones above ``MAX_SESSIONS``.
+
+    The store is process-local and keyed by a client-controlled id; without
+    pruning every abandoned conversation would live in RAM forever.
+    """
+    now = time.time()
+    for sid in [s for s, v in _CHAT_SESSIONS.items() if now - v.get("last_active", 0) > SESSION_TTL_SECONDS]:
+        _CHAT_SESSIONS.pop(sid, None)
+
+    overflow = len(_CHAT_SESSIONS) - MAX_SESSIONS
+    if overflow > 0:
+        oldest = sorted(_CHAT_SESSIONS.items(), key=lambda kv: kv[1].get("last_active", 0))
+        for sid, _ in oldest[:overflow]:
+            _CHAT_SESSIONS.pop(sid, None)
 
 
 def parse_refinement_command(query: str) -> Dict[str, Any]:
@@ -105,20 +130,23 @@ def parse_refinement_command(query: str) -> Dict[str, Any]:
         result["is_reset"] = True
         return result
 
-    # 2. Format shift: "Show me GIFs", "as a gif", "images only", "video version"
-    if "gif" in q_lower or "gifs" in q_lower:
+    # 2. Format shift: "Show me GIFs", "as a gif", "images only", "video version".
+    # Word boundaries matter here: a bare substring test turns "gift" into "gif".
+    if re.search(r"\bgifs?\b", q_lower):
         result["format_preference"] = "gif"
-    elif "image" in q_lower or "jpg" in q_lower or "png" in q_lower:
+    elif re.search(r"\b(images?|jpg|jpeg|png)\b", q_lower):
         result["format_preference"] = "image"
-    elif "video" in q_lower or "mp4" in q_lower:
+    elif re.search(r"\b(videos?|mp4)\b", q_lower):
         result["format_preference"] = "video"
-    elif "webp" in q_lower:
+    elif re.search(r"\bwebp\b", q_lower):
         result["format_preference"] = "webp"
 
-    # 3. Reference index check: "the second one", "result #2", "the 3rd one", "the first one"
-    ref_match = re.search(r"\b(?:the|result|number|#)?\s*(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|[1-5])\s*(?:one|meme|result)?\b", q_lower)
+    # 3. Reference index: "the second one", "result #2", "more like the 3rd".
+    # A reference *marker* is required — a bare "3" would otherwise make
+    # "crashed at 3 AM" silently select the third previous result.
+    ref_match = _REFERENCE_PATTERN.search(q_lower)
     if ref_match:
-        matched_term = ref_match.group(1).replace("#", "")
+        matched_term = (ref_match.group(1) or ref_match.group(2) or "").strip()
         if matched_term in WORD_TO_INDEX:
             result["reference_index"] = WORD_TO_INDEX[matched_term]
 
@@ -153,30 +181,118 @@ def parse_refinement_command(query: str) -> Dict[str, Any]:
 
 from app.services.llm_service import _fallback_intent_parse
 
+# Format preference → the key used by CDN ``formats`` dictionaries.
+_FORMAT_KEYS = {
+    "gif": "gif",
+    "image": "image",
+    "img": "image",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "webp": "webp",
+    "video": "mp4",
+    "mp4": "mp4",
+}
+
+
 def parse_intent_with_context(
     enriched_query: str,
     conversation_history: List[Dict[str, Any]],
     current_query: str,
 ) -> Dict[str, Any]:
-    """Parse intent taking into account multi-turn context and specific refinement patterns."""
-    command_info = parse_refinement_command(current_query)
+    """Parse intent taking into account multi-turn context and refinement commands.
 
-    # Base intent parsing from fallback rule engine
+    Keeps the pipeline's intent schema (keywords/categories/emotion/tone) so the
+    re-ranker receives the same signals a direct ``/v1/search`` call would.
+    """
+    command_info = parse_refinement_command(current_query)
     base_intent = _fallback_intent_parse(enriched_query)
 
-    intent = {
+    return {
         "emotion": command_info["emotion_shift"] or base_intent.get("emotion", "relatable"),
+        "emotion_hint": base_intent.get("emotion_hint"),
         "situation": base_intent.get("situation", current_query),
         "tone": command_info["tone_shift"] or base_intent.get("tone", "relatable"),
+        "keywords": base_intent.get("keywords", []),
+        "categories": base_intent.get("categories", []),
         "reference_index": command_info["reference_index"],
         "is_similar_search": command_info["is_similar_search"],
         "is_reset": command_info["is_reset"],
         "format_preference": command_info["format_preference"],
     }
-    return intent
 
 
-def search_with_context(
+def _memes_from_db(db: Session) -> List[Dict[str, Any]]:
+    """Load searchable memes in the payload shape the pipeline expects."""
+    memes: List[Dict[str, Any]] = []
+    for row in db.query(Meme).filter(Meme.moderation_status != "removed").all():
+        data = row.to_dict() if hasattr(row, "to_dict") else {"id": row.id, "name": row.name}
+        data["videoRef"] = getattr(row, "video_ref", None)
+        data["gifRef"] = getattr(row, "gif_ref", None)
+        memes.append(data)
+    return memes
+
+
+def _apply_format_preference(item: Dict[str, Any], fmt_pref: Optional[str]) -> Dict[str, Any]:
+    """Point ``preview_url`` at the requested format when the meme carries it."""
+    formats = item.get("formats") if isinstance(item.get("formats"), dict) else {}
+    key = _FORMAT_KEYS.get((fmt_pref or "").lower())
+
+    if key and formats.get(key):
+        item["preview_url"] = formats[key]
+    elif not item.get("preview_url"):
+        item["preview_url"] = (
+            item.get("gif_url")
+            or item.get("image_url")
+            or item.get("thumb_url")
+            or formats.get("gif")
+            or formats.get("image")
+            or ""
+        )
+    return item
+
+
+def _build_turn_response(
+    session_id: str,
+    query: str,
+    enriched_query: str,
+    turn_number: int,
+    intent: Dict[str, Any],
+    results: List[Dict[str, Any]],
+    is_reference_selection: bool,
+    latency_ms: int,
+    cached: bool = False,
+    emotion: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Shape a turn so it is a drop-in replacement for a ``/v1/search`` payload."""
+    return {
+        "success": True,
+        "session_id": session_id,
+        "query": query,
+        "enriched_query": enriched_query,
+        "turn": turn_number,
+        "intent_parsed": intent,
+        "is_reference_selection": is_reference_selection,
+        "results": results,
+        "primary": results[0] if results else None,
+        "topFive": results[:5],
+        "alternatives": results[1:],
+        "gifs": [
+            url for url in (
+                r.get("gif_url") or r.get("gifRef") or (r.get("formats") or {}).get("gif")
+                for r in results[:5]
+            ) if url
+        ],
+        "detectedCategories": intent.get("categories") or [],
+        "detectedTags": intent.get("keywords") or [],
+        "emotion": emotion or {"primary": intent.get("emotion", "neutral"), "confidence": 0.0},
+        "total": len(results),
+        "latencyMs": latency_ms,
+        "cached": cached,
+    }
+
+
+async def search_with_context(
     query: str,
     session_id: str = "default_session",
     conversation_history: Optional[List[Dict[str, Any]]] = None,
@@ -184,25 +300,39 @@ def search_with_context(
     limit: int = 5,
     db: Optional[Session] = None,
 ) -> Dict[str, Any]:
-    """Multi-turn conversational search matching Chat_Refinement.md specification."""
-    # 1. Resolve history
-    if conversation_history is None:
-        conversation_history = list(get_session_history(session_id))
-    else:
-        conversation_history = list(conversation_history)
+    """Multi-turn conversational search, executed by the production pipeline.
 
-    # Check reset
+    Every retrieval turn (initial, refined or "more like this") goes through the
+    same LLM-intent → emotion → embedding → vector-search → re-rank chain used by
+    ``/v1/search``. The previous implementation scored memes with an ad-hoc
+    keyword counter that ignored the vector index entirely, so conversational
+    results were unrelated to the prompt (AUDIT-REPORT AI-2).
+    """
+    started = time.perf_counter()
+    _prune_sessions()
+
+    sid = (session_id or "default_session").strip()[:128] or "default_session"
+    limit = max(1, min(int(limit or 5), 20))
+
+    # 1. Resolve history
+    history = (
+        list(conversation_history)
+        if conversation_history is not None
+        else list(get_session_history(sid))
+    )
+
+    # Reset wipes the server-side context so the next turn starts clean.
     command_info = parse_refinement_command(query)
     if command_info["is_reset"]:
-        clear_session_history(session_id)
-        conversation_history = []
+        clear_session_history(sid)
+        history = []
 
-    turn_number = len(conversation_history) + 1
+    turn_number = len(history) + 1
 
-    # 2. Build context from previous turns (last 3 turns)
-    last_3_turns = conversation_history[-3:] if conversation_history else []
-    if last_3_turns:
-        context = " | ".join([turn.get("query", "") for turn in last_3_turns if turn.get("query")])
+    # 2. Build context from the previous three turns
+    recent_turns = history[-3:]
+    if recent_turns:
+        context = " | ".join(t.get("query", "") for t in recent_turns if t.get("query"))
         enriched_query = f"{context} | Current: {query}"
     else:
         enriched_query = query
@@ -210,11 +340,11 @@ def search_with_context(
     # 3. Parse contextual intent
     intent = parse_intent_with_context(
         enriched_query=enriched_query,
-        conversation_history=conversation_history,
+        conversation_history=history,
         current_query=query,
     )
 
-    fmt_pref = format_preference or intent.get("format_preference")
+    fmt_pref = (format_preference or intent.get("format_preference") or "").lower() or None
 
     close_db = False
     if db is None:
@@ -222,96 +352,81 @@ def search_with_context(
         close_db = True
 
     try:
-        # 4. Handle direct reference to previous results (e.g. "The second one but as a GIF")
-        if intent.get("reference_index") and last_3_turns and not intent.get("is_similar_search"):
-            prev_results = last_3_turns[-1].get("results", [])
-            ref_idx = intent["reference_index"] - 1
-            if 0 <= ref_idx < len(prev_results):
-                referenced_item = prev_results[ref_idx].copy()
-                # If format preference specified (e.g. "as a GIF"), adapt preview_url
-                if fmt_pref:
-                    target_url = referenced_item.get("formats", {}).get(fmt_pref) or f"https://cdn.memegpt.com/memes/{referenced_item.get('slug', 'meme')}.{fmt_pref}"
-                    referenced_item["preview_url"] = target_url
-                    if "formats" in referenced_item and isinstance(referenced_item["formats"], dict):
-                        referenced_item["formats"][fmt_pref] = target_url
-                
-                results = [referenced_item]
-                add_session_turn(session_id, query, results, intent)
-                return {
-                    "success": True,
-                    "session_id": session_id,
-                    "query": query,
-                    "enriched_query": enriched_query,
-                    "turn": turn_number,
-                    "intent_parsed": intent,
-                    "is_reference_selection": True,
-                    "results": results,
-                    "total": len(results),
-                }
+        previous_results = recent_turns[-1].get("results", []) if recent_turns else []
 
-        # 5. Handle similar search (e.g. "More like the first one")
-        if intent.get("is_similar_search") and intent.get("reference_index") and last_3_turns:
-            prev_results = last_3_turns[-1].get("results", [])
-            ref_idx = intent["reference_index"] - 1
-            if 0 <= ref_idx < len(prev_results):
-                ref_meme = prev_results[ref_idx]
-                target_cat = ref_meme.get("categories", ["general"])[0] if ref_meme.get("categories") else "general"
-                similar_query = f"{ref_meme.get('name', '')} {target_cat} {intent.get('emotion', '')}"
-                enriched_query = f"Similar to {ref_meme.get('name', '')} | {similar_query}"
+        # 4. Direct reference to a previous result ("the second one, but as a GIF")
+        ref_idx = (intent.get("reference_index") or 0) - 1
+        references_previous = 0 <= ref_idx < len(previous_results)
+        if references_previous and not intent.get("is_similar_search"):
+            results = [_apply_format_preference(dict(previous_results[ref_idx]), fmt_pref)]
+            add_session_turn(sid, query, results, intent)
+            return _build_turn_response(
+                session_id=sid,
+                query=query,
+                enriched_query=enriched_query,
+                turn_number=turn_number,
+                intent=intent,
+                results=results,
+                is_reference_selection=True,
+                latency_ms=max(int((time.perf_counter() - started) * 1000), 1),
+            )
 
-        # 6. Execute meme retrieval
-        query_terms = [t for t in re.split(r"\W+", enriched_query.lower()) if len(t) > 2]
-        db_memes = db.query(Meme).all()
-        scored_memes = []
-        for m in db_memes:
-            score = 0.5
-            name_lower = (m.name or "").lower()
-            cats_list = m.categories if isinstance(m.categories, list) else ([m.category] if getattr(m, "category", None) else [])
-            cat_lower = " ".join(cats_list).lower()
-            diag_lower = (m.dialogue or "").lower()
-            kw_list = m.keywords if isinstance(m.keywords, list) else ([m.keywords] if m.keywords else [])
-            kw_lower = " ".join(str(k) for k in kw_list).lower()
-            
-            # Match query keywords
-            for term in query_terms:
-                if term in name_lower or term in cat_lower or term in diag_lower or term in kw_lower:
-                    score += 0.15
+        # 5. Choose the text handed to the retrieval pipeline
+        search_text = query
+        if intent.get("is_similar_search") and references_previous:
+            seed = previous_results[ref_idx]
+            seed_categories = seed.get("categories") or ([seed.get("category")] if seed.get("category") else [])
+            search_text = " ".join(
+                part for part in (
+                    str(seed.get("name") or ""),
+                    " ".join(str(c) for c in seed_categories if c),
+                    str(intent.get("emotion") or ""),
+                ) if part
+            ).strip() or query
+        elif recent_turns:
+            search_text = enriched_query
 
-            # Tone & Emotion boosts
-            if intent.get("tone") and intent["tone"] in cat_lower:
-                score += 0.2
-            if intent.get("emotion") and (intent["emotion"] in kw_lower or (isinstance(m.emotions, list) and intent["emotion"] in m.emotions)):
-                score += 0.25
+        # Explicit refinement commands bias retrieval, and because the bias is
+        # part of the text it reaches intent parsing, emotion detection, the
+        # embedding and the re-ranker alike.
+        if command_info["emotion_shift"]:
+            search_text = f"{search_text} feeling {command_info['emotion_shift']}"
+        if command_info["tone_shift"]:
+            search_text = f"{search_text} {command_info['tone_shift']} tone"
 
-            # Usage bonus
-            if getattr(m, "usage_count", None):
-                score += min(0.1, m.usage_count * 0.001)
-            elif getattr(m, "popularity_score", None):
-                score += min(0.1, m.popularity_score * 0.1)
+        # 6. Execute the production pipeline (live media off: chat must stay fast)
+        from app.services.recommendation_service import recommend
 
-            formatted = format_search_meme_result(m, relevance_score=min(1.0, round(score, 2)), query_id=session_id)
-            if fmt_pref and formatted.get("formats", {}).get(fmt_pref):
-                formatted["preview_url"] = formatted["formats"][fmt_pref]
+        payload = await recommend(
+            user_text=search_text,
+            format_pref=fmt_pref or "gif",
+            session_id=sid,
+            memes_from_db=_memes_from_db(db),
+            include_live_media=False,
+        )
 
-            scored_memes.append(formatted)
+        results: List[Dict[str, Any]] = []
+        for rank, item in enumerate((payload.get("results") or payload.get("topFive") or [])[:limit], 1):
+            entry = _apply_format_preference(dict(item), fmt_pref)
+            entry["relevance_score"] = round(float(entry.get("confidence") or 0.0), 3)
+            entry["rank"] = rank
+            results.append(entry)
 
-        scored_memes.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
-        final_results = scored_memes[:limit]
+        add_session_turn(sid, query, results, intent)
 
-        # Record session turn
-        add_session_turn(session_id, query, final_results, intent)
+        return _build_turn_response(
+            session_id=sid,
+            query=query,
+            enriched_query=enriched_query,
+            turn_number=turn_number,
+            intent={**intent, "retrieval_text": search_text},
+            results=results,
+            is_reference_selection=False,
+            latency_ms=max(int((time.perf_counter() - started) * 1000), 1),
+            cached=bool(payload.get("cached")),
+            emotion=payload.get("emotion"),
+        )
 
-        return {
-            "success": True,
-            "session_id": session_id,
-            "query": query,
-            "enriched_query": enriched_query,
-            "turn": turn_number,
-            "intent_parsed": intent,
-            "is_reference_selection": False,
-            "results": final_results,
-            "total": len(final_results),
-        }
     finally:
         if close_db:
             db.close()

@@ -50,6 +50,7 @@ async def recommend(
     nsfw: bool = False,
     session_id: str | None = None,
     memes_from_db: list[dict] | None = None,
+    include_live_media: bool = True,
 ) -> dict:
     """Full recommendation pipeline. Returns a response dict.
 
@@ -59,6 +60,8 @@ async def recommend(
         nsfw: Whether to include NSFW memes
         session_id: User session ID for analytics
         memes_from_db: Pre-loaded memes from database (for fallback matching)
+        include_live_media: Fetch live Giphy/meme-stream extras. Conversational
+            refinement turns disable this to stay off the network (sub-second).
     """
     start = time.perf_counter()
     query_id = f"q_{uuid.uuid4().hex[:8]}"
@@ -92,12 +95,15 @@ async def recommend(
     )
 
     # ── 6. Vector search (~50ms) ───────────────────────────────────────────
+    # ``query_text`` lets the in-process fallback apply lexical overlap when no
+    # vector server is reachable, instead of returning a popularity dump.
     candidates = search_service.vector_search(
         query_vector=query_vector,
         emotion=emotion.get("primary", ""),
         format_pref=format_pref,
         nsfw=nsfw,
         top_k=15,
+        query_text=clean_text,
     )
 
     # ── 6b. Enrich candidates with full meme data from DB ──────────────────
@@ -146,13 +152,16 @@ async def recommend(
     top_five = [_build_result(r, intent, emotion) for r in final_results[:5]]
     alternatives = [_build_result(r, intent, emotion) for r in final_results[1:]]
 
-    # Fetch live Giphy GIFs and Global Meme Stream
-    primary_category = (intent.get("categories") or ["reaction"])[0]
-    live_data = giphy_service.get_global_gifs_and_memes(
-        query=clean_text,
-        category=primary_category,
-        limit=10,
-    )
+    # Fetch live Giphy GIFs and Global Meme Stream (skippable for chat turns)
+    if include_live_media:
+        primary_category = (intent.get("categories") or ["reaction"])[0]
+        live_data = giphy_service.get_global_gifs_and_memes(
+            query=clean_text,
+            category=primary_category,
+            limit=10,
+        )
+    else:
+        live_data = {"gif_urls": [], "memes": []}
 
     # Collect GIF URLs
     local_gifs = [
@@ -248,23 +257,37 @@ def _augment_from_db(
     memes: list[dict],
     query_vector: list[float],
 ) -> list[dict]:
-    """Augment sparse vector search results with database memes scored by cosine similarity."""
+    """Augment sparse vector results with cosine-ranked database memes.
+
+    Previously this scored the extra candidates by popularity and ignored
+    ``query_vector`` entirely, so padding the candidate list made results
+    *less* relevant. The vector is now actually used.
+    """
+    from app.services import embedding_service
+
     existing_ids = {c.get("id") for c in candidates}
+    dense_available = embedding_service.is_text_model_loaded()
 
     for meme in memes:
         meme_id = meme.get("id", "")
         if meme_id in existing_ids:
             continue
 
-        score = 0.3
+        if dense_available and query_vector:
+            meme_vector = embedding_service.embed_meme(meme)
+            score = max(0.0, search_service._cosine_similarity(query_vector, meme_vector))
+        else:
+            score = 0.0
+
         viral = meme.get("viralScore", 0) or meme.get("viral_score", 0) or 0
         usage = meme.get("usageCount", 0) or meme.get("usage_count", 0) or 0
-        score += min(viral / 200, 0.15)
-        score += min(usage / 500, 0.1)
+        # Popularity is a tie-breaker only, never the primary signal.
+        score += min(viral / 2000, 0.02)
+        score += min(usage / 5000, 0.01)
 
         candidates.append({
             "id": meme_id,
-            "score": score,
+            "score": round(min(score, 1.0), 4),
             "meme": meme,
         })
 
