@@ -2,8 +2,11 @@
 Specification: 08_Features/Favorites_Collections.md
 """
 
+import json
 import logging
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("memegpt.services.favorites")
@@ -23,8 +26,58 @@ MAX_RECENT_COPIED = 10
 # }
 _USER_STORAGE: Dict[str, Dict[str, Any]] = {}
 
+# Process-local dicts are lost on every deploy/restart, which made "saved" memes
+# disappear. The store is now snapshotted to disk so the API can be treated as
+# the source of truth (the frontend keeps localStorage as an offline mirror).
+# Anchored to backend/ so the snapshot lands in the same place regardless of CWD.
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+STORE_PATH = Path(os.getenv("FAVORITES_STORE_PATH", "./favorites_store.json")).expanduser()
+if not STORE_PATH.is_absolute():
+    STORE_PATH = (_BACKEND_DIR / STORE_PATH).resolve()
+_HERMETIC_ENVIRONMENTS = {"test", "testing", "ci"}
+_STORE_LOADED = False
+
+
+def _persistence_enabled() -> bool:
+    """Skip disk I/O in hermetic environments so tests stay stateless."""
+    return str(os.getenv("APP_ENV", "development")).lower() not in _HERMETIC_ENVIRONMENTS
+
+
+def _load_from_disk() -> None:
+    """Hydrate ``_USER_STORAGE`` from the JSON snapshot once per process."""
+    global _STORE_LOADED
+    if _STORE_LOADED:
+        return
+    _STORE_LOADED = True
+
+    if not _persistence_enabled() or not STORE_PATH.exists():
+        return
+
+    try:
+        payload = json.loads(STORE_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning(f"Favorites snapshot unreadable ({e}); starting empty")
+        return
+
+    if isinstance(payload, dict):
+        _USER_STORAGE.update(payload)
+
+
+def _persist() -> None:
+    """Atomically write the store. Persistence failures never break a request."""
+    if not _persistence_enabled():
+        return
+    try:
+        STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = STORE_PATH.with_name(STORE_PATH.name + ".tmp")
+        tmp.write_text(json.dumps(_USER_STORAGE, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, STORE_PATH)
+    except Exception as e:
+        logger.warning(f"Could not persist favorites snapshot: {e}")
+
 
 def _get_or_create_user_store(user_id: str) -> Dict[str, Any]:
+    _load_from_disk()
     if user_id not in _USER_STORAGE:
         _USER_STORAGE[user_id] = {
             "collections": [
@@ -94,6 +147,7 @@ def create_collection(user_id: str = "anonymous", name: str = "My Collection", i
         "is_default": False,
     }
     store["collections"].append(new_col)
+    _persist()
     return {**new_col, "memeCount": 0, "status": "success"}
 
 
@@ -117,6 +171,7 @@ def delete_collection(user_id: str = "anonymous", name: str = "") -> Dict[str, A
             m["collection"] = "Favorites"
             moved_count += 1
 
+    _persist()
     return {
         "status": "success",
         "deleted_collection": name,
@@ -145,6 +200,7 @@ def save_meme_to_collection(
             item["thumbnailUrl"] = thumbnail_url or item.get("thumbnailUrl", "")
             item["id"] = meme_id
             item["memeId"] = meme_id
+            _persist()
             return {"status": "updated", "meme": item}
 
     # If storage capacity exceeded, trim oldest
@@ -160,6 +216,7 @@ def save_meme_to_collection(
         "collection": collection or "Favorites",
     }
     saved_list.append(new_saved)
+    _persist()
     return {"status": "saved", "meme": new_saved}
 
 
@@ -182,6 +239,7 @@ def remove_meme_from_collection(
             if m.get("memeId") != meme_id and m.get("id") != meme_id
         ]
 
+    _persist()
     return len(store["saved_memes"]) < initial_len
 
 
@@ -221,6 +279,7 @@ def add_recently_viewed(
     if len(store["recent_viewed"]) > MAX_RECENT_VIEWED:
         store["recent_viewed"] = store["recent_viewed"][:MAX_RECENT_VIEWED]
 
+    _persist()
     return store["recent_viewed"]
 
 
@@ -247,6 +306,7 @@ def add_recently_copied(
     if len(store["recent_copied"]) > MAX_RECENT_COPIED:
         store["recent_copied"] = store["recent_copied"][:MAX_RECENT_COPIED]
 
+    _persist()
     return store["recent_copied"]
 
 

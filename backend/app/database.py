@@ -48,9 +48,11 @@ logger = logging.getLogger("memegpt.database")
 # ── SQLite PRAGMA optimizations applied on every new connection ────
 
 SQLITE_PRAGMAS: list[str] = [
+    # busy_timeout first: every later statement inherits the wait, including
+    # journal_mode, which itself needs a brief exclusive lock.
+    "PRAGMA busy_timeout=5000;",
     "PRAGMA journal_mode=WAL;",
     "PRAGMA synchronous=NORMAL;",
-    "PRAGMA busy_timeout=5000;",
     "PRAGMA cache_size=-16000;",
     "PRAGMA mmap_size=536870912;",
     "PRAGMA temp_store=MEMORY;",
@@ -76,12 +78,32 @@ engine = create_engine(
 
 @event.listens_for(engine, "connect")
 def _set_connection_pragmas(dbapi_connection, _connection_record):
-    """For each new WAL connection, apply performance PRAGMAs (SQLite only)."""
-    if is_sqlite:
-        cursor = dbapi_connection.cursor()
+    """For each new WAL connection, apply performance PRAGMAs (SQLite only).
+
+    These are best-effort: when another connection already holds the write lock
+    (a long transaction, a second worker, WAL recovery) the statement raises
+    ``database is locked`` and would otherwise fail the whole connect — turning a
+    transient contention into an application crash. The connection is perfectly
+    usable with the previous settings, so each statement is attempted
+    independently and failures are logged at debug level.
+    """
+    if not is_sqlite:
+        return
+
+    cursor = dbapi_connection.cursor()
+    try:
         for pragma in SQLITE_PRAGMAS:
-            cursor.execute(pragma)
-        cursor.execute("PRAGMA optimize;")
+            try:
+                cursor.execute(pragma)
+            except Exception:  # pragma: no cover - driver-specific error type
+                logger.debug("SQLite pragma failed (non-fatal): %s", pragma)
+        try:
+            # ANALYZE may need a write lock; skipping it only costs query planning
+            # statistics, never correctness.
+            cursor.execute("PRAGMA optimize;")
+        except Exception:  # pragma: no cover - driver-specific error type
+            logger.debug("SQLite 'PRAGMA optimize' skipped: database is busy")
+    finally:
         cursor.close()
 
 
@@ -652,6 +674,44 @@ class ApiKey(Base):
             "rate_limit": self.rate_limit or 120,
             "revoked": self.revoked,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class DeviceToken(Base):
+    """Push notification tokens registered by the mobile client.
+
+    The mobile app obtains an Expo push token (APNs on iOS, FCM on Android) after
+    the user grants notification permission. Until this table existed there was
+    nowhere to send it, so the client hook was dead code and "push
+    notifications" was a documented feature with no implementation behind it.
+    """
+    __tablename__ = "device_tokens"
+
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    platform = Column(String(20), nullable=False, default="android")  # ios | android | web
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    app_version = Column(String(32), nullable=True)
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=utc_now)
+    last_seen_at = Column(DateTime, default=utc_now)
+
+    __table_args__ = (
+        Index("idx_device_tokens_platform_active", "platform", "active"),
+    )
+
+    def to_dict(self) -> dict:
+        # Never echo the full token back: it is a device credential.
+        preview = (self.token or "")[:14]
+        return {
+            "id": self.id,
+            "token_preview": f"{preview}…" if self.token else "",
+            "platform": self.platform,
+            "user_id": self.user_id,
+            "app_version": self.app_version,
+            "active": bool(self.active),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
         }
 
 

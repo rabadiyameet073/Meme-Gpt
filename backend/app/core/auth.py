@@ -49,12 +49,47 @@ class AuthContext:
         }
 
 
-# Hardcoded bootstrap keys for development / internal services
-_STATIC_DEV_KEYS = {
-    "memegpt_dev_demo_key": {"tier": "free", "rate_limit": 120, "is_admin": False},
-    "memegpt_pro_demo_key": {"tier": "pro", "rate_limit": 300, "is_admin": False},
-    "memegpt_admin_secret_key": {"tier": "admin", "rate_limit": 1000, "is_admin": True},
-}
+# Non-production environments where bootstrap keys may be honoured.
+_DEV_ENVIRONMENTS = {"development", "dev", "local", "test", "testing", "ci"}
+
+
+def _load_bootstrap_keys() -> Dict[str, Dict[str, Any]]:
+    """Bootstrap API keys supplied exclusively through environment variables.
+
+    No credential is ever baked into source. Values are read from
+    ``BOOTSTRAP_{ADMIN,PRO,DEMO}_API_KEY`` and are honoured only when the app
+    runs in a non-production environment, so a key copied out of a repository
+    cannot be replayed against a deployed instance (AUDIT-REPORT S-1).
+    """
+    app_env = str(getattr(settings, "APP_ENV", "development") or "development").lower()
+    if app_env not in _DEV_ENVIRONMENTS:
+        return {}
+
+    specs = (
+        ("BOOTSTRAP_ADMIN_API_KEY", "admin", 1000, True),
+        ("BOOTSTRAP_PRO_API_KEY", "pro", 300, False),
+        ("BOOTSTRAP_DEMO_API_KEY", "free", 120, False),
+    )
+    keys: Dict[str, Dict[str, Any]] = {}
+    for env_name, tier, limit, is_admin in specs:
+        raw = (os.getenv(env_name) or "").strip()
+        if raw:
+            keys[raw] = {"tier": tier, "rate_limit": limit, "is_admin": is_admin}
+    return keys
+
+
+_STATIC_DEV_KEYS = _load_bootstrap_keys()
+
+
+def get_bootstrap_keys_status() -> Dict[str, Any]:
+    """Report whether bootstrap keys are active, without revealing them."""
+    env = str(getattr(settings, "APP_ENV", "development") or "development").lower()
+    return {
+        "active": bool(_STATIC_DEV_KEYS),
+        "environment": env,
+        "count": len(_STATIC_DEV_KEYS),
+        "source": "environment" if _STATIC_DEV_KEYS else "none",
+    }
 
 
 def hash_api_key(key: str) -> str:

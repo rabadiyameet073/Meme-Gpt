@@ -167,12 +167,31 @@ def get_api_section_manifest() -> dict[str, Any]:
     }
 
 
+def _iter_registered_paths(routes: Any, prefix: str = "") -> set[str]:
+    """Collect fully-qualified route paths, expanding lazily included routers.
+
+    Recent FastAPI versions keep ``include_router`` calls as marker objects on
+    ``app.routes`` (``_IncludedRouter``) instead of flattening the child routes,
+    so a flat scan only sees the handful of routes declared directly on the app.
+    """
+    paths: set[str] = set()
+    for route in routes or []:
+        child_router = getattr(route, "original_router", None)
+        if child_router is not None:
+            context = getattr(route, "include_context", None)
+            child_prefix = prefix + str(getattr(context, "prefix", "") or "")
+            paths |= _iter_registered_paths(getattr(child_router, "routes", []), child_prefix)
+            continue
+
+        path = getattr(route, "path", None)
+        if isinstance(path, str):
+            paths.add(prefix + path)
+    return paths
+
+
 def verify_api_routes_registration(app: Any) -> dict[str, Any]:
     """Verify that all core REST API endpoints defined in Section 07 documentation are mounted."""
-    registered_paths = set()
-    for route in getattr(app, "routes", []):
-        if hasattr(route, "path"):
-            registered_paths.add(route.path)
+    registered_paths = _iter_registered_paths(getattr(app, "routes", []))
 
     expected_routes = [
         "/api/v1/search",
