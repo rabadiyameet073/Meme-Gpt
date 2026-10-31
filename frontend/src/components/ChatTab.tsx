@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { api, download, type MemeSearchResult, type MemeMatch } from "../api";
+import { api, download, getSessionId, type MemeSearchResult, type MemeMatch } from "../api";
 import { MemeCard } from "./MemeCard";
 import { Icon, type IconName } from "./Icon";
 import { Tilt3D } from "./Tilt3D";
@@ -16,6 +16,16 @@ const SITUATION_PROMPTS: { text: string; icon: IconName }[] = [
   { text: "Carrying the entire squad in gaming and still losing", icon: "gaming" },
 ];
 
+// Refinements are sent to /v1/chat/refine, which resolves them against the
+// stored conversation instead of treating them as a fresh search.
+const REFINEMENT_PROMPTS = [
+  "More like the first one",
+  "The second one but as a GIF",
+  "Something sadder",
+  "More sarcastic",
+  "Try something different",
+];
+
 export function ChatTab({
   onToast,
   onSearchCompleted,
@@ -29,6 +39,8 @@ export function ChatTab({
   const [result, setResult] = useState<MemeSearchResult | null>(null);
   const [lastQuery, setLastQuery] = useState("");
   const [formatPref, setFormatPref] = useState<"gif" | "image" | "video" | "webp">("gif");
+  const [turns, setTurns] = useState<{ query: string; matches: number; top: string }[]>([]);
+  const [sessionId] = useState(() => getSessionId());
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const submit = async (text?: string) => {
@@ -38,18 +50,38 @@ export function ChatTab({
     setError("");
     setLastQuery(q);
     setQuery("");
-    setResult(null);
     taRef.current?.blur();
     try {
-      const res = await api.analyze(q);
+      // Every turn goes through the conversational endpoint so the server keeps
+      // context and refinements ("the second one", "something sadder") resolve.
+      const res = await api.refineChat(q, sessionId, { format: formatPref, limit: 5 });
+      const matches = res.topFive?.length ?? res.results?.length ?? 0;
       setResult(res);
-      onToast(`AI match generated in ${res.latencyMs || 24}ms!`);
+      setTurns((prev) => [...prev, { query: q, matches, top: res.primary?.name ?? "No match" }]);
+      onToast(
+        res.is_reference_selection
+          ? `Selected "${res.primary?.name ?? "meme"}" from the previous turn`
+          : `Turn ${res.turn ?? turns.length + 1} matched in ${res.latencyMs || 24}ms!`
+      );
       onSearchCompleted?.(q);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong connecting to the AI search service.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetConversation = async () => {
+    try {
+      await api.resetChat(sessionId);
+    } catch {
+      /* Expired server-side context — clearing locally is enough */
+    }
+    setTurns([]);
+    setResult(null);
+    setLastQuery("");
+    setError("");
+    onToast("Started a new conversation");
   };
 
   const doExport = async (format: string) => {
@@ -240,6 +272,91 @@ export function ChatTab({
           <Icon name="alert" size={18} color="var(--accent-rose)" />
           <span>{error}</span>
         </motion.div>
+      )}
+
+      {/* Conversation Transcript & Refinement Controls */}
+      {turns.length > 0 && (
+        <div
+          style={{
+            padding: "14px 18px",
+            borderRadius: "var(--radius-sm)",
+            backgroundColor: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            marginBottom: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Icon name="terminal" size={13} color="var(--brand-primary)" />
+              <span>
+                Conversation ({turns.length} {turns.length === 1 ? "turn" : "turns"})
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={resetConversation}
+              style={{ fontSize: "0.75rem", padding: "4px 10px" }}
+            >
+              <Icon name="refresh" size={12} /> New chat
+            </button>
+          </div>
+
+          <ol
+            style={{
+              margin: "0 0 12px",
+              paddingLeft: "18px",
+              fontSize: "0.84rem",
+              color: "var(--text-secondary)",
+              display: "grid",
+              gap: "4px",
+            }}
+          >
+            {turns.map((t, i) => (
+              <li key={`${i}-${t.query}`}>
+                <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{t.query}</span>
+                {" → "}
+                <span>{t.top}</span>
+                <span style={{ color: "var(--text-muted)" }}> ({t.matches} matches)</span>
+              </li>
+            ))}
+          </ol>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {REFINEMENT_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="chip-btn"
+                onClick={() => submit(prompt)}
+                disabled={loading}
+              >
+                <Icon name="arrow-right" size={12} color="var(--text-muted)" />
+                <span>{prompt}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Loading Skeleton */}

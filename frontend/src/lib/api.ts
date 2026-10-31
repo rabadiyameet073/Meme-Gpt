@@ -3,7 +3,7 @@
  * Matches specifications from 04_Frontend/API_Integration.md
  */
 
-import type { MemeRecord, MemeSearchResult } from "@/types";
+import type { MemeMatch, MemeRecord, MemeSearchResult } from "@/types";
 
 export const API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
@@ -114,6 +114,53 @@ export interface FeedbackParams {
   memeId: string;
   action: "copy" | "download" | "upvote" | "downvote" | "share" | string;
   format?: string;
+}
+
+export interface ChatRefineOptions {
+  format?: string;
+  limit?: number;
+}
+
+/**
+ * A conversational turn. The payload is a superset of `MemeSearchResult` so the
+ * chat view can reuse the same rendering path as a one-shot search.
+ */
+export interface ChatRefineResponse extends MemeSearchResult {
+  success: boolean;
+  session_id: string;
+  query: string;
+  enriched_query?: string;
+  turn: number;
+  intent_parsed?: Record<string, any>;
+  is_reference_selection?: boolean;
+  results?: MemeMatch[];
+  total?: number;
+  cached?: boolean;
+}
+
+export interface CollectionSummary {
+  name: string;
+  collection_name?: string;
+  createdAt?: string;
+  icon?: string;
+  memeCount?: number;
+  item_count?: number;
+  isDefault?: boolean;
+}
+
+export interface SavedCollectionItem {
+  id?: string;
+  memeId?: string;
+  name?: string;
+  thumbnailUrl?: string;
+  savedAt?: string;
+  collection?: string;
+}
+
+export interface CollectionDetail {
+  collection_name: string;
+  item_count: number;
+  items: SavedCollectionItem[];
 }
 
 // Exported API client object
@@ -268,6 +315,90 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ memeId, sessionId }),
     }),
+
+  // ── Conversational Refinement (`/v1/chat/*`) ─────────────────────────────
+  refineChat: (
+    query: string,
+    sessionId: string = getSessionId(),
+    options: ChatRefineOptions = {}
+  ) =>
+    apiRequest<ChatRefineResponse>("/v1/chat/refine", {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        session_id: sessionId,
+        format_preference: options.format,
+        limit: options.limit ?? 5,
+      }),
+    }),
+
+  chatHistory: (sessionId: string = getSessionId()) =>
+    apiRequest<{ session_id: string; turns_count: number; history: any[] }>(
+      `/v1/chat/sessions/${encodeURIComponent(sessionId)}`
+    ),
+
+  resetChat: (sessionId: string = getSessionId()) =>
+    apiRequest<{ cleared: boolean; session_id: string }>(
+      `/v1/chat/sessions/${encodeURIComponent(sessionId)}`,
+      { method: "DELETE" }
+    ),
+
+  // ── Collections (`/v1/collections/*`) ────────────────────────────────────
+  listCollections: (sessionId: string = getSessionId()) =>
+    apiRequest<CollectionSummary[]>(
+      `/v1/collections?session_id=${encodeURIComponent(sessionId)}`
+    ),
+
+  createCollection: (
+    name: string,
+    sessionId: string = getSessionId(),
+    icon: string = "folder"
+  ) =>
+    apiRequest<CollectionSummary>(
+      `/v1/collections?session_id=${encodeURIComponent(sessionId)}`,
+      { method: "POST", body: JSON.stringify({ name, icon, meme_ids: [] }) }
+    ),
+
+  deleteCollection: (name: string, sessionId: string = getSessionId()) =>
+    apiRequest<{ status: string; deleted_collection: string }>(
+      `/v1/collections/${encodeURIComponent(name)}?session_id=${encodeURIComponent(sessionId)}`,
+      { method: "DELETE" }
+    ),
+
+  collectionItems: (name: string, sessionId: string = getSessionId()) =>
+    apiRequest<CollectionDetail>(
+      `/v1/collections/${encodeURIComponent(name)}?session_id=${encodeURIComponent(sessionId)}`
+    ),
+
+  saveToCollection: (
+    meme: { id: string; name: string; thumbnailUrl?: string },
+    collection: string = "Favorites",
+    sessionId: string = getSessionId()
+  ) =>
+    apiRequest<{ status: string; meme: SavedCollectionItem }>(
+      `/v1/collections/memes?session_id=${encodeURIComponent(sessionId)}`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          meme_id: meme.id,
+          name: meme.name,
+          thumbnail_url: meme.thumbnailUrl || "",
+          collection,
+        }),
+      }
+    ),
+
+  removeFromCollection: (
+    memeId: string,
+    collection: string = "Favorites",
+    sessionId: string = getSessionId()
+  ) =>
+    apiRequest<boolean>(
+      `/v1/collections/memes/${encodeURIComponent(
+        memeId
+      )}?session_id=${encodeURIComponent(sessionId)}&collection=${encodeURIComponent(collection)}`,
+      { method: "DELETE" }
+    ),
 
   createMeme: (data: any) =>
     apiRequest<MemeRecord>("/admin/memes", {

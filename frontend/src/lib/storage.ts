@@ -142,6 +142,29 @@ export function createCustomCollection(name: string): boolean {
 }
 
 /**
+ * Ensure a collection exists locally. Used when the backend reports a
+ * collection this device has not seen yet (another device, or a restore).
+ */
+export function ensureCollection(name: string, createdAt?: string): boolean {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return false;
+
+  const data = loadUserData();
+  if (data.collections.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+    return false;
+  }
+
+  data.collections.push({
+    name: trimmed,
+    createdAt: createdAt || new Date().toISOString(),
+    memeCount: 0,
+  });
+  updateCollectionCounts(data);
+  saveUserData(data);
+  return true;
+}
+
+/**
  * Delete collection. Automatically moves contained memes to "Favorites".
  */
 export function deleteCustomCollection(name: string): boolean {

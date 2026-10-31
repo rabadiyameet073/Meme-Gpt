@@ -7,10 +7,32 @@ import {
   loadUserData,
   createCustomCollection,
   deleteCustomCollection,
+  ensureCollection,
   type LocalStorageSchema,
 } from "../lib/storage";
 
 const SESSION_ID = getSessionId();
+
+/**
+ * Server favorites are stored as `{memeId, name, thumbnailUrl}`; MemeCard needs a
+ * meme-shaped object. Without this mapping server-only saves rendered blank.
+ */
+function normalizeServerFavorite(item: any) {
+  const id = item?.id || item?.memeId || "";
+  const name = item?.name || "Saved meme";
+  const thumb = item?.thumbnailUrl || item?.formats?.thumb || item?.formats?.image || "";
+
+  return {
+    ...item,
+    id,
+    name,
+    category: item?.category || "saved",
+    dialogue: item?.dialogue || name,
+    explanation: item?.explanation || "Saved to your library",
+    formats: item?.formats || { image: thumb },
+    preview_url: item?.preview_url || thumb,
+  };
+}
 
 export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
   const [userData, setUserData] = useState<LocalStorageSchema>(loadUserData());
@@ -19,15 +41,30 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [apiFavs, setApiFavs] = useState<MemeRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [synced, setSynced] = useState<boolean>(false);
 
   const refreshData = async () => {
-    const local = loadUserData();
-    setUserData(local);
+    setUserData(loadUserData());
     try {
-      const serverData = await api.favorites(SESSION_ID);
-      setApiFavs(serverData || []);
+      // Favorites and collections are persisted server-side; localStorage stays
+      // as the offline mirror so the tab works without a backend connection.
+      const [serverFavs, serverCollections] = await Promise.all([
+        api.favorites(SESSION_ID),
+        api.listCollections(SESSION_ID),
+      ]);
+
+      setApiFavs(serverFavs || []);
+
+      let merged = false;
+      for (const col of serverCollections || []) {
+        const name = col.name || col.collection_name;
+        if (name && ensureCollection(name, col.createdAt)) merged = true;
+      }
+
+      setSynced(true);
+      if (merged) setUserData(loadUserData());
     } catch {
-      /* Fallback to local storage */
+      setSynced(false);
     } finally {
       setLoading(false);
     }
@@ -37,12 +74,24 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
     refreshData();
   }, []);
 
-  const handleCreateCollection = (e: React.FormEvent) => {
+  const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCollectionName.trim()) return;
-    const ok = createCustomCollection(newCollectionName.trim());
-    if (ok) {
-      onToast(`Created collection "${newCollectionName.trim()}"`);
+    const name = newCollectionName.trim();
+    if (!name) return;
+
+    // Create server-side first so the collection survives a reinstall or a new
+    // device; the local entry is still created when the API is unreachable.
+    let createdRemotely = false;
+    try {
+      await api.createCollection(name, SESSION_ID);
+      createdRemotely = true;
+    } catch {
+      /* offline — fall back to local-only */
+    }
+
+    const ok = createCustomCollection(name);
+    if (ok || createdRemotely) {
+      onToast(createdRemotely ? `Created collection "${name}"` : `Created "${name}" locally (offline)`);
       setNewCollectionName("");
       setShowAddModal(false);
       refreshData();
@@ -51,14 +100,20 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
     }
   };
 
-  const handleDeleteCollection = (name: string) => {
+  const handleDeleteCollection = async (name: string) => {
     if (name === "Favorites") return;
-    if (window.confirm(`Delete collection "${name}"? Memes will move to Favorites.`)) {
-      deleteCustomCollection(name);
-      onToast(`Deleted "${name}"`);
-      setSelectedCollection("Favorites");
-      refreshData();
+    if (!window.confirm(`Delete collection "${name}"? Memes will move to Favorites.`)) return;
+
+    try {
+      await api.deleteCollection(name, SESSION_ID);
+    } catch {
+      /* offline — local removal still applies */
     }
+
+    deleteCustomCollection(name);
+    onToast(`Deleted "${name}"`);
+    setSelectedCollection("Favorites");
+    refreshData();
   };
 
   let displayedMemes: any[] = [];
@@ -95,7 +150,7 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
         preview_url: m.thumbnailUrl,
       }));
     } else if (selectedCollection === "Favorites" && apiFavs.length > 0) {
-      displayedMemes = apiFavs;
+      displayedMemes = apiFavs.map(normalizeServerFavorite);
     }
   }
 
@@ -139,15 +194,31 @@ export function FavoritesTab({ onToast }: { onToast: (m: string) => void }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => setShowAddModal(true)}
-          style={{ fontSize: "0.82rem" }}
-        >
-          <Icon name="plus" size={14} color="var(--brand-primary)" />
-          New Collection
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <span
+            title={synced ? "Collections are persisted by the API" : "Offline — changes are stored locally only"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              color: synced ? "var(--accent-emerald)" : "var(--text-muted)",
+            }}
+          >
+            <Icon name="database" size={12} />
+            {synced ? "Synced" : "Offline"}
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowAddModal(true)}
+            style={{ fontSize: "0.82rem" }}
+          >
+            <Icon name="plus" size={14} color="var(--brand-primary)" />
+            New Collection
+          </button>
+        </div>
       </div>
 
       {/* Collection Chips Bar */}
