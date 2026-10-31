@@ -10,10 +10,13 @@ Tests:
 - CLIP zero-shot NSFW classifier service & API (POST /api/v1/moderation/classify)
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from app.database import Meme, MemeFlag
-from app.services.trending_service import get_trending_catalog, _TRENDING_HOURLY_CACHE
+from unittest.mock import patch
+
+from app.database import MemeFlag
+from app.services.trending_service import get_trending_catalog, invalidate_trending_cache
+
+# Queue/review/classify are admin-only (AUDIT-REPORT S-2).
+ADMIN_HEADERS = {"X-API-Key": "memegpt_admin_secret_key"}
 
 
 def test_flag_meme_creates_flag_and_increments_count(client, db, sample_meme):
@@ -98,7 +101,7 @@ def test_get_moderation_queue(client, db, sample_meme):
     db.add(flag)
     db.commit()
 
-    resp = client.get("/api/v1/moderation/queue")
+    resp = client.get("/api/v1/moderation/queue", headers=ADMIN_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert "queue" in data
@@ -123,6 +126,7 @@ def test_admin_review_approve(client, db, sample_meme):
     resp = client.post(
         "/api/v1/moderation/review",
         json={"meme_id": sample_meme.id, "action": "approve"},
+        headers=ADMIN_HEADERS,
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "approved"
@@ -147,6 +151,7 @@ def test_admin_review_remove(client, db, sample_meme):
     resp = client.post(
         "/api/v1/moderation/review",
         json={"meme_id": sample_meme.id, "action": "remove"},
+        headers=ADMIN_HEADERS,
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "removed"
@@ -164,6 +169,7 @@ def test_admin_review_invalid_action(client, sample_meme):
     resp = client.post(
         "/api/v1/moderation/review",
         json={"meme_id": sample_meme.id, "action": "ignore"},
+        headers=ADMIN_HEADERS,
     )
     assert resp.status_code == 400
     assert "Action must be 'approve' or 'remove'" in resp.text
@@ -202,7 +208,7 @@ def test_search_and_memes_exclude_removed(client, db, sample_meme):
 
 def test_trending_excludes_removed(db, sample_meme):
     """Trending catalog must omit memes with moderation_status == 'removed'."""
-    _TRENDING_HOURLY_CACHE.clear()
+    invalidate_trending_cache()
 
     # Active memes
     catalog_before = get_trending_catalog(db=db, category="all", period="24h")
@@ -212,7 +218,7 @@ def test_trending_excludes_removed(db, sample_meme):
     # Suppress meme
     sample_meme.moderation_status = "removed"
     db.commit()
-    _TRENDING_HOURLY_CACHE.clear()
+    invalidate_trending_cache()
 
     catalog_after = get_trending_catalog(db=db, category="all", period="24h")
     ids_after = [item["id"] for item in catalog_after["data"]["results"]]
@@ -227,6 +233,7 @@ def test_classify_endpoint_mocked(client):
         resp = client.post(
             "/api/v1/moderation/classify",
             json={"image_url": "https://i.imgflip.com/test.jpg"},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -240,6 +247,7 @@ def test_classify_endpoint_mocked(client):
         resp = client.post(
             "/api/v1/moderation/classify",
             json={"image_url": "https://i.imgflip.com/nsfw.jpg"},
+            headers=ADMIN_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -250,9 +258,19 @@ def test_classify_endpoint_mocked(client):
 
 def test_classify_missing_params(client):
     """Missing both image_url and image_path returns 400."""
-    resp = client.post("/api/v1/moderation/classify", json={})
+    resp = client.post("/api/v1/moderation/classify", json={}, headers=ADMIN_HEADERS)
     assert resp.status_code == 400
     assert "Provide either image_url or image_path" in resp.text
+
+
+def test_moderation_admin_endpoints_reject_anonymous(client, sample_meme):
+    """Anonymous callers must not read the review queue or alter meme status."""
+    assert client.get("/api/v1/moderation/queue").status_code == 403
+    assert client.post(
+        "/api/v1/moderation/review",
+        json={"meme_id": sample_meme.id, "action": "remove"},
+    ).status_code == 403
+    assert client.post("/api/v1/moderation/classify", json={}).status_code == 403
 
 
 def test_nsfw_service_fallback():

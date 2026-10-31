@@ -1,10 +1,12 @@
 """Content moderation — flagging, review queue, admin actions."""
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import Optional
 
-from app.database import get_db, Meme, MemeFlag, utc_now
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.core.auth import AuthContext, require_admin
+from app.database import Meme, MemeFlag, get_db, utc_now
 
 router = APIRouter(prefix="/moderation", tags=["Content Moderation"])
 
@@ -47,8 +49,11 @@ async def flag_meme(body: FlagRequest, request: Request, db: Session = Depends(g
 
 
 @router.get("/queue", summary="Get moderation review queue (admin)")
-async def get_review_queue(db: Session = Depends(get_db)):
-    """Returns memes pending review, sorted by flag count."""
+async def get_review_queue(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
+):
+    """Returns memes pending review, sorted by flag count. Admin only."""
     memes = (
         db.query(Meme)
         .filter(Meme.moderation_status == "pending_review")
@@ -77,8 +82,12 @@ class ReviewAction(BaseModel):
 
 
 @router.post("/review", summary="Admin review action")
-async def review_meme(body: ReviewAction, db: Session = Depends(get_db)):
-    """Admin approves or removes a flagged meme."""
+async def review_meme(
+    body: ReviewAction,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
+):
+    """Admin approves or removes a flagged meme. Admin only."""
     meme = db.query(Meme).filter(Meme.id == body.meme_id).first()
     if not meme:
         raise HTTPException(status_code=404, detail="Meme not found")
@@ -98,6 +107,13 @@ async def review_meme(body: ReviewAction, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Action must be 'approve' or 'remove'")
 
     db.commit()
+
+    # Trending filters on moderation_status, but the ranking is cached for an
+    # hour in both tiers — a removed meme would keep being served until then.
+    from app.services.trending_service import invalidate_trending_cache
+
+    invalidate_trending_cache()
+
     return {"meme_id": meme.id, "status": meme.moderation_status}
 
 
@@ -107,8 +123,15 @@ class ClassifyRequest(BaseModel):
 
 
 @router.post("/classify", summary="Classify image for NSFW content using CLIP")
-async def classify_content(body: ClassifyRequest):
-    """Zero-shot CLIP classification for safe vs. NSFW / violent content."""
+async def classify_content(
+    body: ClassifyRequest,
+    auth: AuthContext = Depends(require_admin),
+):
+    """Zero-shot CLIP classification for safe vs. NSFW / violent content.
+
+    Admin only: the endpoint can read arbitrary server paths and fetch arbitrary
+    URLs, so exposing it anonymously would allow local file disclosure.
+    """
     from app.services.nsfw_service import classify_image, classify_image_from_url
     if body.image_url:
         is_nsfw, confidence, category = classify_image_from_url(body.image_url)

@@ -2,13 +2,18 @@
 Specification: 07_APIs/Trending_API.md
 """
 
+import logging
 import math
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
-from app.database import Meme, Feedback, SearchLog
+from app.core.cache import cache_flush_pattern, cache_get, cache_set
+from app.database import Feedback, Meme, SearchLog
+
+logger = logging.getLogger("memegpt.services.trending")
 
 VALID_CATEGORIES = {
     "all",
@@ -69,14 +74,23 @@ def calculate_advanced_trending_score(
                 elif act == "share":
                     shares += 1
 
-            # Query search appearances
+            # Query search appearances. `search_logs` stores an irreversible
+            # query_hash, not the query text (GDPR), so the usable signal is how
+            # often this meme was the top result of a search. The previous
+            # version filtered on `SearchLog.query`, a column that does not
+            # exist, and the bare `except` below hid the AttributeError — the
+            # searches term was always zero and silently fell back to
+            # `usage_count * 0.8`.
             searches = (
                 db.query(SearchLog.id)
-                .filter(SearchLog.query.ilike(f"%{meme.name[:10]}%"), SearchLog.created_at >= cutoff)
+                .filter(
+                    SearchLog.top_meme_id == meme.id,
+                    SearchLog.created_at >= cutoff,
+                )
                 .count()
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 - trending must degrade, not 500
+            logger.warning("trending_feedback_lookup_failed: meme=%s error=%s", meme.id, exc)
 
     # Fallback to cumulative estimates if recent rows are sparse
     if downloads == 0 and copies == 0 and shares == 0:
@@ -119,10 +133,10 @@ def normalize_trending_scores(memes_data: List[Dict[str, Any]]) -> List[Dict[str
     """Min-max normalize raw trending scores across memes."""
     if not memes_data:
         return []
-    
+
     scores = [m["raw_score"] for m in memes_data]
     min_s, max_s = min(scores), max(scores)
-    
+
     for m in memes_data:
         if max_s > min_s:
             norm = (m["raw_score"] - min_s) / (max_s - min_s)
@@ -131,6 +145,17 @@ def normalize_trending_scores(memes_data: List[Dict[str, Any]]) -> List[Dict[str
         m["trending_score"] = round(max(0.0, min(1.0, norm)), 2)
 
     return sorted(memes_data, key=lambda m: m["trending_score"], reverse=True)
+
+
+def invalidate_trending_cache() -> int:
+    """Drop every cached trending payload, in both cache tiers.
+
+    Called when moderation changes a meme's visibility. Clearing only the
+    per-process dict is not enough: the shared tier would keep serving the
+    removed meme to every worker until the TTL expired.
+    """
+    _TRENDING_HOURLY_CACHE.clear()
+    return cache_flush_pattern("trending:*")
 
 
 def get_trending_catalog(
@@ -154,6 +179,17 @@ def get_trending_catalog(
             cached_val["data"]["meta"]["cached"] = True
             cached_val["cached"] = True
             return cached_val
+
+    # Second tier: the shared Redis cache. A cron process cannot warm this
+    # module's per-process dict, so `scripts/refresh_trending.py` publishes here
+    # and every API worker reads it (03_Backend/Background_Jobs.md lists the
+    # hourly trending refresh as a scheduled job).
+    shared = cache_get(cache_key)
+    if isinstance(shared, dict):
+        shared.setdefault("data", {}).setdefault("meta", {})["cached"] = True
+        shared["cached"] = True
+        _TRENDING_HOURLY_CACHE[cache_key] = (now_ts, shared)
+        return shared
 
     period_hours = VALID_PERIODS[period]
     limit = min(max(limit, 1), 50)
@@ -246,4 +282,5 @@ def get_trending_catalog(
     }
 
     _TRENDING_HOURLY_CACHE[cache_key] = (now_ts, response_payload)
+    cache_set(cache_key, response_payload, ttl=HOURLY_TTL)
     return response_payload
