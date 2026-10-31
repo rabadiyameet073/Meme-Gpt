@@ -5,6 +5,7 @@ including Indian/Hindi viral pop culture, Bollywood, tech, coding, AI, startups,
 relationships, exams, college, office, gaming, and financial/business memes.
 """
 import json
+import re
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent
@@ -575,52 +576,137 @@ RAW_MEMES = [
 ]
 
 
+def _slugify(value: str) -> str:
+    out = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return out or "meme"
+
+
+def _as_list(value) -> list[str]:
+    """Normalise v1 strings and v2 arrays into a de-duplicated list of strings."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    seen: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        cleaned = item.strip()
+        if cleaned and cleaned.lower() not in {s.lower() for s in seen}:
+            seen.append(cleaned)
+    return seen
+
+
+def normalize_meme(item: dict) -> dict:
+    """Map a v2 catalogue record (or a legacy RAW_MEMES entry) onto one shape.
+
+    v2 uses ``categories[]`` / ``emotions[]`` / ``image_url`` / ``gif_url`` /
+    ``mp4_url`` / ``viral_score``; v1 uses ``category`` / ``image`` / ``gif`` /
+    ``video`` / ``viralScore``. Both are accepted so the dataset can grow
+    without another migration.
+    """
+    name = (item.get("name") or "Untitled Meme").strip()
+    categories = _as_list(item.get("categories")) or _as_list(item.get("category"))
+    emotions = _as_list(item.get("emotions")) or _as_list(item.get("emotion"))
+    primary_category = categories[0] if categories else "general"
+
+    image_url = item.get("image_url") or item.get("image")
+    gif_url = item.get("gif_url") or item.get("gif")
+    mp4_url = item.get("mp4_url") or item.get("video")
+    if not mp4_url and isinstance(gif_url, str) and gif_url.lower().endswith(".mp4"):
+        mp4_url = gif_url
+
+    # Categories and emotions are folded into keywords so that lexical search,
+    # TF-IDF scoring and embeddings all see the same vocabulary.
+    keywords = _as_list(item.get("keywords"))
+    for extra in (categories, emotions):
+        for token in extra:
+            if token.lower() not in {k.lower() for k in keywords}:
+                keywords.append(token)
+
+    viral_score = item.get("viral_score", item.get("viralScore", 85.0))
+    try:
+        viral_score = float(viral_score)
+    except (TypeError, ValueError):
+        viral_score = 85.0
+
+    popularity = item.get("popularity_score")
+    try:
+        popularity = float(popularity) if popularity is not None else max(0.0, min(1.0, viral_score / 100))
+    except (TypeError, ValueError):
+        popularity = max(0.0, min(1.0, viral_score / 100))
+
+    return {
+        "name": name,
+        "slug": item.get("slug") or _slugify(name),
+        "category": primary_category,
+        "categories": categories or [primary_category],
+        "emotions": emotions,
+        "keywords": keywords,
+        "dialogue": item.get("dialogue") or f"{name} reaction",
+        "explanation": item.get("explanation") or f"{name} meme ({primary_category})",
+        "image": image_url,
+        "gif": gif_url,
+        "video": mp4_url,
+        "image_url": image_url,
+        "gif_url": gif_url,
+        "mp4_url": mp4_url,
+        "thumb_url": item.get("thumb_url"),
+        "webp_url": item.get("webp_url"),
+        "alt_text": item.get("alt_text") or f"{name} meme",
+        "source": item.get("source") or "memes.json",
+        "nsfw": bool(item.get("nsfw", False)),
+        "moderation_status": item.get("moderation_status") or "approved",
+        "viralScore": viral_score,
+        "popularity": popularity,
+        "usage_count": int(item.get("usage_count") or 0),
+    }
+
+
 def build_dataset() -> list[dict]:
+    """Load the canonical catalogue, falling back to RAW_MEMES only if absent.
+
+    A malformed ``memes.json`` raises instead of silently degrading to the
+    62-entry legacy list: silent fallback previously hid a schema mismatch that
+    discarded 57% of the catalogue (see AUDIT-REPORT D-1).
+    """
     json_path = DATA_DIR / "memes.json"
     if json_path.exists():
         try:
             items = json.loads(json_path.read_text(encoding="utf-8"))
-            if isinstance(items, list) and len(items) > 0:
-                res = []
-                for item in items:
-                    res.append({
-                        "name": item["name"],
-                        "category": item["category"],
-                        "keywords": item.get("keywords", []),
-                        "dialogue": item.get("dialogue", f"{item['name']} Reaction"),
-                        "explanation": item.get("explanation", f"Meme for {item['category']}"),
-                        "image": item.get("image"),
-                        "video": item.get("video"),
-                        "gif": item.get("gif"),
-                        "viralScore": item.get("viralScore", 85.0),
-                    })
-                return res
-        except Exception as e:
-            print(f"Error reading memes.json: {e}")
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                f"{json_path} exists but could not be parsed: {exc}"
+            ) from exc
 
-    dataset = []
-    for item in RAW_MEMES:
-        dataset.append({
-            "name": item["name"],
-            "category": item["category"],
-            "keywords": item["keywords"],
-            "dialogue": item["dialogue"],
-            "explanation": item["explanation"],
-            "image": item.get("image"),
-            "video": item.get("video"),
-            "gif": item.get("gif"),
-            "viralScore": item.get("viralScore", 85.0),
-        })
-    return dataset
+        if not isinstance(items, list) or not items:
+            raise RuntimeError(
+                f"{json_path} must contain a non-empty JSON list of memes "
+                f"(got {type(items).__name__})"
+            )
+
+        dataset = [normalize_meme(item) for item in items]
+        print(f"Loaded {len(dataset)} memes from {json_path.name}")
+        return dataset
+
+    print(f"{json_path} not found - falling back to {len(RAW_MEMES)} RAW_MEMES")
+    return [normalize_meme(item) for item in RAW_MEMES]
 
 
 MEME_DATASET = build_dataset()
 
 
-def export_json():
-    path = DATA_DIR / "memes.json"
-    path.write_text(json.dumps(MEME_DATASET, indent=2), encoding="utf-8")
-    print(f"Exported {len(MEME_DATASET)} memes to {path}")
+def export_json(path: Path | None = None):
+    """Write the in-memory dataset to disk.
+
+    Defaults to ``memes_export.json`` so that running this module directly can
+    never overwrite the canonical v2 catalogue with a normalised projection.
+    """
+    target = path or (DATA_DIR / "memes_export.json")
+    target.write_text(
+        json.dumps(MEME_DATASET, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"Exported {len(MEME_DATASET)} memes to {target}")
 
 
 if __name__ == "__main__":

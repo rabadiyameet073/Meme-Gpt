@@ -107,6 +107,65 @@ def _fallback_embed(text: str) -> List[float]:
     return [round(x / norm, 6) for x in vec]
 
 
+def is_text_model_loaded() -> bool:
+    """True only when the real MiniLM encoder is resident in memory.
+
+    Callers use this to decide whether a cosine similarity computed from
+    :func:`embed_text` is semantically meaningful or merely the deterministic
+    SHA-256 placeholder produced by :func:`_fallback_embed`.
+    """
+    return _text_model is not None
+
+
+def embed_batch(texts: List[str]) -> List[List[float]]:
+    """Encode many texts in one pass (much faster than repeated embed_text)."""
+    clean = [(t or "")[:512] for t in texts]
+    if not clean:
+        return []
+
+    if _text_model is None:
+        return [_fallback_embed(t) for t in clean]
+
+    try:
+        vectors = _text_model.encode(clean, normalize_embeddings=True, batch_size=32)
+        return [v.tolist() for v in vectors]
+    except Exception as e:
+        logger.error(f"Batch embedding failed: {e}")
+        return [_fallback_embed(t) for t in clean]
+
+
+def build_meme_text(meme: dict) -> str:
+    """Canonical text used to embed a single meme.
+
+    Kept in one place so the offline indexer (``generate_embeddings.py``) and
+    the on-the-fly semantic fallback in ``search_service`` always embed the
+    exact same representation.
+    """
+    def _list(value: Any) -> List[str]:
+        if isinstance(value, list):
+            return [str(v) for v in value if v]
+        if isinstance(value, str) and value.strip():
+            return [value]
+        return []
+
+    categories = _list(meme.get("categories")) or _list(meme.get("category"))
+    emotions = _list(meme.get("emotions")) or _list(meme.get("emotion"))
+    keywords = _list(meme.get("keywords"))
+
+    parts = [f"Meme: {meme.get('name', '')}"]
+    if categories:
+        parts.append(f"Category: {', '.join(categories)}")
+    if emotions:
+        parts.append(f"Emotions: {', '.join(emotions)}")
+    if meme.get("dialogue"):
+        parts.append(f"Text on meme: {meme['dialogue']}")
+    if meme.get("explanation"):
+        parts.append(f"When to use: {meme['explanation']}")
+    if keywords:
+        parts.append(f"Keywords: {', '.join(keywords[:12])}")
+    return "\n".join(parts)
+
+
 def detect_emotion(text: str) -> Dict[str, Any]:
     """
     Detect primary and secondary emotion in text.
@@ -201,8 +260,7 @@ def is_loaded() -> bool:
 
 def embed_meme(meme: dict) -> List[float]:
     """Embed a meme dict using its combined name, explanation, and tags."""
-    text = f"{meme.get('name', '')} {meme.get('explanation', '')} {' '.join(meme.get('keywords', []))}"
-    return embed_text(text)
+    return embed_text(build_meme_text(meme))
 
 
 def get_combined_embedding(

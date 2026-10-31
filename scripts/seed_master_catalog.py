@@ -630,6 +630,43 @@ def generate_clean_slug(name: str, uid: str) -> str:
     return f"{clean[:50]}-{uid[:6]}"
 
 
+#: Host that this seeder used to invent object paths for.
+SYNTHETIC_CDN_HOST = "cdn.memegpt.com"
+
+
+def _absolute_media_url(value) -> str | None:
+    """Return ``value`` only when it is a fetchable absolute URL.
+
+    ``INDIAN_MEMES`` describes the joke, not the artwork: it carries bare
+    filenames such as ``aukat.gif`` and YouTube links. Gluing those onto a CDN
+    host produced URLs that could never resolve, so anything that is not already
+    an absolute http(s) URL is treated as "no media".
+    """
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if candidate.startswith(("http://", "https://")):
+        return candidate
+    return None
+
+
+def _is_synthetic_cdn_media(url, name: str) -> bool:
+    """Detect media URLs this seeder previously invented for ``name``.
+
+    Earlier runs wrote ``https://cdn.memegpt.com/images/<name>.jpg`` for every
+    Indian meme whether or not the object existed. Such a row looks like real
+    media, so it can only be identified by the exact shape the generator used:
+    the synthetic host plus a filename derived from the meme name.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return False
+    host = url.split("://", 1)[-1].split("/", 1)[0].lower()
+    if host != SYNTHETIC_CDN_HOST:
+        return False
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return url.lower().rstrip("/").rsplit("/", 1)[-1].startswith(slug)
+
+
 def build_master_dataset():
     # 1. Load existing Indian memes from scripts/build_huge_dataset.py if available
     indian_memes = []
@@ -654,8 +691,8 @@ def build_master_dataset():
                 "dialogue": im.get("dialogue", f"{im['name']} reaction"),
                 "explanation": im.get("explanation", "Classic viral Indian pop-culture meme."),
                 "keywords": im.get("keywords", ["hindi", "viral", "bollywood"]),
-                "image_url": f"https://cdn.memegpt.com/images/{im['name'].lower().replace(' ', '-')}.jpg",
-                "gif_url": f"https://cdn.memegpt.com/gifs/{im.get('gif', 'meme.gif')}",
+                "image_url": _absolute_media_url(im.get("image") or im.get("image_url")),
+                "gif_url": _absolute_media_url(im.get("gif_url") or im.get("gif")),
                 "viral_score": float(im.get("viralScore", 90.0)),
             })
     except Exception as e:
@@ -686,7 +723,9 @@ def build_master_dataset():
             "dialogue": item.get("dialogue", ""),
             "explanation": item.get("explanation", ""),
             "keywords": item.get("keywords", []),
-            "image_url": item.get("image_url", "https://i.imgflip.com/1ur9b0.jpg"),
+            # No default artwork: substituting a stock template here would render
+            # an unrelated image for every meme we hold no media for.
+            "image_url": item.get("image_url"),
             "gif_url": item.get("gif_url"),
             "mp4_url": item.get("mp4_url"),
             "thumb_url": item.get("thumb_url"),
@@ -704,7 +743,11 @@ def build_master_dataset():
             "alt_text": f"{item['name']} meme: {item.get('dialogue', '')}",
         })
 
-    logger.info(f"Built master catalog of {len(master)} unique memes!")
+    with_media = sum(1 for m in master if m.get("image_url"))
+    logger.info(
+        f"Built master catalog of {len(master)} unique memes "
+        f"({with_media} with real media, {len(master) - with_media} without)"
+    )
     return master
 
 
@@ -733,6 +776,7 @@ def seed_database(db_path: Path, master_memes: list):
     existing_names = {row[0].lower().strip() for row in session.query(Meme.name).all()}
     added = 0
     updated = 0
+    repaired = 0
 
     for m in master_memes:
         n = m["name"].lower().strip()
@@ -744,8 +788,13 @@ def seed_database(db_path: Path, master_memes: list):
                 existing.keywords = m["keywords"]
                 existing.dialogue = m["dialogue"]
                 existing.explanation = m["explanation"]
-                if m.get("image_url") and not existing.image_url:
+                if m.get("image_url"):
                     existing.image_url = m["image_url"]
+                elif _is_synthetic_cdn_media(existing.image_url, m["name"]):
+                    # Drop the path an earlier run invented; null is honest, a
+                    # 404 is not.
+                    existing.image_url = None
+                    repaired += 1
                 updated += 1
         else:
             new_meme = Meme(
@@ -774,7 +823,10 @@ def seed_database(db_path: Path, master_memes: list):
 
     session.commit()
     total = session.query(Meme).count()
-    logger.info(f"Database at {db_path.name}: Added {added}, Updated {updated}, Total: {total}")
+    logger.info(
+        f"Database at {db_path.name}: Added {added}, Updated {updated}, "
+        f"Repaired {repaired} synthetic media URLs, Total: {total}"
+    )
     session.close()
 
 

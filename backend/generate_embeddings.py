@@ -165,6 +165,35 @@ def embed_text(text: str, models: dict) -> list[float]:
         return fallback_embed(text)
 
 
+def _stamp_indexed(meme_ids: list[str]) -> int:
+    """Record when each meme was last written to the vector index.
+
+    ``memes.indexed_at`` was previously never populated, so the database could
+    not answer "which memes are unindexed?" without cross-querying Qdrant. Only
+    rows that were genuinely upserted are stamped.
+    """
+    if not meme_ids:
+        return 0
+
+    from app.database import SessionLocal, Meme as MemeModel, utc_now
+
+    session = SessionLocal()
+    try:
+        updated = (
+            session.query(MemeModel)
+            .filter(MemeModel.id.in_(meme_ids))
+            .update({MemeModel.indexed_at: utc_now()}, synchronize_session=False)
+        )
+        session.commit()
+        return int(updated or 0)
+    except Exception as exc:
+        session.rollback()
+        logger.warning(f"Could not stamp indexed_at ({exc})")
+        return 0
+    finally:
+        session.close()
+
+
 def build_rich_text(meme: dict, ocr_text: str = "", caption: str = "") -> str:
     """Build rich text combining all meme attributes for better embedding."""
     parts = []
@@ -199,10 +228,14 @@ def build_rich_text(meme: dict, ocr_text: str = "", caption: str = "") -> str:
     return "\n".join(parts)
 
 
-def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = False):
+def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = False) -> dict:
     """
     Main indexing pipeline.
     Reads memes from SQLite DB, generates embeddings, indexes to Qdrant.
+
+    Returns a summary dict. ``vector_upserts`` is the number of points actually
+    written to Qdrant — it stays 0 when no vector backend is reachable, so callers
+    can fail loudly instead of reporting a successful no-op.
     """
     os.environ.setdefault("APP_ENV", "development")
 
@@ -217,7 +250,10 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
     if client:
         create_qdrant_collection(recreate=recreate)
     else:
-        logger.info("Qdrant not configured — skipping vector database upsert.")
+        logger.warning(
+            "No Qdrant backend available — embeddings are computed but NOT persisted. "
+            "Check APP_ENV (test/ci disables the embedded index), QDRANT_URL and QDRANT_LOCAL_PATH."
+        )
 
     # 2. Load ML models
     logger.info("Loading ML models...")
@@ -237,8 +273,22 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
 
     # 4. Process each meme
     batch = []
-    total_indexed = 0
+    processed = 0
+    vector_upserts = 0
+    indexed_stamped = 0
     failed = 0
+
+    def _flush(pending: list[dict]) -> int:
+        """Upsert a batch and stamp the rows Qdrant actually accepted."""
+        if not pending:
+            return 0
+        written = upsert_memes(pending) if client else 0
+        if written:
+            nonlocal indexed_stamped
+            indexed_stamped += _stamp_indexed([
+                str(entry["meme"].get("id")) for entry in pending
+            ])
+        return written
 
     for i, meme in enumerate(memes, 1):
         try:
@@ -273,11 +323,8 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
 
             # Upsert in batches of 50
             if len(batch) >= 50:
-                if client:
-                    n = upsert_memes(batch)
-                    total_indexed += n
-                else:
-                    total_indexed += len(batch)
+                vector_upserts += _flush(batch)
+                processed += len(batch)
                 batch = []
 
         except Exception as e:
@@ -286,17 +333,25 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
 
     # Upsert remaining
     if batch:
-        if client:
-            n = upsert_memes(batch)
-            total_indexed += n
-        else:
-            total_indexed += len(batch)
+        vector_upserts += _flush(batch)
+        processed += len(batch)
 
     logger.info("=" * 50)
-    logger.info("✅ Indexing complete!")
-    logger.info(f"   Indexed: {total_indexed}")
-    logger.info(f"   Failed:  {failed}")
-    logger.info(f"   Total:   {len(memes)}")
+    logger.info("✅ Embedding pass complete!")
+    logger.info(f"   Embedded:        {processed}")
+    logger.info(f"   Qdrant upserts:  {vector_upserts}")
+    logger.info(f"   indexed_at rows: {indexed_stamped}")
+    logger.info(f"   Failed:          {failed}")
+    logger.info(f"   Total:           {len(memes)}")
+
+    return {
+        "total": len(memes),
+        "embedded": processed,
+        "vector_upserts": vector_upserts,
+        "indexed_at_stamped": indexed_stamped,
+        "failed": failed,
+        "vector_backend": bool(client),
+    }
 
 
 if __name__ == "__main__":
@@ -306,8 +361,13 @@ if __name__ == "__main__":
     parser.add_argument("--skip-images", action="store_true", help="Skip image download/CLIP/BLIP")
     args = parser.parse_args()
 
-    index_memes(
-        limit=args.limit,
-        recreate=args.recreate,
-        skip_images=args.skip_images,
-    )
+    try:
+        index_memes(
+            limit=args.limit,
+            recreate=args.recreate,
+            skip_images=args.skip_images,
+        )
+    finally:
+        # Close the embedded client before interpreter teardown (see reset_qdrant_client).
+        from app.services.search_service import reset_qdrant_client
+        reset_qdrant_client()
