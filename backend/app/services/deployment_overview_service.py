@@ -15,6 +15,8 @@ Covers:
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app.core import attestation
+
 
 # ── 1. Deployment Architecture ────────────────────────────────────────────────
 
@@ -198,50 +200,22 @@ def get_rollback_strategies() -> Dict[str, Any]:
 
 # ── 7. Pre-Deploy Security Checklist ──────────────────────────────────────────
 
-PRE_DEPLOY_SECURITY_CHECKLIST = [
-    {"id": 1, "item": "All API keys in environment variables (not hardcoded)", "status": "VERIFIED", "passed": True},
-    {"id": 2, "item": "CORS origins restricted to production domains", "status": "VERIFIED", "passed": True},
-    {"id": 3, "item": "Rate limiting enabled on all endpoints", "status": "VERIFIED", "passed": True},
-    {"id": 4, "item": "HTTPS enforced (HTTP -> HTTPS 301 redirect)", "status": "VERIFIED", "passed": True},
-    {"id": 5, "item": "Debug mode disabled (--reload removed)", "status": "VERIFIED", "passed": True},
-    {"id": 6, "item": "Single worker in production (--workers 1 for memory safety)", "status": "VERIFIED", "passed": True},
-    {"id": 7, "item": "Error messages sanitized (no stack traces to client)", "status": "VERIFIED", "passed": True},
-    {"id": 8, "item": ".env file in .gitignore", "status": "VERIFIED", "passed": True},
-]
+#: Probe order is part of the public payload — the checklist ids are stable.
+PRE_DEPLOY_CHECKLIST_ITEMS = [label for label, _ in attestation.PRE_DEPLOY_PROBES]
 
 
 def get_pre_deploy_security_checklist() -> Dict[str, Any]:
-    """Return 8-point pre-deploy security checklist."""
-    passed_count = sum(1 for item in PRE_DEPLOY_SECURITY_CHECKLIST if item["passed"])
-    return {
-        "total_items": len(PRE_DEPLOY_SECURITY_CHECKLIST),
-        "passed_items": passed_count,
-        "compliance_percentage": round((passed_count / len(PRE_DEPLOY_SECURITY_CHECKLIST)) * 100, 1),
-        "checklist": PRE_DEPLOY_SECURITY_CHECKLIST,
-    }
+    """Evaluate the 8-point pre-deploy security checklist against live state.
+
+    Every row is computed by :mod:`app.core.attestation`; nothing is asserted.
+    A row whose evidence cannot be gathered reports ``UNVERIFIABLE`` and does
+    not count towards ``passed_items``.
+    """
+    return attestation.pre_deploy_checklist()
 
 
 # ── 8. Automated Deployment Readiness Evaluator ───────────────────────────────
 
 def evaluate_deployment_readiness() -> Dict[str, Any]:
-    """Check readiness across Dockerfiles, workflows, and security checklists."""
-    root_dir = Path(__file__).resolve().parent.parent.parent.parent
-    backend_dockerfile = root_dir / "backend" / "Dockerfile"
-    root_dockerfile = root_dir / "Dockerfile"
-    ci_workflow = root_dir / ".github" / "workflows" / "ci.yml"
-    deploy_workflow = root_dir / ".github" / "workflows" / "deploy.yml"
-
-    readiness_checks = [
-        {"item": "Backend Dockerfile", "exists": backend_dockerfile.exists() or root_dockerfile.exists()},
-        {"item": "CI Workflow (.github/workflows/ci.yml)", "exists": ci_workflow.exists()},
-        {"item": "Deploy Workflow (.github/workflows/deploy.yml)", "exists": deploy_workflow.exists()},
-        {"item": "Pre-Deploy Security Verification", "exists": True},
-    ]
-
-    all_ready = all(c["exists"] for c in readiness_checks)
-
-    return {
-        "status": "READY" if all_ready else "NOT_READY",
-        "readiness_score": 100.0 if all_ready else 75.0,
-        "checks": readiness_checks,
-    }
+    """Check readiness across Dockerfiles, workflows, and security probes."""
+    return attestation.deployment_readiness()

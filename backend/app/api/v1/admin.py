@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db, Meme
-from app.core.auth import AuthContext, require_admin, get_api_tier
+from app.core.auth import AuthContext, require_admin
 
 logger = logging.getLogger("memegpt.api.admin")
 
@@ -61,9 +61,9 @@ def list_all_memes(
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
-    auth: AuthContext = Depends(get_api_tier),
+    auth: AuthContext = Depends(require_admin),
 ):
-    """Returns paginated list of all memes for admin panel."""
+    """Returns paginated list of all memes for admin panel. Admin only."""
     offset = max(page - 1, 0) * limit
     total = db.query(Meme).count()
     memes = db.query(Meme).order_by(Meme.created_at.desc()).offset(offset).limit(limit).all()

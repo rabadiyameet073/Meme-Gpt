@@ -72,14 +72,51 @@ def test_rollback_strategies():
 def test_pre_deploy_security_checklist():
     checklist = get_pre_deploy_security_checklist()
     assert checklist["total_items"] == 8
-    assert checklist["passed_items"] == 8
+
+    # The checklist is computed from repository state, so it must be internally
+    # consistent and carry auditable evidence for every row.
+    for item in checklist["checklist"]:
+        assert item["status"] in ("VERIFIED", "FAILED", "UNVERIFIABLE")
+        assert item["passed"] is (item["status"] == "VERIFIED")
+        assert item["evidence"], f"row {item['id']} has no evidence"
+
+    assert checklist["passed_items"] == sum(1 for i in checklist["checklist"] if i["passed"])
+    assert checklist["failed_items"] + checklist["unverifiable_items"] + checklist["passed_items"] == 8
+
+
+def test_pre_deploy_checklist_has_no_unresolved_gaps():
+    """Every item must be genuinely verified, not merely present."""
+    checklist = get_pre_deploy_security_checklist()
+    unresolved = [
+        f"{i['item']} -> {i['status']}: {i['evidence']}"
+        for i in checklist["checklist"]
+        if i["status"] != "VERIFIED"
+    ]
+    assert not unresolved, "unresolved pre-deploy checks: " + "; ".join(unresolved)
     assert checklist["compliance_percentage"] == 100.0
+
+
+def test_single_worker_probe_matches_railway_config():
+    """Item 6 must reflect railway.toml rather than a literal string."""
+    from app.core import attestation
+
+    counts = attestation._railway_worker_counts()
+    assert counts, "no railway.toml declares a worker count"
+    assert set(counts.values()) == {1}, f"railway worker counts are {counts}"
+
+    item = get_pre_deploy_security_checklist()["checklist"][5]
+    assert item["status"] == "VERIFIED"
+    assert "workers" in item["evidence"] or "worker" in item["evidence"]
 
 
 def test_evaluate_deployment_readiness():
     readiness = evaluate_deployment_readiness()
     assert readiness["status"] in ("READY", "NOT_READY")
     assert "checks" in readiness
+    assert readiness["satisfied_checks"] <= readiness["total_checks"]
+    assert readiness["readiness_score"] == round(
+        readiness["satisfied_checks"] / readiness["total_checks"] * 100, 1
+    )
 
 
 def test_deployment_overview_api_endpoints():
@@ -109,7 +146,11 @@ def test_deployment_overview_api_endpoints():
 
     res_check = client.get("/api/v1/deployment/overview/pre-deploy-checklist")
     assert res_check.status_code == 200
-    assert res_check.json()["compliance_percentage"] == 100.0
+    payload = res_check.json()
+    assert payload["compliance_percentage"] == round(
+        payload["passed_items"] / payload["total_items"] * 100, 1
+    )
+    assert all(item.get("evidence") for item in payload["checklist"])
 
     res_ready = client.get("/api/v1/deployment/overview/readiness")
     assert res_ready.status_code == 200

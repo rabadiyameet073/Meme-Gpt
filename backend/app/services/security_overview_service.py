@@ -11,6 +11,8 @@ Covers:
 
 from typing import Any, Dict, List
 
+from app.core import attestation
+
 
 # ── 1. 5-Layer Defense-in-Depth Architecture ───────────────────────────────────
 
@@ -205,31 +207,18 @@ def get_threat_model_matrix() -> Dict[str, Any]:
 
 # ── 4. Master Security Audit Checklist ─────────────────────────────────────────
 
-MASTER_SECURITY_CHECKLIST = [
-    {"id": 1, "item": "HTTPS enforced in production", "status": "COMPLETED", "verified": True},
-    {"id": 2, "item": "CORS restricted to known origins", "status": "COMPLETED", "verified": True},
-    {"id": 3, "item": "Rate limiting enabled on all endpoints", "status": "COMPLETED", "verified": True},
-    {"id": 4, "item": "Input validation with Pydantic", "status": "COMPLETED", "verified": True},
-    {"id": 5, "item": "No raw SQL queries (ORM only)", "status": "COMPLETED", "verified": True},
-    {"id": 6, "item": "No PII in logs (salted IP hashing)", "status": "COMPLETED", "verified": True},
-    {"id": 7, "item": "Security headers configured (HSTS, DENY, nosniff)", "status": "COMPLETED", "verified": True},
-    {"id": 8, "item": "Secrets managed via environment variables", "status": "COMPLETED", "verified": True},
-    {"id": 9, "item": ".env included in .gitignore", "status": "COMPLETED", "verified": True},
-    {"id": 10, "item": "LLM output parsed as JSON only", "status": "COMPLETED", "verified": True},
-    {"id": 11, "item": "Dependency scanning configured", "status": "COMPLETED", "verified": True},
-    {"id": 12, "item": "Comprehensive security audit & testing suite", "status": "COMPLETED", "verified": True},
-]
+#: Probe order is part of the public payload — the checklist ids are stable.
+MASTER_SECURITY_CHECKLIST_ITEMS = [label for label, _ in attestation.MASTER_SECURITY_PROBES]
 
 
 def get_master_security_checklist() -> Dict[str, Any]:
-    """Return the master security audit checklist."""
-    completed = sum(1 for item in MASTER_SECURITY_CHECKLIST if item["verified"])
-    return {
-        "total_items": len(MASTER_SECURITY_CHECKLIST),
-        "completed_items": completed,
-        "completion_rate": round((completed / len(MASTER_SECURITY_CHECKLIST)) * 100, 1),
-        "checklist": MASTER_SECURITY_CHECKLIST,
-    }
+    """Evaluate the 12-point master security checklist against live state.
+
+    Every row is computed by :mod:`app.core.attestation`; nothing is asserted.
+    A row whose evidence cannot be gathered reports ``UNVERIFIABLE`` and does
+    not count towards ``completed_items``.
+    """
+    return attestation.master_security_checklist()
 
 
 # ── 5. OWASP Compliance Status Evaluator ───────────────────────────────────────

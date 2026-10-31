@@ -8,19 +8,18 @@ Verifies:
 4. Schema.org ImageObject JSON-LD markup
 """
 
-from pathlib import Path
 from fastapi.testclient import TestClient
-import pytest
 
 from app.main import app
 from app.database import SessionLocal, Meme
+from tests.paths import FRONTEND_ROOT
 
 client = TestClient(app)
 
 
 def test_robots_txt_file_and_endpoint():
     """Verify robots.txt exists in frontend/public and is served from backend root."""
-    frontend_robots = Path("d:/Meme GPT/frontend/public/robots.txt")
+    frontend_robots = FRONTEND_ROOT / "public" / "robots.txt"
     assert frontend_robots.exists()
     file_content = frontend_robots.read_text(encoding="utf-8")
     assert "User-agent: *" in file_content

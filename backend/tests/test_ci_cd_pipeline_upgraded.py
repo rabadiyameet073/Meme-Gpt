@@ -9,18 +9,18 @@ Verifies:
 """
 
 import json
-from pathlib import Path
-import pytest
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.paths import BACKEND_ROOT, FRONTEND_ROOT, REPO_ROOT, WORKFLOWS_ROOT
 
 client = TestClient(app)
 
 
 def test_github_workflow_deploy_file():
     """Verify GitHub actions CI/CD workflow contains all 4 required jobs."""
-    wf_file = Path("d:/Meme GPT/.github/workflows/deploy.yml")
+    wf_file = WORKFLOWS_ROOT / "deploy.yml"
     assert wf_file.exists()
     content = wf_file.read_text(encoding="utf-8")
 
@@ -35,8 +35,8 @@ def test_github_workflow_deploy_file():
 def test_railway_toml_configurations():
     """Verify railway.toml exists with uvicorn startCommand and healthcheck."""
     files = [
-        Path("d:/Meme GPT/backend/railway.toml"),
-        Path("d:/Meme GPT/railway.toml"),
+        BACKEND_ROOT / "railway.toml",
+        REPO_ROOT / "railway.toml",
     ]
     for f in files:
         assert f.exists()
@@ -47,7 +47,7 @@ def test_railway_toml_configurations():
 
 def test_vercel_json_configuration():
     """Verify frontend/vercel.json contains Vite SPA rewrites and security headers."""
-    vercel_file = Path("d:/Meme GPT/frontend/vercel.json")
+    vercel_file = FRONTEND_ROOT / "vercel.json"
     assert vercel_file.exists()
     data = json.loads(vercel_file.read_text(encoding="utf-8"))
 

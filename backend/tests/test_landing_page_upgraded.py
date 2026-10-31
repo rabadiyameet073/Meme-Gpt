@@ -7,23 +7,17 @@ Verifies:
 3. Content contains SEO tags, Features grid, How It Works steps, and CTA
 """
 
-from pathlib import Path
 from fastapi.testclient import TestClient
-import pytest
 
 from app.main import app
+from tests.paths import FRONTEND_ROOT
 
 client = TestClient(app)
 
 
 def test_landing_html_file_exists():
     """Verify landing.html exists in frontend/public."""
-    candidates = [
-        Path("frontend/public/landing.html"),
-        Path("d:/Meme GPT/frontend/public/landing.html"),
-        Path(__file__).resolve().parents[2] / "frontend" / "public" / "landing.html",
-    ]
-    landing_file = next((p for p in candidates if p.exists()), Path("frontend/public/landing.html"))
+    landing_file = FRONTEND_ROOT / "public" / "landing.html"
     assert landing_file.exists()
     content = landing_file.read_text(encoding="utf-8")
 
