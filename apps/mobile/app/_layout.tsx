@@ -5,8 +5,14 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function RootLayout() {
+  // Ask for notification permission once at startup and register the device
+  // token with the backend, so "push notifications" is a working feature and
+  // not just a listed dependency.
+  usePushNotifications();
+
   return (
     <>
       <StatusBar style="light" backgroundColor="#0A0A0A" />

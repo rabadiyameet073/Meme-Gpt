@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { api } from '../lib/api';
 
 try {
   Notifications.setNotificationHandler({
@@ -17,12 +19,27 @@ try {
 
 export function usePushNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string>('');
+  const [registered, setRegistered] = useState(false);
   const notificationListener = useRef<Notifications.Subscription | any>();
 
 
   useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      if (token) setExpoPushToken(token);
+    registerForPushNotifications().then(async (token) => {
+      if (!token) return;
+      setExpoPushToken(token);
+
+      // Persist the token on the backend — without this the device is unreachable
+      // and push notifications are a feature that exists only on paper.
+      try {
+        await api.registerPushToken(
+          token,
+          Platform.OS === 'ios' ? 'ios' : Platform.OS === 'web' ? 'web' : 'android',
+          Constants.expoConfig?.version,
+        );
+        setRegistered(true);
+      } catch (err) {
+        console.warn('Could not register push token with MemeGPT:', err);
+      }
     });
 
     try {
@@ -38,7 +55,19 @@ export function usePushNotifications() {
     };
   }, []);
 
-  return { expoPushToken };
+  /** Deactivate this device (user disabled notifications, or signed out). */
+  const unregister = useCallback(async () => {
+    if (!expoPushToken) return;
+    try {
+      await api.unregisterPushToken(expoPushToken);
+    } catch (err) {
+      console.warn('Could not unregister push token:', err);
+    } finally {
+      setRegistered(false);
+    }
+  }, [expoPushToken]);
+
+  return { expoPushToken, registered, unregister };
 }
 
 async function registerForPushNotifications(): Promise<string | null> {
@@ -66,10 +95,27 @@ async function registerForPushNotifications(): Promise<string | null> {
       });
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      // EAS project id is required by expo-notifications >= 0.28. It comes from
+      // app.json (set by `eas init`) or the EXPO_PUBLIC_EAS_PROJECT_ID env var.
+      projectId: resolveProjectId(),
+    });
     return tokenData.data;
   } catch (err) {
     console.warn('Could not register for push notifications:', err);
     return null;
   }
+}
+
+function resolveProjectId(): string | undefined {
+  const fromConfig =
+    (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ??
+    (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId;
+  const projectId = fromConfig || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+  if (!projectId) {
+    console.warn(
+      'No EAS projectId found — run `eas init` or set EXPO_PUBLIC_EAS_PROJECT_ID to obtain a push token.',
+    );
+  }
+  return projectId || undefined;
 }

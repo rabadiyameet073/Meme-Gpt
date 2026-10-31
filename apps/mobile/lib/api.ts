@@ -140,6 +140,31 @@ export const api = {
   getDownloadUrl(slug: string, format = 'gif'): string {
     return `${API_BASE}/memes/${slug}/download?format=${format}`;
   },
+
+  /**
+   * Register the device's Expo push token so the backend can reach this device.
+   * Idempotent on the server: re-registering refreshes instead of duplicating.
+   */
+  async registerPushToken(
+    token: string,
+    platform: 'ios' | 'android' | 'web',
+    appVersion?: string
+  ): Promise<{ success: boolean; created?: boolean }> {
+    const resp = await fetch(`${API_BASE}/mobile/push-tokens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, platform, app_version: appVersion }),
+    });
+    if (!resp.ok) throw new Error(`Push token registration failed: ${resp.status}`);
+    return resp.json();
+  },
+
+  /** Deactivate this device's token (notifications turned off, or signed out). */
+  async unregisterPushToken(token: string): Promise<void> {
+    await fetch(`${API_BASE}/mobile/push-tokens/${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export const searchMemes = (paramsOrQuery: SearchParams | string, formatPref?: string, limit?: number) =>
@@ -156,3 +181,9 @@ export const getDownloadUrl = (slug: string, format = 'gif') =>
 
 export const getMeme = (slug: string) =>
   api.getMeme(slug);
+
+export const registerPushToken = (
+  token: string,
+  platform: 'ios' | 'android' | 'web',
+  appVersion?: string
+) => api.registerPushToken(token, platform, appVersion);

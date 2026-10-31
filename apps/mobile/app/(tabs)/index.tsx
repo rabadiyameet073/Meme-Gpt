@@ -6,8 +6,9 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { api, MemeResult } from "../../lib/api";
+import { MemeResult } from "../../lib/api";
 import { useMemeActions } from "../../hooks/useMemeActions";
+import { useMemeSearch, FormatPref } from "../../hooks/useMemeSearch";
 
 const FORMATS = [
   { label: "All", value: "any" },
@@ -92,40 +93,27 @@ function MemeCard({ item, onAction }: { item: MemeResult; onAction: (msg: string
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState("gif");
-  const [results, setResults] = useState<MemeResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const inputRef = useRef<TextInput>(null);
+
+  // Search state lives in the hook so results are also written to the offline cache.
+  const { results, loading, error, offline, search } = useMemeSearch(format as FormatPref);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2500);
   }, []);
 
-  const handleSearch = useCallback(async (q?: string) => {
+  const handleSearch = useCallback((q?: string) => {
     const searchQuery = q ?? query;
     if (!searchQuery.trim()) return;
-
-    setLoading(true);
-    setError("");
-    try {
-      const data = await api.search(searchQuery, format, 10);
-      setResults(data.matches || []);
-      if ((data.matches || []).length === 0) {
-        setError("No memes found. Try a different query!");
-      }
-    } catch (err) {
-      setError("Search failed. Check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  }, [query, format]);
+    search(searchQuery);
+  }, [query, search]);
 
   const handleSuggestion = useCallback((s: string) => {
     setQuery(s);
-    handleSearch(s);
-  }, [handleSearch]);
+    search(s);
+  }, [search]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -179,6 +167,15 @@ export default function SearchScreen() {
         {/* Suggestions (when no results) */}
         {results.length === 0 && !loading && (
           <SuggestionChips onPress={handleSuggestion} />
+        )}
+
+        {/* Offline banner — results come from the on-device cache */}
+        {offline && (
+          <View style={styles.offlineBanner}>
+            <Text style={styles.offlineText}>
+              Offline — showing memes saved from your last searches
+            </Text>
+          </View>
         )}
 
         {/* Results */}
@@ -242,6 +239,11 @@ const styles = StyleSheet.create({
   formatText: { color: "#71717a", fontSize: 13, fontWeight: "600" },
   formatTextActive: { color: "#fff" },
   chipsScroll: { paddingHorizontal: 16, marginBottom: 12 },
+  offlineBanner: {
+    marginHorizontal: 16, marginBottom: 12, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 10, backgroundColor: "#27272A",
+  },
+  offlineText: { color: "#a1a1aa", fontSize: 12, textAlign: "center" },
   chip: {
     backgroundColor: "#18181B", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
     marginRight: 8, borderWidth: 1, borderColor: "#3F3F46",
