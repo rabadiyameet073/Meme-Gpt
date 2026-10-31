@@ -10,7 +10,7 @@ bcrypt>=4.0.0
 
 # Database & ORM
 sqlalchemy>=2.0.30,<3.0.0
-alembic>=1.13.0
+alembic>=1.20.1
 # PostgreSQL driver. DATABASE_URL is documented as postgresql:// on Railway and
 # Supabase (12_Deployment/Deployment_Overview.md, 06_Database/Database_Overview.md);
 # without a driver create_engine() raises ModuleNotFoundError at import time.
