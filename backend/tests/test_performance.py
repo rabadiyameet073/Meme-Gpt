@@ -2,10 +2,17 @@
 
 import asyncio
 import time
+
 import pytest
-from app.services.recommendation_service import recommend, _make_cache_key
+
 from app.core.cache import query_cache
 from app.semantic_search import embed_text
+from app.services.recommendation_service import _make_cache_key, recommend
+
+# Every test in this module asserts wall-clock time. The coverage tracer adds
+# enough interpreter overhead to blow the budgets, so CI runs this module in a
+# separate step without instrumentation (see backend/pytest.ini).
+pytestmark = pytest.mark.timing
 
 
 @pytest.mark.asyncio
