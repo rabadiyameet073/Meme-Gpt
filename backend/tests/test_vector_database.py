@@ -34,13 +34,16 @@ def test_build_point_named_vectors_and_payload():
     vectors = point.vectors if hasattr(point, "vectors") else point["vectors"]
     assert "text" in vectors
     assert len(vectors["text"]) == 384
-    assert "image" in vectors
-    assert len(vectors["image"]) == 512
-    assert "combined" in vectors
-    assert len(vectors["combined"]) == 896
+
+    # No image vector was supplied, so the point must not advertise one. Padding
+    # it with a constant made every meme share the same "image" vector, which
+    # scored ~1.0 against every image query.
+    assert "image" not in vectors
+    assert "combined" not in vectors
 
     payload = point.payload if hasattr(point, "payload") else point["payload"]
     assert payload["meme_id"] == "meme_success_kid_001"
+    assert payload["moderation_status"] == "approved"
     assert payload["name"] == "Success Kid"
     assert payload["has_gif"] is True
     assert payload["has_video"] is True

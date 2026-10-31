@@ -173,12 +173,58 @@ def test_search_alias():
 
 def test_db_fallback_search():
     """Verify _db_fallback_search returns structured results when Qdrant is unavailable."""
+    from app.database import SessionLocal, Meme as MemeModel
+
+    session = SessionLocal()
+    try:
+        session.add(MemeModel(
+            id="fallback_probe_001",
+            name="Fallback Probe Meme",
+            slug="fallback-probe",
+            categories=["funny"],
+            emotions=["humor"],
+            dialogue="probe",
+            explanation="probe",
+            keywords=["probe"],
+            source="test",
+            nsfw=False,
+            moderation_status="approved",
+            popularity_score=0.5,
+        ))
+        session.commit()
+    finally:
+        session.close()
+
     fallback_results = _db_fallback_search(top_k=5)
     assert isinstance(fallback_results, list)
     assert len(fallback_results) >= 1
     assert "id" in fallback_results[0]
     assert "score" in fallback_results[0]
     assert "meme" in fallback_results[0]
+
+
+def test_db_fallback_search_reports_empty_corpus(monkeypatch):
+    """An empty corpus must return nothing rather than an invented meme."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import app.database as app_database
+    from app.database import Base
+
+    # A private, empty database: this must not disturb the shared test corpus.
+    empty_engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=empty_engine)
+    # ``_db_fallback_search`` imports SessionLocal lazily from app.database.
+    monkeypatch.setattr(
+        app_database, "SessionLocal", sessionmaker(bind=empty_engine)
+    )
+
+    assert _db_fallback_search(top_k=5) == []
 
 
 def test_cosine_similarity_math():

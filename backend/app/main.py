@@ -106,6 +106,14 @@ async def lifespan(app: FastAPI):
             scheduler.shutdown()
         except Exception:
             pass
+
+    # Release the embedded Qdrant handle while the interpreter is still healthy.
+    try:
+        from app.services.search_service import reset_qdrant_client
+        reset_qdrant_client()
+    except Exception as e:
+        logger.debug(f"Qdrant client shutdown skipped: {e}")
+
     logger.info("MemeGPT FastAPI Backend shutting down.")
 
 

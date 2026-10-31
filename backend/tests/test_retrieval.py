@@ -22,13 +22,38 @@ def test_build_search_filter_must_and_must_not():
         assert filter_obj.must is not None
         assert filter_obj.must_not is not None
         assert len(filter_obj.must) >= 2  # nsfw + has_gif + categories
-        assert len(filter_obj.must_not) == 2  # exclude_ids
+        # exclude_ids (2) + a moderation_status guard for every hidden state
+        assert len(filter_obj.must_not) >= 2
     else:
         # Dictionary fallback
         assert filter_obj["nsfw"] is False
         assert filter_obj["format_pref"] == "gif"
         assert "coding" in filter_obj["categories"]
         assert "m_001" in filter_obj["exclude_ids"]
+
+
+def test_build_search_filter_blocks_removed_content():
+    """The ANN path must exclude moderated memes, not just the DB fallback."""
+    from app.services import search_service
+
+    filter_obj = build_search_filter(nsfw=False)
+    assert hasattr(filter_obj, "must_not"), "expected a Qdrant Filter object"
+
+    guarded = {
+        getattr(cond, "key", None): getattr(getattr(cond, "match", None), "value", None)
+        for cond in filter_obj.must_not
+    }
+    assert "moderation_status" in guarded
+    assert guarded["moderation_status"] in search_service.HIDDEN_MODERATION_STATUSES
+
+    for status in search_service.HIDDEN_MODERATION_STATUSES:
+        assert not search_service._passes_filters(
+            {"id": "m_removed", "moderation_status": status},
+            nsfw=False,
+            format_pref="any",
+            categories=None,
+            exclude_ids=None,
+        ), f"{status} memes must not pass the DB-side filter"
 
 
 def test_search_named_vector_dispatch():
