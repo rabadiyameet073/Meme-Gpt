@@ -1,7 +1,7 @@
 # Dockerfile for FastAPI Backend
 # Specification: 12_Deployment/Deployment_Overview.md
 
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
