@@ -15,7 +15,7 @@ pip-licenses>=4.3.0
 # Test tooling
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
-pytest-cov>=5.0.0
+pytest-cov>=7.1.0
 pytest-timeout>=2.2.0
 
 # Lint / format
