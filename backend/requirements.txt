@@ -14,7 +14,7 @@ alembic>=1.13.0
 # PostgreSQL driver. DATABASE_URL is documented as postgresql:// on Railway and
 # Supabase (12_Deployment/Deployment_Overview.md, 06_Database/Database_Overview.md);
 # without a driver create_engine() raises ModuleNotFoundError at import time.
-psycopg2-binary>=2.9.9
+psycopg2-binary>=2.9.13
 
 # Vector Database
 qdrant-client>=1.9.0,<2.0.0
