@@ -62,9 +62,12 @@ export function useMemeSearch(formatPref: FormatPref = 'gif'): UseMemeSearchRetu
   const [emotion, setEmotion] = useState<{ primary: string; confidence: number } | null>(null);
   const [detectedCategories, setDetectedCategories] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const lastSearchedQRef = useRef<string | null>(null);
 
   const search = useCallback(async (query: string) => {
-    if (!query.trim()) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    lastSearchedQRef.current = trimmed;
 
     // Cancel previous in-flight request
     abortRef.current?.abort();
@@ -75,12 +78,12 @@ export function useMemeSearch(formatPref: FormatPref = 'gif'): UseMemeSearchRetu
 
     try {
       const res: SearchResponse = await searchMemes({
-        query: query.trim(),
+        query: trimmed,
         format_preference: formatPref,
         nsfw: false,
         limit: 5,
         session_id: getSessionId(),
-      });
+      }, abortRef.current.signal);
 
       // Handle both v1 (topFive) and v2 (results) formats
       const resultList = res.topFive?.length > 0
@@ -98,15 +101,16 @@ export function useMemeSearch(formatPref: FormatPref = 'gif'): UseMemeSearchRetu
       // Save to recent searches
       saveToRecent(query.trim());
 
-      // Log view signal for all results (non-blocking)
-      resultList.forEach((meme) => {
+      // Log view signal for top result only (non-blocking)
+      const topMeme = res.primary ?? resultList[0];
+      if (topMeme?.id) {
         submitFeedback({
-          meme_id: meme.id,
+          meme_id: topMeme.id,
           signal: 'view',
           action: 'view',
           session_id: getSessionId(),
         }).catch(() => {});
-      });
+      }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
         setError(err?.message || 'Search failed. Please try again.');
@@ -119,11 +123,10 @@ export function useMemeSearch(formatPref: FormatPref = 'gif'): UseMemeSearchRetu
   // Pre-fill from URL ?q= param (from landing page chips or sidebar links)
   useEffect(() => {
     const q = searchParams?.get('q');
-    if (q) {
-      search(q);
+    if (q && q.trim() && lastSearchedQRef.current !== q.trim()) {
+      search(q.trim());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, search]);
 
   const sendFeedback = useCallback(async (memeId: string, action: string) => {
     await submitFeedback({

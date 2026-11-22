@@ -2,6 +2,7 @@
 MemeGPT Transactional Email Service
 Powered by Resend API (3,000 free emails/month).
 """
+import html
 import os
 import httpx
 import logging
@@ -52,10 +53,11 @@ async def send_email(to_email: str, subject: str, html_content: str) -> bool:
 
 
 async def send_welcome_email(to_email: str, username: str) -> bool:
+    safe_username = html.escape(username or "")
     subject = "Welcome to MemeGPT — Your AI Meme Secret Weapon"
-    html = f"""
+    body_html = f"""
     <div style="font-family: sans-serif; background-color: #0f172a; color: #f8fafc; padding: 24px; border-radius: 12px;">
-      <h1 style="color: #a855f7;">Welcome to MemeGPT, {username}!</h1>
+      <h1 style="color: #a855f7;">Welcome to MemeGPT, {safe_username}!</h1>
       <p style="font-size: 16px; line-height: 1.5;">
         You are now equipped to discover the perfect reaction meme in under 1.5 seconds.
       </p>
@@ -69,54 +71,60 @@ async def send_welcome_email(to_email: str, username: str) -> bool:
       </a>
     </div>
     """
-    return await send_email(to_email, subject, html)
+    return await send_email(to_email, subject, body_html)
 
 
 async def send_collection_share_email(to_email: str, sender_name: str, collection_name: str, share_url: str) -> bool:
+    safe_sender = html.escape(sender_name or "")
+    safe_collection = html.escape(collection_name or "")
+    safe_url = html.escape(share_url or "")
     subject = f"{sender_name} shared a meme collection with you: '{collection_name}'"
-    html = f"""
+    body_html = f"""
     <div style="font-family: sans-serif; background-color: #0f172a; color: #f8fafc; padding: 24px; border-radius: 12px;">
       <h1 style="color: #a855f7;">New Shared Collection</h1>
       <p style="font-size: 16px; line-height: 1.5;">
-        <strong>{sender_name}</strong> has shared their meme collection <em>"{collection_name}"</em> with you!
+        <strong>{safe_sender}</strong> has shared their meme collection <em>"{safe_collection}"</em> with you!
       </p>
       <p style="margin-top: 16px;">
-        <a href="{share_url}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        <a href="{safe_url}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
           View Collection →
         </a>
       </p>
     </div>
     """
-    return await send_email(to_email, subject, html)
+    return await send_email(to_email, subject, body_html)
 
 
 async def send_magic_link_email(to_email: str, magic_link: str) -> bool:
+    safe_link = html.escape(magic_link or "")
     subject = "Sign in to MemeGPT — Your Magic Link"
-    html = f"""
+    body_html = f"""
     <div style="font-family: sans-serif; background-color: #0f172a; color: #f8fafc; padding: 24px; border-radius: 12px;">
       <h1 style="color: #a855f7;">Sign in to MemeGPT</h1>
       <p style="font-size: 16px; line-height: 1.5;">
         Click the button below to sign in directly to your MemeGPT account. This link expires in 15 minutes.
       </p>
-      <a href="{magic_link}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 16px;">
+      <a href="{safe_link}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 16px;">
         Sign In Now →
       </a>
     </div>
     """
-    return await send_email(to_email, subject, html)
+    return await send_email(to_email, subject, body_html)
 
 
 async def send_account_alert_email(to_email: str, alert_title: str, alert_message: str) -> bool:
+    safe_title = html.escape(alert_title or "")
+    safe_message = html.escape(alert_message or "")
     subject = f"MemeGPT Security Alert: {alert_title}"
-    html = f"""
+    body_html = f"""
     <div style="font-family: sans-serif; background-color: #0f172a; color: #f8fafc; padding: 24px; border-radius: 12px;">
-      <h1 style="color: #f43f5e;">Security Alert: {alert_title}</h1>
+      <h1 style="color: #f43f5e;">Security Alert: {safe_title}</h1>
       <p style="font-size: 16px; line-height: 1.5;">
-        {alert_message}
+        {safe_message}
       </p>
       <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">
         If you did not perform this action, please reset your password immediately or contact support.
       </p>
     </div>
     """
-    return await send_email(to_email, subject, html)
+    return await send_email(to_email, subject, body_html)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Meme } from "../lib/api";
 import { Icon } from "./Icon";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export interface PreviewModalProps {
   meme: Meme;
@@ -27,6 +28,7 @@ export function PreviewModal({
   onFavoriteToggle,
   isFavorited = false,
 }: PreviewModalProps) {
+  const trapRef = useFocusTrap(isOpen);
   const [selectedFormat, setSelectedFormat] = useState<"image" | "gif" | "video" | "webp">("gif");
 
   useEffect(() => {
@@ -84,6 +86,10 @@ export function PreviewModal({
       }}
     >
       <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="preview-meme-title"
         className="preview-modal-content glass-card"
         style={{
           maxWidth: "840px",

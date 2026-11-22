@@ -1,6 +1,7 @@
 import logging
+import secrets
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -55,14 +56,17 @@ def create_new_api_key(
     """Issues a new API key (Free: 120 req/min, Pro: 300 req/min, Admin: 1000 req/min).
     The raw_key is returned ONLY on initial generation and never saved in plain text.
     """
-    if body.tier in ("admin", "internal") and not auth.is_admin:
-        raise HTTPException(status_code=403, detail="Admin permissions required to create admin keys")
+    if body.tier in ("admin", "internal", "pro") and not auth.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required to create pro or admin keys")
+
+    if not auth.is_admin and body.user_id and auth.user_id and body.user_id != auth.user_id:
+        raise HTTPException(status_code=403, detail="Cannot create API keys for another user")
 
     api_key, raw_token = generate_api_key(
         db=db,
         tier=body.tier,
         name=body.name,
-        user_id=body.user_id or auth.user_id
+        user_id=auth.user_id if not auth.is_admin else (body.user_id or auth.user_id)
     )
 
     return {
@@ -163,14 +167,34 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 # ── OAuth (Google & GitHub) Routes ─────────────────────────────────
 
 @router.get("/google/login", summary="Get Google OAuth consent URL")
-async def google_login():
-    """Redirect user to Google OAuth consent screen."""
-    return {"url": get_google_auth_url()}
+async def google_login(response: Response):
+    """Redirect user to Google OAuth consent screen with CSRF state protection."""
+    state = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key="oauth_state",
+        value=state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"url": get_google_auth_url(state=state), "state": state}
 
 
 @router.get("/google/callback", summary="Google OAuth callback")
-async def google_callback(code: str, response: Response, db: Session = Depends(get_db)):
-    """Handle Google OAuth callback."""
+async def google_callback(
+    code: str,
+    response: Response,
+    state: Optional[str] = None,
+    oauth_state: Optional[str] = Cookie(None),
+    db: Session = Depends(get_db)
+):
+    """Handle Google OAuth callback with CSRF state validation."""
+    if state and oauth_state:
+        if not secrets.compare_digest(state, oauth_state):
+            raise HTTPException(status_code=400, detail="OAuth state mismatch (CSRF protection)")
+    elif state and not oauth_state:
+        raise HTTPException(status_code=400, detail="OAuth state cookie missing (CSRF protection)")
+
     user_info = await exchange_google_code(code)
     if not user_info:
         raise HTTPException(status_code=400, detail="Google authentication failed")
@@ -178,14 +202,34 @@ async def google_callback(code: str, response: Response, db: Session = Depends(g
 
 
 @router.get("/github/login", summary="Get GitHub OAuth consent URL")
-async def github_login():
-    """Redirect user to GitHub OAuth."""
-    return {"url": get_github_auth_url()}
+async def github_login(response: Response):
+    """Redirect user to GitHub OAuth with CSRF state protection."""
+    state = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key="oauth_state",
+        value=state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"url": get_github_auth_url(state=state), "state": state}
 
 
 @router.get("/github/callback", summary="GitHub OAuth callback")
-async def github_callback(code: str, response: Response, db: Session = Depends(get_db)):
-    """Handle GitHub OAuth callback."""
+async def github_callback(
+    code: str,
+    response: Response,
+    state: Optional[str] = None,
+    oauth_state: Optional[str] = Cookie(None),
+    db: Session = Depends(get_db)
+):
+    """Handle GitHub OAuth callback with CSRF state validation."""
+    if state and oauth_state:
+        if not secrets.compare_digest(state, oauth_state):
+            raise HTTPException(status_code=400, detail="OAuth state mismatch (CSRF protection)")
+    elif state and not oauth_state:
+        raise HTTPException(status_code=400, detail="OAuth state cookie missing (CSRF protection)")
+
     user_info = await exchange_github_code(code)
     if not user_info:
         raise HTTPException(status_code=400, detail="GitHub authentication failed")
@@ -194,6 +238,11 @@ async def github_callback(code: str, response: Response, db: Session = Depends(g
 
 async def _oauth_login(user_info: dict, db: Session, response: Optional[Response] = None) -> dict:
     """Create or find user from OAuth info, return JWT tokens."""
+    if not user_info.get("email"):
+        raise HTTPException(status_code=400, detail="OAuth provider did not supply an email address")
+    if not user_info.get("email_verified", True):
+        raise HTTPException(status_code=400, detail="Unverified email address from OAuth provider cannot be linked")
+
     user = db.query(User).filter(User.email == user_info["email"]).first()
 
     if not user:
@@ -207,6 +256,12 @@ async def _oauth_login(user_info: dict, db: Session, response: Optional[Response
         )
         db.add(user)
     else:
+        # Prevent silent takeover if existing user registered with password and a different OAuth provider
+        if user.hashed_password and user.oauth_provider and user.oauth_provider != user_info["provider"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Account already registered with a different provider. Please sign in with your existing provider."
+            )
         if not user.oauth_provider:
             user.oauth_provider = user_info["provider"]
             user.oauth_id = user_info["oauth_id"]
@@ -237,7 +292,7 @@ async def _oauth_login(user_info: dict, db: Session, response: Optional[Response
 
 class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255, description="Email address")
-    password: str = Field(..., min_length=6, max_length=128, description="Password (min 6 characters)")
+    password: str = Field(..., min_length=8, max_length=128, description="Password (min 8 characters)")
     name: Optional[str] = Field(None, max_length=200, description="Display name")
 
 
@@ -261,10 +316,19 @@ class UpdateProfileRequest(BaseModel):
 
 @router.post("/register", summary="Register a new user account")
 async def register_user(body: RegisterRequest, response: Response, db: Session = Depends(get_db)):
-    """Register a new user with email and password."""
+    """Register a new user with email and password (AUTH-09 password policy)."""
+    import re
     email_clean = body.email.strip().lower()
     if "@" not in email_clean or "." not in email_clean:
         raise HTTPException(status_code=400, detail="Invalid email format")
+
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if not re.search(r"[A-Za-z]", body.password) or not re.search(r"[0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?]", body.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least one letter and one number or special character"
+        )
 
     existing = db.query(User).filter(User.email == email_clean).first()
     if existing:
@@ -295,15 +359,32 @@ async def register_user(body: RegisterRequest, response: Response, db: Session =
 
 @router.post("/login", summary="Login with email and password")
 async def login_user(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Authenticate with email and password, returning JWT access and refresh tokens."""
+    """Authenticate with email and password with brute-force protection (AUTH-09)."""
+    from app.core.cache import cache_get, cache_set, cache_delete
     email_clean = body.email.strip().lower()
+
+    # Brute-force lockout check (max 5 failed attempts in 15 mins)
+    fail_key = f"login_failures:{email_clean}"
+    fails = cache_get(fail_key) or 0
+    if fails >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts. Please try again in 15 minutes.",
+            headers={"Retry-After": "900"}
+        )
+
     user = db.query(User).filter(User.email == email_clean).first()
 
     if not user or not user.hashed_password:
+        cache_set(fail_key, fails + 1, ttl=900)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not verify_password(body.password, user.hashed_password):
+        cache_set(fail_key, fails + 1, ttl=900)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Reset failure counter on success
+    cache_delete(fail_key)
 
     user.last_login = utc_now()
     db.commit()
@@ -324,7 +405,7 @@ async def login_user(body: LoginRequest, response: Response, db: Session = Depen
 
 @router.post("/refresh", summary="Exchange refresh token for new access token")
 async def refresh_tokens(request: Request, response: Response, body: Optional[RefreshRequest] = None, db: Session = Depends(get_db)):
-    """Exchange a valid refresh token for a new access token and rotated refresh token."""
+    """Exchange a valid refresh token for a new access token and rotated refresh token (AUTH-07)."""
     token = ""
     if body and body.refresh_token:
         token = body.refresh_token.strip()
@@ -337,6 +418,12 @@ async def refresh_tokens(request: Request, response: Response, body: Optional[Re
     payload = decode_token(token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    # AUTH-07: Invalidate the consumed refresh token family jti
+    old_jti = payload.get("jti")
+    if old_jti:
+        from app.services.jwt_service import revoke_token_jti
+        revoke_token_jti(old_jti)
 
     user_id = payload.get("sub")
     user = db.query(User).filter(User.id == user_id).first()
@@ -357,8 +444,15 @@ async def refresh_tokens(request: Request, response: Response, body: Optional[Re
 
 
 @router.post("/logout", summary="Logout and clear session cookies")
-async def logout_user(response: Response):
-    """Clear session cookies."""
+async def logout_user(request: Request, response: Response):
+    """Clear session cookies and revoke refresh token (AUTH-07)."""
+    from app.services.jwt_service import decode_token, revoke_token_jti
+    token = request.cookies.get("refresh_token")
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("jti"):
+            revoke_token_jti(payload["jti"])
+
     response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
     return {"success": True, "message": "Logged out successfully"}

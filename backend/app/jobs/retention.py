@@ -13,7 +13,20 @@ RETENTION_DAYS = 30
 
 
 def run_retention_cleanup():
-    """Delete search logs and feedback older than RETENTION_DAYS."""
+    """Delete search logs and feedback older than RETENTION_DAYS.
+    Protected by a distributed Redis lock to ensure a single runner across horizontal workers (BE-09).
+    """
+    from app.core.cache import get_redis_client
+    client = get_redis_client()
+    if client:
+        try:
+            lock_acquired = bool(client.set("lock:job:retention_cleanup", "1", nx=True, ex=3600))
+            if not lock_acquired:
+                logger.info("Retention cleanup skipped: already completed or active on another worker.")
+                return {"status": "skipped", "reason": "lock_held"}
+        except Exception as e:
+            logger.debug(f"Distributed lock error: {e}")
+
     from app.database import SessionLocal, SearchLog, Feedback
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)

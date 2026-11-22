@@ -237,12 +237,20 @@ def _parse_cors_origins() -> List[str]:
 CORS_ORIGINS = _parse_cors_origins()
 
 # ── Rate Limiting ─────────────────────────────────────────────
+# General endpoint limits (Rate_Limiting.md: Free 60, Dev 300, Pro 1000, Internal 2000)
 RATE_LIMIT_ANONYMOUS = int(os.getenv("RATE_LIMIT_ANONYMOUS", "60"))
-RATE_LIMIT_FREE = int(os.getenv("RATE_LIMIT_FREE", "120"))
-RATE_LIMIT_PRO = int(os.getenv("RATE_LIMIT_PRO", "300"))
-RATE_LIMIT_INTERNAL = int(os.getenv("RATE_LIMIT_INTERNAL", "1000"))
+RATE_LIMIT_FREE = int(os.getenv("RATE_LIMIT_FREE", "300"))
+RATE_LIMIT_PRO = int(os.getenv("RATE_LIMIT_PRO", "1000"))
+RATE_LIMIT_INTERNAL = int(os.getenv("RATE_LIMIT_INTERNAL", "2000"))
 RATE_LIMIT_PER_MINUTE = RATE_LIMIT_ANONYMOUS
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+
+# Route-specific budgets (Rate_Limiting.md: /search 30/100/500/1000, /feedback 120)
+SEARCH_LIMIT_ANONYMOUS = int(os.getenv("SEARCH_LIMIT_ANONYMOUS", "30"))
+SEARCH_LIMIT_FREE = int(os.getenv("SEARCH_LIMIT_FREE", "100"))
+SEARCH_LIMIT_PRO = int(os.getenv("SEARCH_LIMIT_PRO", "500"))
+SEARCH_LIMIT_INTERNAL = int(os.getenv("SEARCH_LIMIT_INTERNAL", "1000"))
+FEEDBACK_LIMIT_PER_MINUTE = int(os.getenv("FEEDBACK_LIMIT_PER_MINUTE", "120"))
 
 # ── Sentry ────────────────────────────────────────────────────
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
@@ -356,10 +364,19 @@ class Settings:
     RATE_LIMIT_PER_MINUTE: int = RATE_LIMIT_PER_MINUTE
     RATE_LIMIT_WINDOW: int = RATE_LIMIT_WINDOW
 
+    SEARCH_LIMIT_ANONYMOUS: int = SEARCH_LIMIT_ANONYMOUS
+    SEARCH_LIMIT_FREE: int = SEARCH_LIMIT_FREE
+    SEARCH_LIMIT_PRO: int = SEARCH_LIMIT_PRO
+    SEARCH_LIMIT_INTERNAL: int = SEARCH_LIMIT_INTERNAL
+    FEEDBACK_LIMIT_PER_MINUTE: int = FEEDBACK_LIMIT_PER_MINUTE
+
     SENTRY_DSN: str = SENTRY_DSN
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
     RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "MemeGPT <notifications@memegpt.com>")
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", APP_ENV)
+    APP_ENV: str = APP_ENV
+    ENVIRONMENT: str = APP_ENV
+    CLEAR_CACHE_ON_STARTUP: bool = os.getenv("CLEAR_CACHE_ON_STARTUP", "false").lower() in ("true", "1")
+    ENABLE_INTERNAL_SCHEDULER: bool = os.getenv("ENABLE_INTERNAL_SCHEDULER", "true").lower() in ("true", "1")
     LOG_LEVEL: str = LOG_LEVEL
 
     @property

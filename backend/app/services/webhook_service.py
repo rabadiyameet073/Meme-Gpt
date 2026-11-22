@@ -8,10 +8,32 @@ import json
 import logging
 import time
 import uuid
+import ipaddress
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("memegpt.services.webhooks")
+
+def _is_safe_webhook_url(url: str) -> bool:
+    """Validate webhook URL against SSRF (blocks cloud metadata and private IP ranges)."""
+    try:
+        parsed = urlparse(url)
+        scheme = parsed.scheme.lower()
+        if scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if not hostname or hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            return False
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+        except ValueError:
+            pass
+        return True
+    except Exception:
+        return False
 
 SUPPORTED_WEBHOOK_EVENTS = {
     "meme.trending": "Meme enters top-20 trending",
@@ -61,6 +83,9 @@ def register_webhook(
     """Register a new developer webhook endpoint."""
     if not url.startswith(("http://", "https://")):
         raise ValueError("Invalid webhook URL. Must start with http:// or https://")
+
+    if not _is_safe_webhook_url(url):
+        raise ValueError("Invalid webhook URL. Private, loopback, and cloud metadata addresses are prohibited.")
 
     # Validate event subscriptions
     for event in events:

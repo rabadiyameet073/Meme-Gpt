@@ -66,6 +66,30 @@ export async function shareMeme(
   }
 }
 
+async function convertToPngBlob(blob: Blob): Promise<Blob> {
+  if (blob.type === "image/png") return blob;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(blob);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        resolve(pngBlob || blob);
+      }, "image/png");
+    };
+    img.onerror = () => resolve(blob);
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
 /**
  * Copy meme image data to clipboard (blob), or fallback to URL copy.
  */
@@ -75,12 +99,13 @@ export async function copyMemeImageToClipboard(
 ): Promise<boolean> {
   try {
     const response = await fetch(imageUrl);
-    const blob = await response.blob();
+    const rawBlob = await response.blob();
+    const pngBlob = await convertToPngBlob(rawBlob);
     await navigator.clipboard.write([
-      new ClipboardItem({ [blob.type]: blob }),
+      new ClipboardItem({ "image/png": pngBlob }),
     ]);
     if (onToast) {
-      onToast("✓ Meme copied to clipboard!");
+      onToast("✓ Meme image copied to clipboard!");
     }
     return true;
   } catch {
@@ -102,16 +127,17 @@ export async function copyMemeImageToClipboard(
  * Returns 'image' if image copied, 'url' if text URL copied, or false if failed.
  */
 export async function copyMemeToClipboard(meme: MemeAsset): Promise<"image" | "url" | false> {
-  const imageUrl = meme.formats?.image;
-  const shareUrl = meme.share_url || `https://memegpt.com/meme/${meme.slug || meme.id}`;
+  const imageUrl = meme.formats?.image || meme.formats?.gif || meme.formats?.webp;
+  const shareUrl = meme.share_url || `https://memegpt.com/meme/${meme.slug || meme.id}?ref=copy`;
 
   try {
-    // Method 1: Copy image data (Chrome, Edge, Safari 14+)
+    // Method 1: Copy image data as PNG blob (Chrome, Edge, Safari 14+)
     if (imageUrl) {
       const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      const rawBlob = await response.blob();
+      const pngBlob = await convertToPngBlob(rawBlob);
       await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
+        new ClipboardItem({ "image/png": pngBlob }),
       ]);
       return "image";
     }

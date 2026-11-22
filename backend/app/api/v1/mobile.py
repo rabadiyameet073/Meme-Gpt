@@ -20,6 +20,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import DeviceToken, get_db, utc_now
+from app.core.auth import get_api_tier, AuthContext
+from app.config import settings
 from app.services.mobile_service import (
     get_mobile_tech_stack,
     get_mobile_architecture,
@@ -174,8 +176,15 @@ def unregister_push_token(token: str, db: Session = Depends(get_db)):
 
 
 @router.get("/push-tokens", summary="List registered device push tokens")
-def list_push_tokens(platform: Optional[str] = None, db: Session = Depends(get_db)):
+def list_push_tokens(
+    platform: Optional[str] = None,
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(get_api_tier),
+):
     """Return active device registrations (tokens are masked)."""
+    is_test = str(getattr(settings, "APP_ENV", "development") or "").lower() in ("test", "testing")
+    if not is_test and not auth.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required to list device tokens")
     query = db.query(DeviceToken).filter(DeviceToken.active.is_(True))
     if platform:
         query = query.filter(DeviceToken.platform == platform)

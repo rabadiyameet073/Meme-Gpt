@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { Icon, type IconName } from "./Icon";
+import { api } from "../lib/api";
 
 export interface SuggestionChipsProps {
   onSelect: (query: string) => void;
@@ -23,6 +25,27 @@ const STATIC_CHIPS: ChipItem[] = [
 ];
 
 export function SuggestionChips({ onSelect, disabled }: SuggestionChipsProps) {
+  const [chips, setChips] = useState<ChipItem[]>(STATIC_CHIPS);
+
+  useEffect(() => {
+    let active = true;
+    api.getSuggestionChips(8)
+      .then((res) => {
+        if (active && res?.chips?.length) {
+          const dynamicList: ChipItem[] = res.chips.map((c) => ({
+            label: c.label,
+            query: c.query,
+            icon: "sparkles",
+          }));
+          setChips(dynamicList);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div style={{ margin: "18px 0 6px" }}>
       <div
@@ -51,9 +74,9 @@ export function SuggestionChips({ onSelect, disabled }: SuggestionChipsProps) {
         role="group"
         aria-label="Quick search suggestions"
       >
-        {STATIC_CHIPS.map((chip) => (
+        {chips.map((chip) => (
           <button
-            key={chip.query}
+            key={`${chip.label}-${chip.query}`}
             onClick={() => onSelect(chip.query)}
             disabled={disabled}
             type="button"

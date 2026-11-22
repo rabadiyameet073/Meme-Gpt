@@ -68,12 +68,18 @@ export interface SearchResponse {
   cached: boolean;
 }
 
+export interface SearchFilters {
+  categories?: string[];
+  exclude_ids?: string[];
+}
+
 export interface SearchRequest {
   query: string;
   format_preference?: 'gif' | 'image' | 'video' | 'any';
   nsfw?: boolean;
   limit?: number;
   session_id?: string;
+  filters?: SearchFilters;
 }
 
 export interface FeedbackRequest {
@@ -147,15 +153,26 @@ function normalizeResult(raw: any): MemeResult {
 
 // ── Search ─────────────────────────────────────────────────────────────────
 
-export async function searchMemes(req: SearchRequest): Promise<SearchResponse> {
+export async function searchMemes(req: SearchRequest, signal?: AbortSignal): Promise<SearchResponse> {
+  const payload: Record<string, any> = {
+    query: req.query,
+    format_preference: req.format_preference ?? 'gif',
+    formatPreference: req.format_preference ?? 'gif',
+    nsfw: req.nsfw ?? false,
+    limit: req.limit ?? 5,
+  };
+  if (req.session_id) {
+    payload.session_id = req.session_id;
+  }
+  if (req.filters) {
+    payload.filters = req.filters;
+  }
+
   const res = await fetch(`${API_BASE}/api/v1/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: req.query,
-      format_preference: req.format_preference ?? 'gif',
-      formatPreference: req.format_preference ?? 'gif',
-    }),
+    body: JSON.stringify(payload),
+    signal,
   });
 
   if (!res.ok) {
@@ -192,6 +209,18 @@ export async function getMeme(slug: string): Promise<MemeListItem> {
   const res = await fetch(`${API_BASE}/api/v1/memes/${slug}`);
   if (!res.ok) throw new Error(`Meme not found: ${slug}`);
   return res.json();
+}
+
+export async function getRelatedMemes(slugOrId: string, limit = 6): Promise<MemeResult[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/memes/${slugOrId}/related?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const rawList = Array.isArray(data) ? data : (data.items || data.results || []);
+    return rawList.map(normalizeResult);
+  } catch {
+    return [];
+  }
 }
 
 export async function getAllMemeSlugs(): Promise<string[]> {
@@ -249,13 +278,13 @@ export async function getCategories(): Promise<string[]> {
 // ── Favorites ──────────────────────────────────────────────────────────────
 
 export async function getFavorites(sessionId: string): Promise<MemeListItem[]> {
-  const res = await fetch(`${API_BASE}/api/favorites?sessionId=${sessionId}`);
+  const res = await fetch(`${API_BASE}/api/v1/favorites?sessionId=${sessionId}`);
   if (!res.ok) return [];
   return res.json();
 }
 
 export async function toggleFavorite(memeId: string, sessionId: string): Promise<{ isFavorite: boolean }> {
-  const res = await fetch(`${API_BASE}/api/favorites/toggle`, {
+  const res = await fetch(`${API_BASE}/api/v1/favorites/toggle`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ memeId, sessionId }),

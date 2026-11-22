@@ -14,9 +14,19 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pytest pytest-asyncio pytest-cov httpx
       - name: Run Backend Tests
+        working-directory: backend
         run: |
-          pytest backend/tests/ -v --tb=short
+          pytest tests/ -v --tb=short
         env:
+          APP_ENV: test
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          GROQ_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GROQ_API_KEY || '' }}
+          QDRANT_URL: ${{ github.ref == 'refs/heads/main' && secrets.QDRANT_URL || '' }}
+          QDRANT_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.QDRANT_API_KEY || '' }}
+      - name: Run AI Search Evaluation (AI-10)
+        run: |
+          python scripts/evaluate.py --test-file data/eval/golden_queries.json
+        env:
+          APP_ENV: test

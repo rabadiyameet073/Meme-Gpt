@@ -108,18 +108,59 @@ def create_database_backup(backup_dir: Path | None = None) -> dict[str, Any]:
         return manifest
 
     else:
-        # PostgreSQL / Supabase managed backup indicator
+        # PostgreSQL / Supabase
+        import shutil
+        import subprocess
+
+        pg_dump_bin = shutil.which("pg_dump")
         dest_filename = f"backup_{timestamp}.sql"
         dest_path = target_dir / dest_filename
+
+        if pg_dump_bin and getattr(settings, "DATABASE_URL", None):
+            try:
+                res = subprocess.run(
+                    [pg_dump_bin, settings.DATABASE_URL, "-f", str(dest_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if res.returncode == 0 and dest_path.exists():
+                    size_bytes = dest_path.stat().st_size
+                    with open(dest_path, "rb") as f:
+                        checksum = hashlib.sha256(f.read()).hexdigest()
+
+                    manifest = {
+                        "type": "postgresql",
+                        "timestamp": timestamp,
+                        "filename": dest_filename,
+                        "path": str(dest_path),
+                        "size_bytes": size_bytes,
+                        "sha256": checksum,
+                        "artifact_generated": True,
+                        "status": "success",
+                    }
+                    manifest_path = target_dir / f"manifest_{timestamp}.json"
+                    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+                    return manifest
+            except Exception as e:
+                logger.warning(f"pg_dump execution failed: {e}")
+
+        # DB-05: Never report success without an artifact; report managed status honestly
         manifest = {
             "type": "postgresql_supabase",
             "timestamp": timestamp,
-            "filename": dest_filename,
-            "path": str(dest_path),
-            "sha256": "supabase-managed",
+            "filename": None,
+            "path": None,
+            "size_bytes": 0,
+            "sha256": None,
+            "artifact_generated": False,
             "retention": "7 days (Free), 30 days (Pro)",
-            "status": "success",
+            "status": "managed_external",
+            "provider": "supabase_pitr",
+            "note": "Continuous point-in-time recovery (PITR) managed by Supabase platform. Local dump requires pg_dump binary.",
         }
+        manifest_path = target_dir / f"manifest_{timestamp}.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         return manifest
 
 

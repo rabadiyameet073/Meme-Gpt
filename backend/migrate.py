@@ -103,6 +103,26 @@ def run_migration(db_path: str = DB_PATH) -> dict:
     return {"applied": success, "skipped": skipped}
 
 
+def run_alembic_upgrade() -> bool:
+    """Run alembic upgrade head using the versioned alembic configuration."""
+    try:
+        from alembic.config import Config
+        from alembic import command
+        alembic_ini = os.path.join(os.path.dirname(__file__), "alembic.ini")
+        if os.path.exists(alembic_ini):
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
+            print("✓ Alembic migrations applied to head.")
+            return True
+    except Exception as e:
+        print(f"ℹ️ Alembic upgrade notice: {e}")
+    return False
+
+
 if __name__ == "__main__":
     print(f"Running migration on: {DB_PATH}")
-    run_migration()
+    if "--alembic" in sys.argv:
+        run_alembic_upgrade()
+    else:
+        run_alembic_upgrade()
+        run_migration()

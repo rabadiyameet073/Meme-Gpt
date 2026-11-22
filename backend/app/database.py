@@ -213,6 +213,8 @@ class Meme(Base):
 
     # Provenance
     source = Column(String(50), default="manual", index=True)
+    source_id = Column(String(100), nullable=True)
+    license = Column(String(50), default="fair_use", nullable=True)
 
     # Content flags
     nsfw = Column(Boolean, default=False, index=True)
@@ -410,6 +412,8 @@ class Meme(Base):
                 "thumb": self.thumb_url,
             },
             "source": self.source or "manual",
+            "source_id": self.source_id,
+            "license": self.license or "fair_use",
             "nsfw": bool(self.nsfw),
             "alt_text": self.alt_text or f"Meme: {self.name}",
             "flag_count": self.flag_count or 0,
@@ -495,6 +499,59 @@ class MemeFlag(Base):
     )
 
 
+class DMCANotice(Base):
+    """DMCA copyright notices and takedown requests (MOD-07)."""
+    __tablename__ = "dmca_notices"
+
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meme_id = Column(String(64), ForeignKey("memes.id", ondelete="SET NULL"), nullable=True, index=True)
+    claimant_name = Column(String(200), nullable=False)
+    claimant_email = Column(String(255), nullable=False)
+    copyrighted_work = Column(Text, nullable=False)
+    infringing_url = Column(String(500), nullable=False)
+    action_taken = Column(String(50), default="takedown")
+    status = Column(String(20), default="processed")
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=utc_now)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "meme_id": self.meme_id,
+            "claimant_name": self.claimant_name,
+            "claimant_email": self.claimant_email,
+            "copyrighted_work": self.copyrighted_work,
+            "infringing_url": self.infringing_url,
+            "action_taken": self.action_taken,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class AdminAuditLog(Base):
+    """Audit log capturing all administrative mutations and security actions (ADM-03)."""
+    __tablename__ = "admin_audit_logs"
+
+    id = Column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    actor_id = Column(String(64), nullable=True, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    target_type = Column(String(50), nullable=False)
+    target_id = Column(String(64), nullable=True)
+    details = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=utc_now, index=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "actor_id": self.actor_id,
+            "action": self.action,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "details": self.details or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class User(Base):
     """
     User accounts — supports OAuth, credentials, plan tiers, and preferences.
@@ -530,6 +587,8 @@ class User(Base):
 
     saved_memes = relationship("SavedMeme", back_populates="user", cascade="all, delete-orphan")
     feedback_entries = relationship("Feedback", back_populates="user")
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+    device_tokens = relationship("DeviceToken", back_populates="user")
 
     __table_args__ = (
         Index("idx_users_email", "email"),
@@ -579,6 +638,7 @@ class Feedback(Base):
     query_text = Column(Text, nullable=True)
     query_id = Column(String(64), nullable=True)
     action = Column(String(50), nullable=False, index=True)
+    format = Column(String(20), nullable=True, default="image")
     created_at = Column(DateTime, default=utc_now, index=True)
 
     user = relationship("User", back_populates="feedback_entries")
@@ -659,11 +719,13 @@ class ApiKey(Base):
     key_hash = Column(String(64), unique=True, nullable=False, index=True)
     prefix = Column(String(32), nullable=False)
     tier = Column(String(20), default="free")
-    user_id = Column(String(64), nullable=True)
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     revoked = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utc_now)
     last_used = Column(DateTime, nullable=True)
     rate_limit = Column(Integer, nullable=True)
+
+    user = relationship("User", back_populates="api_keys")
 
     def to_dict(self) -> dict:
         return {
@@ -695,6 +757,8 @@ class DeviceToken(Base):
     active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=utc_now)
     last_seen_at = Column(DateTime, default=utc_now)
+
+    user = relationship("User", back_populates="device_tokens")
 
     __table_args__ = (
         Index("idx_device_tokens_platform_active", "platform", "active"),

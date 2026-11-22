@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
-SECRET_KEY = getattr(settings, "SECRET_KEY", "change-me-in-production")
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = getattr(settings, "JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 15)
 REFRESH_TOKEN_EXPIRE_DAYS = getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", 7)
@@ -58,17 +58,40 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, _get_secret_key(), algorithm=_get_algorithm())
 
 
+import uuid
+
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire_days = getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", REFRESH_TOKEN_EXPIRE_DAYS)
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=expire_days))
-    to_encode.update({"exp": expire, "type": "refresh"})
+    jti = to_encode.get("jti") or str(uuid.uuid4())
+    to_encode.update({"exp": expire, "type": "refresh", "jti": jti})
     return jwt.encode(to_encode, _get_secret_key(), algorithm=_get_algorithm())
+
+
+def revoke_token_jti(jti: str) -> bool:
+    """Revoke a token's jti in Redis / cache so it cannot be used again (AUTH-07)."""
+    if not jti:
+        return False
+    from app.core.cache import cache_set
+    cache_set(f"revoked_jwt:{jti}", 1, ttl=REFRESH_TOKEN_EXPIRE_DAYS * 86400)
+    return True
+
+
+def is_jti_revoked(jti: str) -> bool:
+    """Check if token's jti is in the revoked blacklist (AUTH-07)."""
+    if not jti:
+        return False
+    from app.core.cache import cache_get
+    return cache_get(f"revoked_jwt:{jti}") is not None
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(token, _get_secret_key(), algorithms=[_get_algorithm()])
+        jti = payload.get("jti")
+        if jti and is_jti_revoked(jti):
+            return None
         return payload
     except Exception:
         return None

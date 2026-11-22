@@ -375,8 +375,12 @@ def personalized_rerank(
         cat = str(meme.get("category", "")).lower().strip()
         base_score = float(item.get("score", 0.5))
 
-        # Default weight is 1.0, clamped between 0.5 and 2.0
-        raw_weight = category_weights.get(cat, 1.0)
+        # Check all categories for category weight matches
+        cats = meme.get("categories") or ([meme.get("category")] if meme.get("category") else [])
+        if isinstance(cats, str):
+            cats = [cats]
+        matched_weights = [category_weights.get(str(c).lower().strip(), 1.0) for c in cats]
+        raw_weight = max(matched_weights) if matched_weights else category_weights.get(cat, 1.0)
         clamped_weight = max(0.5, min(2.0, float(raw_weight)))
 
         final_score = round(base_score * (1.0 + 0.15 * clamped_weight), 3)

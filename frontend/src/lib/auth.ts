@@ -61,15 +61,14 @@ export function getCachedUser(): User | null {
 
 export async function fetchCurrentUser(): Promise<User | null> {
   const token = getStoredToken();
-  if (!token) {
-    return null;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   try {
     const res = await apiRequest<{ user: User }>("/api/v1/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
     if (res?.user) {
       try {
@@ -80,7 +79,7 @@ export async function fetchCurrentUser(): Promise<User | null> {
     return null;
   } catch (err: any) {
     if (err?.status === 401) {
-      // Try refresh
+      // Try refresh with cookies or refresh token
       const refreshed = await refreshSession();
       if (refreshed?.user) {
         return refreshed.user;
@@ -91,6 +90,30 @@ export async function fetchCurrentUser(): Promise<User | null> {
   }
 }
 
+export async function syncLocalFavoritesToServer(sessionId: string): Promise<void> {
+  try {
+    const raw = localStorage.getItem("memegpt_user_data");
+    const saved = localStorage.getItem("memegpt_saved_memes");
+    const ids = new Set<string>();
+
+    if (raw) {
+      const data = JSON.parse(raw);
+      (data.favorites || []).forEach((f: any) => { if (f.memeId) ids.add(f.memeId); });
+    }
+    if (saved) {
+      const list = JSON.parse(saved);
+      (list || []).forEach((m: any) => { if (m.id) ids.add(m.id); });
+    }
+
+    for (const id of Array.from(ids)) {
+      await apiRequest("/api/v1/favorites/toggle", {
+        method: "POST",
+        body: JSON.stringify({ memeId: id, sessionId }),
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
 export async function loginWithEmail(email: string, password: string): Promise<AuthResponse> {
   const res = await apiRequest<AuthResponse>("/api/v1/auth/login", {
     method: "POST",
@@ -98,6 +121,9 @@ export async function loginWithEmail(email: string, password: string): Promise<A
   });
   if (res.access_token) {
     setStoredTokens(res.access_token, res.refresh_token, res.user);
+    if (res.user?.id) {
+      syncLocalFavoritesToServer(res.user.id).catch(() => {});
+    }
   }
   return res;
 }
@@ -113,6 +139,9 @@ export async function registerWithEmail(
   });
   if (res.access_token) {
     setStoredTokens(res.access_token, res.refresh_token, res.user);
+    if (res.user?.id) {
+      syncLocalFavoritesToServer(res.user.id).catch(() => {});
+    }
   }
   return res;
 }

@@ -1,11 +1,29 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getMeme, getDownloadUrl } from '../../../lib/api';
 import { MemeDetailClient } from './MemeDetailClient';
 
 interface Props {
   params: { slug: string };
+}
+
+export const dynamicParams = true;
+export const revalidate = 86400; // ISR: 24 hours
+
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/memes?limit=50`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const memes = Array.isArray(data) ? data : (data.memes || data.results || []);
+    return memes.filter((m: any) => m.slug).map((m: any) => ({ slug: m.slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -17,6 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: `${title} Meme — Download GIF, PNG, MP4 | MemeGPT`,
       description: desc.slice(0, 160),
+      alternates: {
+        canonical: `/meme/${params.slug}`,
+      },
       openGraph: {
         title: `${title} — MemeGPT`,
         description: desc.slice(0, 160),
@@ -88,7 +109,7 @@ export default async function MemePage({ params }: Props) {
       {/* Main content — client component for interactivity */}
       <MemeDetailClient meme={meme} slug={slug} />
 
-      {/* JSON-LD structured data */}
+      {/* JSON-LD structured data (XSS-safe escaped) */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -100,7 +121,7 @@ export default async function MemePage({ params }: Props) {
             contentUrl: meme.gifRef || meme.imageRef || '',
             url: `https://memegpt.com/meme/${slug}`,
             keywords: (meme.keywords || []).join(', '),
-          }),
+          }).replace(/</g, '\\u003c'),
         }}
       />
     </div>

@@ -51,6 +51,7 @@ export function Header() {
               <Link
                 key={href}
                 href={href}
+                aria-label={label}
                 className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl
                             transition-all duration-150 ${
                   isActive
@@ -60,7 +61,7 @@ export function Header() {
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span className="text-base" aria-hidden="true">{emoji}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <span className="sr-only sm:not-sr-only sm:inline">{label}</span>
               </Link>
             );
           })}

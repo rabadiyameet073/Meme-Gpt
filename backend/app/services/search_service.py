@@ -126,7 +126,7 @@ COMBINED_VECTOR_SIZE = 896 # 384 + 512
 #: Moderation states that must never be returned by any retrieval path.
 #: The DB-backed fallback (``_passes_filters`` / ``_db_fallback_search``) and the
 #: Qdrant ANN path read this same constant so the two cannot drift apart again.
-HIDDEN_MODERATION_STATUSES = frozenset({"removed"})
+HIDDEN_MODERATION_STATUSES = frozenset({"removed", "pending_review"})
 
 
 def create_qdrant_collection(
@@ -212,6 +212,19 @@ def create_qdrant_collection(
                 if hasattr(target_client, "delete_collection"):
                     target_client.delete_collection(target_name)
                     logger.info(f"Deleted existing collection '{target_name}'")
+
+        if recreate:
+            local_path = (getattr(settings, "QDRANT_LOCAL_PATH", "") or "").strip()
+            if local_path:
+                import shutil
+                from pathlib import Path
+                coll_dir = Path(local_path) / "collection" / target_name
+                if coll_dir.exists():
+                    try:
+                        shutil.rmtree(coll_dir, ignore_errors=True)
+                        logger.info(f"Cleaned local collection directory: {coll_dir}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove collection directory {coll_dir}: {e}")
 
         if hasattr(target_client, "create_collection"):
             target_client.create_collection(
@@ -713,6 +726,102 @@ def search(
     )
 
 
+def multimodal_vector_search(
+    query_vector: List[float],
+    clip_text_vector: Optional[List[float]] = None,
+    emotion: str = "",
+    format_pref: str = "any",
+    nsfw: bool = False,
+    top_k: int = 15,
+    categories: Optional[List[str]] = None,
+    exclude_ids: Optional[List[str]] = None,
+    query_text: str = "",
+) -> List[Dict[str, Any]]:
+    """
+    Multimodal fusion search across text and image vectors (AI-01).
+    Encodes query with MiniLM for text vectors and CLIP text tower for image vectors,
+    then combines candidate signals (70% text semantic + 30% visual CLIP similarity).
+    """
+    text_results = vector_search(
+        query_vector=query_vector,
+        emotion=emotion,
+        format_pref=format_pref,
+        nsfw=nsfw,
+        top_k=top_k,
+        vector_name="text",
+        categories=categories,
+        exclude_ids=exclude_ids,
+        query_text=query_text,
+    )
+
+    if not clip_text_vector or not any(clip_text_vector):
+        return text_results
+
+    try:
+        image_results = vector_search(
+            query_vector=clip_text_vector,
+            emotion=emotion,
+            format_pref=format_pref,
+            nsfw=nsfw,
+            top_k=top_k,
+            vector_name="image",
+            categories=categories,
+            exclude_ids=exclude_ids,
+            query_text=query_text,
+            score_threshold=0.20,
+        )
+        if not image_results:
+            return text_results
+
+        by_id: Dict[str, Dict[str, Any]] = {}
+        for item in text_results:
+            mid = item["id"]
+            by_id[mid] = {
+                "id": mid,
+                "text_score": item.get("score", 0.0),
+                "image_score": 0.0,
+                "meme": item.get("meme", {}),
+            }
+
+        for item in image_results:
+            mid = item["id"]
+            if mid in by_id:
+                by_id[mid]["image_score"] = item.get("score", 0.0)
+            else:
+                by_id[mid] = {
+                    "id": mid,
+                    "text_score": 0.0,
+                    "image_score": item.get("score", 0.0),
+                    "meme": item.get("meme", {}),
+                }
+
+        fused = []
+        for mid, data in by_id.items():
+            t_score = data["text_score"]
+            i_score = data["image_score"]
+            if t_score > 0 and i_score > 0:
+                final_score = 0.70 * t_score + 0.30 * i_score
+            elif t_score > 0:
+                final_score = t_score
+            else:
+                final_score = i_score * 0.85
+
+            fused.append({
+                "id": mid,
+                "score": round(final_score, 4),
+                "meme": data["meme"],
+                "text_score": t_score,
+                "image_score": i_score,
+            })
+
+        fused.sort(key=lambda x: x["score"], reverse=True)
+        return fused[:top_k]
+
+    except Exception as e:
+        logger.debug(f"Multimodal search fusion error ({e}) — using text search results")
+        return text_results
+
+
 def adaptive_vector_search(
     query_vector: List[float],
     vector_name: str = "text",
@@ -843,7 +952,7 @@ def _passes_filters(
         return False
     if str(meme.get("moderation_status") or "approved") in HIDDEN_MODERATION_STATUSES:
         return False
-    if not nsfw and meme.get("nsfw"):
+    if not nsfw and (meme.get("nsfw") or meme.get("is_nsfw")):
         return False
 
     if format_pref in ("gif", "video", "mp4"):
@@ -975,30 +1084,12 @@ def get_trending_memes(limit: int = 10) -> List[Dict[str, Any]]:
                 d = m.to_dict()
                 d["is_trending_fallback"] = True
                 results.append(d)
-
-            while len(results) < limit:
-                idx = len(results) + 1
-                results.append({
-                    "id": f"trending_fallback_{idx}",
-                    "name": f"Trending Meme #{idx}",
-                    "slug": f"trending-meme-{idx}",
-                    "categories": ["trending"],
-                    "emotions": ["joy"],
-                    "is_trending_fallback": True,
-                })
             return results
         finally:
             db.close()
     except Exception as e:
         logger.error(f"get_trending_memes error: {e}")
-        return [
-            {
-                "id": f"trending_fallback_{i+1}",
-                "name": f"Trending Meme #{i+1}",
-                "is_trending_fallback": True,
-            }
-            for i in range(limit)
-        ]
+        return []
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1138,6 +1229,18 @@ def build_search_response_payload(
         if exclude_ids and mid in exclude_ids:
             continue
 
+        if categories_filter:
+            m_cats = m.get("categories") or []
+            if isinstance(m_cats, str):
+                m_cats = [m_cats]
+            m_cat = m.get("category")
+            if m_cat:
+                m_cats = list(m_cats) + [m_cat]
+            m_cats_lower = {str(c).lower().strip() for c in m_cats}
+            filter_cats_lower = {str(c).lower().strip() for c in categories_filter}
+            if not m_cats_lower.intersection(filter_cats_lower):
+                continue
+
         score_val = round(float(r.get("score") or m.get("score") or m.get("confidence") or 0.85), 3)
         img = m.get("image_url") or m.get("image_ref") or m.get("imageRef")
         gif = m.get("gif_url") or m.get("gif_ref") or m.get("gifRef")
@@ -1152,6 +1255,7 @@ def build_search_response_payload(
             "image": img,
             "gif": gif,
             "mp4": mp4,
+            "video": mp4,
             "thumb": thumb,
             "webp": webp,
         }
@@ -1161,7 +1265,7 @@ def build_search_response_payload(
             "score": score_val,
             "relevance_score": score_val,
             "confidence": round(score_val, 2),
-            "emotion_match": detected_emotion,
+            "emotion_match": [detected_emotion] if isinstance(detected_emotion, str) else list(detected_emotion or []),
             "preview_url": preview,
             "share_url": share,
             "formats": formats,

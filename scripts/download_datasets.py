@@ -50,6 +50,8 @@ def download_reddit_dataset() -> list[dict]:
                 "id": f"reddit_{item['id']}",
                 "name": item.get("title", ""),
                 "source": "reddit",
+                "source_id": str(item.get("id")),
+                "license": "fair_use",
                 "image_url": item.get("url", ""),
                 "score": item.get("score", 0),
             })
@@ -60,10 +62,42 @@ def download_reddit_dataset() -> list[dict]:
         return []
 
 
+def download_giphy(limit: int = 50) -> list[dict]:
+    """Retrieves trending memes/gifs from Giphy API."""
+    api_key = os.getenv("GIPHY_API_KEY")
+    if not api_key:
+        print("ℹ️ GIPHY_API_KEY not configured — skipping Giphy download")
+        return []
+    url = "https://api.giphy.com/v1/gifs/trending"
+    try:
+        resp = requests.get(url, params={"api_key": api_key, "limit": limit, "rating": "pg-13"}, timeout=10)
+        if resp.status_code != 200:
+            print(f"⚠️ Giphy API responded with status {resp.status_code}")
+            return []
+        data = resp.json()
+        results = []
+        for g in data.get("data", []):
+            results.append({
+                "id": f"giphy_{g['id']}",
+                "name": g.get("title") or "Giphy Meme",
+                "source": "giphy",
+                "source_id": g["id"],
+                "license": "fair_use",
+                "image_url": g.get("images", {}).get("original", {}).get("url"),
+                "gif_url": g.get("images", {}).get("original", {}).get("url"),
+                "mp4_url": g.get("images", {}).get("original_mp4", {}).get("mp4"),
+            })
+        print(f"✓ Retrieved {len(results)} Giphy memes")
+        return results
+    except Exception as e:
+        print(f"⚠️ Error downloading Giphy memes: {e}")
+        return []
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Download meme datasets for MemeGPT")
-    parser.add_argument("--source", choices=["imgflip", "reddit", "all"], default="imgflip")
+    parser.add_argument("--source", choices=["imgflip", "reddit", "giphy", "all"], default="all")
     args = parser.parse_args()
 
     results = []
@@ -71,6 +105,8 @@ def main():
         results.extend(download_imgflip())
     if args.source in ["reddit", "all"]:
         results.extend(download_reddit_dataset())
+    if args.source in ["giphy", "all"]:
+        results.extend(download_giphy())
 
     out_file = OUTPUT_DIR / "dataset_manifest.json"
     with open(out_file, "w", encoding="utf-8") as f:

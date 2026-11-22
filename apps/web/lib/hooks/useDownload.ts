@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { getDownloadUrl, submitFeedback } from '../api';
+import { getSessionId } from './useMemeSearch';
 
 export type DownloadFormat = 'gif' | 'image' | 'mp4' | 'webp';
 export type DownloadState = 'idle' | 'downloading' | 'done' | 'error';
@@ -18,6 +19,30 @@ interface UseDownloadReturn {
   copyLink: (slug: string) => Promise<void>;
 }
 
+async function convertToPngBlob(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/png') return blob;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(blob);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        resolve(pngBlob || blob);
+      }, 'image/png');
+    };
+    img.onerror = () => resolve(blob);
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
 export function useDownload(): UseDownloadReturn {
   const [downloadState, setDownloadState] = useState<DownloadState>('idle');
   const [copyState, setCopyState] = useState<DownloadState>('idle');
@@ -26,18 +51,24 @@ export function useDownload(): UseDownloadReturn {
     setDownloadState('downloading');
     try {
       const url = getDownloadUrl(slug, format);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slug}.${format === 'image' ? 'jpg' : format}`;
-      a.target = '_blank';
+      a.href = blobUrl;
+      a.download = `${slug}.${format === 'image' ? 'png' : format}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
       setDownloadState('done');
-      if (memeId) submitFeedback({ meme_id: memeId, signal: 'download', action: 'download' }).catch(() => {});
+      if (memeId) submitFeedback({ meme_id: memeId, signal: 'download', action: 'download', session_id: getSessionId() }).catch(() => {});
       setTimeout(() => setDownloadState('idle'), 2000);
     } catch {
-      setDownloadState('error');
+      // Fallback direct link
+      const fallbackUrl = getDownloadUrl(slug, format);
+      window.open(fallbackUrl, '_blank');
+      setDownloadState('done');
       setTimeout(() => setDownloadState('idle'), 2000);
     }
   }, []);
@@ -46,10 +77,11 @@ export function useDownload(): UseDownloadReturn {
     setCopyState('downloading');
     try {
       const res = await fetch(imageUrl);
-      const blob = await res.blob();
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      const rawBlob = await res.blob();
+      const pngBlob = await convertToPngBlob(rawBlob);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
       setCopyState('done');
-      if (memeId) submitFeedback({ meme_id: memeId, signal: 'copy', action: 'copy' }).catch(() => {});
+      if (memeId) submitFeedback({ meme_id: memeId, signal: 'copy', action: 'copy', session_id: getSessionId() }).catch(() => {});
 
       setTimeout(() => setCopyState('idle'), 2000);
     } catch {
@@ -57,6 +89,13 @@ export function useDownload(): UseDownloadReturn {
       try {
         await navigator.clipboard.writeText(imageUrl);
         setCopyState('done');
+        if (memeId) submitFeedback({ meme_id: memeId, signal: 'copy', action: 'copy', session_id: getSessionId() }).catch(() => {});
+      } catch {
+        setCopyState('error');
+      }
+      setTimeout(() => setCopyState('idle'), 2000);
+    }
+  }, []);
         setTimeout(() => setCopyState('idle'), 2000);
       } catch {
         setCopyState('error');

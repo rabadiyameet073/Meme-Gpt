@@ -66,6 +66,7 @@ def get_favorites(
 
 
 @router.post("/favorites", summary="Toggle favorite for meme")
+@router.post("/favorites/toggle", summary="Toggle favorite alias")
 def toggle_favorite(
     body: ToggleFavoriteRequest,
     db: Session = Depends(get_db),

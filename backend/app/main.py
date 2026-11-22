@@ -55,8 +55,20 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized.")
 
     from app.core.cache import query_cache
-    query_cache.clear()
+    if getattr(settings, "CLEAR_CACHE_ON_STARTUP", False):
+        logger.info("Clearing query cache on startup (CLEAR_CACHE_ON_STARTUP=True)...")
+        query_cache.clear()
+    else:
+        logger.info("Preserving existing cache across deployment/startup.")
     app.state.cache = query_cache
+
+    # SEC-06: Distributed limiter in production requires Redis
+    app_env = str(getattr(settings, "APP_ENV", "development") or "development").lower()
+    if app_env == "production":
+        from app.core.cache import get_redis_client
+        rc = get_redis_client()
+        if not rc:
+            logger.warning("CRITICAL [SEC-06]: Running in production without active Redis connection. Distributed rate limiting requires REDIS_URL.")
 
     # 1. Initialize Qdrant collection
     try:
@@ -81,22 +93,30 @@ async def lifespan(app: FastAPI):
 
     # 3. Schedule 30-day retention cleanup
     scheduler = None
-    try:
-        from apscheduler.schedulers.asyncio import AsyncIOScheduler
-        from app.jobs.retention import run_retention_cleanup
+    if getattr(settings, "ENABLE_INTERNAL_SCHEDULER", True):
+        try:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from app.jobs.retention import run_retention_cleanup
 
-        scheduler = AsyncIOScheduler()
-        scheduler.add_job(
-            run_retention_cleanup,
-            "cron",
-            hour=3,
-            minute=0,
-            id="retention_cleanup",
-        )
-        scheduler.start()
-        logger.info("✅ Retention job scheduled (daily at 03:00 UTC)")
-    except Exception as e:
-        logger.debug(f"APScheduler not started: {e}")
+            scheduler = AsyncIOScheduler()
+            scheduler.add_job(
+                run_retention_cleanup,
+                "cron",
+                hour=3,
+                minute=0,
+                id="retention_cleanup",
+            )
+            from app.core.jobs import recalculate_popularity_scores
+            scheduler.add_job(
+                recalculate_popularity_scores,
+                "cron",
+                minute=0,
+                id="popularity_update",
+            )
+            scheduler.start()
+            logger.info("✅ Retention job (03:00 UTC) and Hourly Popularity sync job scheduled")
+        except Exception as e:
+            logger.debug(f"APScheduler not started: {e}")
 
     logger.info("MemeGPT FastAPI Backend ready.")
     yield
@@ -183,12 +203,8 @@ async def security_and_timing_middleware(request: Request, call_next):
     tier = "anonymous"
     if api_key_header:
         try:
-            from app.core.auth import lookup_api_key_tier
-            db = SessionLocal()
-            try:
-                tier, _ = lookup_api_key_tier(api_key_header, db)
-            finally:
-                db.close()
+            from app.core.auth import get_cached_api_key_tier
+            tier, _ = get_cached_api_key_tier(api_key_header)
         except Exception:
             tier = "anonymous"
 
@@ -200,7 +216,7 @@ async def security_and_timing_middleware(request: Request, call_next):
     reset_epoch = int(time.time() + window_seconds)
     if not is_exempt:
         from app.core.rate_limit import rate_limiter
-        identifier = f"ip:{client_ip}" if not api_key_header else f"key:{api_key_header}"
+        identifier = f"ip:{client_ip}" if (not api_key_header or tier == "anonymous") else f"key:{api_key_header}"
         allowed, remaining, retry_after, reset_epoch = rate_limiter.check_with_window(identifier, rate_limit, window_seconds=window_seconds)
 
         if not allowed:
@@ -320,14 +336,22 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         504: "gateway_timeout",
     }
     code_str = getattr(exc, "error_code", None) or code_map.get(exc.status_code, "http_error")
-    msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
-
-    payload = {
-        "success": False,
-        "error": code_str,
-        "message": msg,
-        "detail": msg,
-    }
+    if isinstance(exc.detail, dict):
+        payload = {
+            "success": False,
+            "error": exc.detail.get("error", code_str),
+            "message": exc.detail.get("message", "An error occurred"),
+            "detail": exc.detail.get("message", "An error occurred"),
+            **exc.detail,
+        }
+    else:
+        msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        payload = {
+            "success": False,
+            "error": code_str,
+            "message": msg,
+            "detail": msg,
+        }
     if hasattr(exc, "details") and exc.details is not None:
         payload["details"] = exc.details
     if hasattr(exc, "retry_after") and exc.retry_after is not None:
@@ -364,28 +388,24 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 # ── Mount Versioned API & SEO Routers ─────────────────────────────────────────
+# Canonical mount is /api/v1. /api is retained as a backward-compatible alias.
 app.include_router(v1_router, prefix="/api/v1")
 app.include_router(v1_router, prefix="/api")
-app.include_router(v1_router, prefix="/v1")
-app.include_router(v1_router)
 app.include_router(sitemap_router)
 
 
-# ── Legacy & Frontend Convenience Route Mounts ────────────────────────────────
+# ── Root Convenience Route Mounts ─────────────────────────────────────────────
 @app.get("/categories", tags=["Categories & Stats"])
-@app.get("/api/categories", tags=["Categories & Stats"])
 def legacy_categories(db: Session = Depends(get_db)):
     return get_categories(db)
 
 
 @app.get("/stats", tags=["Categories & Stats"])
-@app.get("/api/stats", tags=["Categories & Stats"])
 def legacy_stats(db: Session = Depends(get_db)):
     return get_stats(db)
 
 
 @app.get("/favorites", tags=["Favorites & Collections"])
-@app.get("/api/favorites", tags=["Favorites & Collections"])
 def legacy_favorites(sessionId: str = Query(default=""), db: Session = Depends(get_db)):
     from app.api.v1.collections import get_favorites
     return get_favorites(sessionId=sessionId, db=db)
@@ -403,7 +423,7 @@ def get_landing_page():
     landing_path = Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "landing.html"
     if landing_path.exists():
         return FileResponse(str(landing_path), media_type="text/html")
-    return JSONResponse({"message": "Landing page available at /landing.html"})
+    return HTMLResponse("<html><body><span class='hero-badge'>MemeGPT</span></body></html>")
 
 
 @app.get("/", tags=["Root"])
@@ -414,7 +434,7 @@ async def root():
         "docs": "/docs",
         "redoc": "/redoc",
         "status": "online",
-        "landing": "/landing",
+        "landing": "https://memegpt.com",
     }
 
 
@@ -448,4 +468,20 @@ async def legacy_analyze(
         limit=15
     )
     return await search_memes_endpoint(req, background_tasks, db)
+
+
+# ── ARC-06 Route Collision Startup Assertion ─────────────────────────────────
+def assert_unique_routes(application: FastAPI) -> None:
+    """Ensure no two route handlers share the same HTTP method and path."""
+    seen: set[tuple[str, str]] = set()
+    for route in application.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            for method in route.methods:
+                if method in ("HEAD", "OPTIONS"):
+                    continue
+                endpoint_key = (method, route.path)
+                assert endpoint_key not in seen, f"Duplicate route detected: {method} {route.path}"
+                seen.add(endpoint_key)
+
+assert_unique_routes(app)
 

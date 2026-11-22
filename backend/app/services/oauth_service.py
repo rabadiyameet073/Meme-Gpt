@@ -37,15 +37,16 @@ def _get_github_redirect_uri() -> str:
     return getattr(settings, "GITHUB_REDIRECT_URI", GITHUB_REDIRECT_URI) or GITHUB_REDIRECT_URI
 
 
-def get_google_auth_url() -> str:
+def get_google_auth_url(state: Optional[str] = None) -> str:
     """Generate Google OAuth consent URL."""
+    state_param = f"&state={state}" if state else ""
     return (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
         f"client_id={_get_google_client_id()}&"
         f"redirect_uri={_get_google_redirect_uri()}&"
         f"response_type=code&"
         f"scope=openid email profile&"
-        f"access_type=offline"
+        f"access_type=offline{state_param}"
     )
 
 
@@ -74,22 +75,25 @@ async def exchange_google_code(code: str) -> Optional[Dict]:
             return None
 
         user_info = user_resp.json()
+        is_verified = bool(user_info.get("verified_email", user_info.get("email_verified", True)))
         return {
             "provider": "google",
             "oauth_id": user_info["id"],
             "email": user_info["email"],
+            "email_verified": is_verified,
             "name": user_info.get("name", ""),
             "avatar_url": user_info.get("picture", ""),
         }
 
 
-def get_github_auth_url() -> str:
+def get_github_auth_url(state: Optional[str] = None) -> str:
     """Generate GitHub OAuth URL."""
+    state_param = f"&state={state}" if state else ""
     return (
         f"https://github.com/login/oauth/authorize?"
         f"client_id={_get_github_client_id()}&"
         f"redirect_uri={_get_github_redirect_uri()}&"
-        f"scope=user:email"
+        f"scope=user:email{state_param}"
     )
 
 
@@ -121,12 +125,26 @@ async def exchange_github_code(code: str) -> Optional[Dict]:
             headers={"Authorization": f"Bearer {access_token}"},
         )
         emails = email_resp.json() if email_resp.status_code == 200 else []
-        primary_email = next((e["email"] for e in emails if isinstance(e, dict) and e.get("primary")), user_info.get("email", ""))
+        primary_item = next((e for e in emails if isinstance(e, dict) and e.get("primary")), None)
+        primary_email = ""
+        is_verified = False
+        if primary_item:
+            primary_email = primary_item.get("email", "")
+            is_verified = bool(primary_item.get("verified"))
+        elif emails:
+            verified_item = next((e for e in emails if isinstance(e, dict) and e.get("verified")), None)
+            if verified_item:
+                primary_email = verified_item.get("email", "")
+                is_verified = True
+
+        if not primary_email:
+            primary_email = user_info.get("email", "")
 
         return {
             "provider": "github",
             "oauth_id": str(user_info["id"]),
-            "email": primary_email or user_info.get("email", ""),
+            "email": primary_email,
+            "email_verified": is_verified or bool(user_info.get("verified")),
             "name": user_info.get("name") or user_info.get("login", ""),
             "avatar_url": user_info.get("avatar_url", ""),
         }

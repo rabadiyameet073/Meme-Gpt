@@ -277,6 +277,10 @@ export function ChatTab({
       {/* Conversation Transcript & Refinement Controls */}
       {turns.length > 0 && (
         <div
+          role="region"
+          aria-label="Conversation Transcript"
+          aria-live="polite"
+          aria-atomic="false"
           style={{
             padding: "14px 18px",
             borderRadius: "var(--radius-sm)",

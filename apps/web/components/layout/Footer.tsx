@@ -4,12 +4,14 @@ import Link from 'next/link';
 const LINKS = {
   Product: [
     { label: 'Search Memes', href: '/app' },
-    { label: 'Trending', href: '/app/trending' },
-    { label: 'Your Library', href: '/app/library' },
+    { label: 'Trending', href: '/trending' },
+    { label: 'Your Library', href: '/library' },
     { label: 'Features', href: '/features' },
     { label: 'Mobile App', href: '/download' },
   ],
   Resources: [
+    { label: 'About', href: '/about' },
+    { label: 'Privacy Policy', href: '/privacy' },
     { label: 'Blog', href: '/blog' },
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'API (coming soon)', href: '#' },

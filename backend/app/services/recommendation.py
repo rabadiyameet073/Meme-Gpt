@@ -1,1 +1,0 @@
-from app.services.recommendation_service import *

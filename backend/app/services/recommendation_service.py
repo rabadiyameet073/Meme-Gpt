@@ -51,6 +51,9 @@ async def recommend(
     session_id: str | None = None,
     memes_from_db: list[dict] | None = None,
     include_live_media: bool = True,
+    limit: int = 5,
+    categories: list[str] | None = None,
+    exclude_ids: list[str] | None = None,
 ) -> dict:
     """Full recommendation pipeline. Returns a response dict.
 
@@ -62,9 +65,13 @@ async def recommend(
         memes_from_db: Pre-loaded memes from database (for fallback matching)
         include_live_media: Fetch live Giphy/meme-stream extras. Conversational
             refinement turns disable this to stay off the network (sub-second).
+        limit: Max number of results to return (1-50, default 5)
+        categories: Optional list of category filter constraints
+        exclude_ids: Optional list of meme IDs to exclude
     """
     start = time.perf_counter()
     query_id = f"q_{uuid.uuid4().hex[:8]}"
+    limit = min(max(limit, 1), 50)
 
     clean_text = (user_text or "")[:2000].strip()
     if not clean_text:
@@ -94,16 +101,27 @@ async def recommend(
         None, embedding_service.embed_text, query_text[:512]
     )
 
-    # ── 6. Vector search (~50ms) ───────────────────────────────────────────
+    clip_text_vector = None
+    try:
+        from app.services.image_analysis_service import embed_text_clip
+        clip_text_vector = await loop.run_in_executor(None, embed_text_clip, clean_text[:77])
+    except Exception:
+        pass
+
+    # ── 6. Multimodal Vector search (~50ms, AI-01) ─────────────────────────
     # ``query_text`` lets the in-process fallback apply lexical overlap when no
     # vector server is reachable, instead of returning a popularity dump.
-    candidates = search_service.vector_search(
+    top_k = max(15, limit * 3)
+    candidates = search_service.multimodal_vector_search(
         query_vector=query_vector,
+        clip_text_vector=clip_text_vector,
         emotion=emotion.get("primary", ""),
         format_pref=format_pref,
         nsfw=nsfw,
-        top_k=15,
+        top_k=top_k,
         query_text=clean_text,
+        categories=categories,
+        exclude_ids=exclude_ids,
     )
 
     # ── 6b. Enrich candidates with full meme data from DB ──────────────────
@@ -122,10 +140,43 @@ async def recommend(
 
     # If still no candidates, pull directly from DB
     if not candidates:
-        candidates = search_service._db_fallback_search(10)
+        candidates = search_service._db_fallback_search(max(10, limit))
 
     # ── 7. Re-rank (~10ms) ─────────────────────────────────────────────────
     final_results = rerank_service.rerank(candidates, intent, emotion, format_pref)
+
+    # ── 7b. Personalised Re-ranking from Feedback (AI-06) ──────────────────
+    if session_id and final_results:
+        try:
+            from app.database import SessionLocal, Feedback, Meme
+            db_s = SessionLocal()
+            try:
+                user_feedback = (
+                    db_s.query(Feedback)
+                    .filter(Feedback.session_id == session_id)
+                    .order_by(Feedback.created_at.desc())
+                    .limit(20)
+                    .all()
+                )
+                if user_feedback:
+                    liked_ids = [
+                        f.meme_id for f in user_feedback
+                        if f.action in ("thumbs_up", "copy", "share", "download")
+                    ]
+                    if liked_ids:
+                        liked_memes = db_s.query(Meme.categories).filter(Meme.id.in_(liked_ids)).all()
+                        category_counts: Dict[str, float] = {}
+                        for row in liked_memes:
+                            cats = row[0] if isinstance(row[0], list) else ([row[0]] if row[0] else [])
+                            for c in cats:
+                                category_counts[c] = category_counts.get(c, 0.0) + 1.0
+                        total_cats = sum(category_counts.values()) or 1.0
+                        user_affinities = {k: v / total_cats for k, v in category_counts.items()}
+                        final_results = rerank_service.personalized_rerank(final_results, user_affinities)
+            finally:
+                db_s.close()
+        except Exception as e:
+            logger.debug(f"Personalized rerank skipped: {e}")
 
     # ── 8. Build response ──────────────────────────────────────────────────
     elapsed_ms = max(int((time.perf_counter() - start) * 1000), 1)
@@ -149,8 +200,9 @@ async def recommend(
 
     # Build structured response matching the API contract
     primary = _build_result(final_results[0], intent, emotion)
-    top_five = [_build_result(r, intent, emotion) for r in final_results[:5]]
-    alternatives = [_build_result(r, intent, emotion) for r in final_results[1:]]
+    results_slice = [_build_result(r, intent, emotion) for r in final_results[:limit]]
+    top_five = [_build_result(r, intent, emotion) for r in final_results[:min(limit, 5)]]
+    alternatives = [_build_result(r, intent, emotion) for r in final_results[1:limit]]
 
     # Fetch live Giphy GIFs and Global Meme Stream (skippable for chat turns)
     if include_live_media:
@@ -174,7 +226,7 @@ async def recommend(
     response = {
         "success": True,
         "queryId": query_id,
-        "results": top_five,
+        "results": results_slice,
         "primary": primary,
         "topFive": top_five,
         "alternatives": alternatives,

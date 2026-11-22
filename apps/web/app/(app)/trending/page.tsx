@@ -1,13 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import React from 'react';
+import type { Metadata } from 'next';
 import { getTrending } from '../../../lib/api';
 import type { MemeResult } from '../../../lib/api';
 import { MemeGrid } from '../../../components/meme/MemeGrid';
 import { FormatSelector } from '../../../components/meme/FormatSelector';
 import type { FormatPref } from '../../../lib/hooks/useMemeSearch';
+import { TrendingClient } from './TrendingClient';
 
 const CATEGORIES = ['all', 'work', 'gaming', 'relationship', 'tech', 'coding', 'exam', 'general'];
+export const revalidate = 3600; // ISR: 1 hour
 
 export default function TrendingPage() {
   const [category, setCategory] = useState('all');
@@ -15,6 +19,14 @@ export default function TrendingPage() {
   const [memes, setMemes] = useState<MemeResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+export const metadata: Metadata = {
+  title: 'Trending Memes — MemeGPT',
+  description: 'Top trending memes across the internet, updated hourly with AI virality scoring.',
+  openGraph: {
+    title: 'Trending Memes — MemeGPT',
+    description: 'Top trending memes across the internet, updated hourly with AI virality scoring.',
+  },
+};
 
   useEffect(() => {
     setLoading(true);
@@ -23,6 +35,13 @@ export default function TrendingPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [category]);
+export default async function TrendingPage() {
+  let initialMemes = [];
+  try {
+    initialMemes = await getTrending('all', 20);
+  } catch {
+    initialMemes = [];
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 py-4">
@@ -93,4 +112,5 @@ export default function TrendingPage() {
       )}
     </div>
   );
+  return <TrendingClient initialMemes={initialMemes} initialCategory="all" />;
 }

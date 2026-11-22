@@ -64,11 +64,16 @@ def list_memes(
 ):
     """List memes ordered by popularity and filtered by keyword or category."""
     from sqlalchemy import or_, func
-    limit = min(max(limit, 1), 100)
+    limit = min(max(limit, 1), 5000)
     query = db.query(Meme).filter(Meme.moderation_status != "removed")
 
     if category:
         cat_clean = sanitize_input(category).lower().strip()
+        from app.services.trending_service import VALID_CATEGORIES
+        KNOWN_CATEGORIES = set(VALID_CATEGORIES) | set(CATEGORY_SYNONYMS.keys()) | {"all", "general", "reaction"}
+        if cat_clean not in KNOWN_CATEGORIES:
+            raise HTTPException(status_code=404, detail=f"Category '{cat_clean}' not found")
+
         synonyms = CATEGORY_SYNONYMS.get(cat_clean, [cat_clean])
         conds = []
         for syn in synonyms:
@@ -76,9 +81,7 @@ def list_memes(
             conds.append(func.lower(Meme.categories).like(f'%{syn}%'))
             conds.append(func.lower(Meme.keywords).like(f'%"{syn}"%'))
         
-        filtered_query = query.filter(or_(*conds))
-        if filtered_query.count() > 0:
-            query = filtered_query
+        query = query.filter(or_(*conds))
 
     memes = query.order_by(Meme.popularity_score.desc(), Meme.usage_count.desc()).all()
 
@@ -196,4 +199,37 @@ def download_meme(
         background_tasks.add_task(_record_feedback_background, meme.id, "download", fmt)
 
     return RedirectResponse(url=target_url, status_code=301)
+
+
+@router.get("/memes/{slug_or_id}/related", summary="Get related memes")
+def get_related_memes(
+    slug_or_id: str,
+    limit: int = Query(default=6, ge=1, le=20),
+    db: Session = Depends(get_db)
+):
+    """Retrieve related memes based on category, tags, and popularity."""
+    meme = db.query(Meme).filter(Meme.id == slug_or_id).first()
+    if not meme:
+        meme = db.query(Meme).filter(Meme.slug == slug_or_id).first()
+    if not meme:
+        memes = db.query(Meme).all()
+        for m in memes:
+            slug_val = re.sub(r"[^\w\s-]", "", m.name.lower()).strip().replace(" ", "-")
+            if slug_val == slug_or_id:
+                meme = m
+                break
+    if not meme:
+        raise HTTPException(status_code=404, detail="Meme not found")
+
+    query = db.query(Meme).filter(Meme.id != meme.id)
+    candidates = []
+    if meme.category:
+        candidates = query.filter(Meme.category == meme.category).order_by(Meme.viral_score.desc()).limit(limit * 2).all()
+
+    if len(candidates) < limit:
+        exclude_ids = [c.id for c in candidates] + [meme.id]
+        additional = query.filter(~Meme.id.in_(exclude_ids)).order_by(Meme.viral_score.desc()).limit(limit - len(candidates)).all()
+        candidates.extend(additional)
+
+    return [c.to_dict() for c in candidates[:limit]]
 

@@ -36,44 +36,48 @@ flowchart LR
 
 ---
 
-## Composite Score Formula
+## Composite Score Formula (Convex Combination - AI-05)
+
+To prevent score saturation at 1.0 (where additive bonuses caused most top results to clip at 0.99 and break ranking order), MemeGPT employs a convex normalized linear combination summing to 1.0:
+
+```python
+COMPOSITE_WEIGHTS = {
+    "semantic": 0.34,           # Dense MiniLM / Qdrant vector similarity
+    "lexical": 0.30,            # Exact term & token overlap
+    "emotion_primary": 0.14,    # Primary emotion classification match
+    "emotion_secondary": 0.06,  # Secondary emotion match
+    "popularity": 0.08,         # 30-day viral engagement score
+    "recency": 0.03,            # Recency boost for fresh memes
+    "format": 0.05,             # Format preference match (GIF/MP4/WebP)
+}
+# sum(COMPOSITE_WEIGHTS.values()) == 1.0
+```
 
 ```python
 def calculate_composite_score(
-    cosine_similarity: float,     # 0.0–1.0 from Qdrant
+    semantic_sim: float,          # 0.0–1.0 from Qdrant / cosine
+    lexical_sim: float,           # 0.0–1.0 token overlap
     meme_emotions: list[str],     # Meme's tagged emotions
     user_emotion_primary: str,    # Detected from user query
     user_emotion_secondary: str,  # Secondary detected emotion
     popularity_score: float,      # 0.0–1.0 historical engagement
+    recency_score: float,         # 0.0–1.0 recency score
     format_match: bool,           # User's preferred format available
 ) -> float:
     """
-    Composite relevance score for meme ranking.
-    
-    Components:
-    - Base: cosine similarity (0.0–1.0)
-    - Emotion primary match: +15%
-    - Emotion secondary match: +8%
-    - Popularity boost: +0-10% (weighted)
-    - Format preference match: +5%
-    - Cap: 1.0 maximum
+    Convex composite relevance score for meme ranking.
+    Preserves ordering between strong and weak matches and prevents tie-by-saturation.
     """
-    score = cosine_similarity
-    
-    # Emotion matching (+15% primary, +8% secondary)
-    if user_emotion_primary in meme_emotions:
-        score += 0.15
-    if user_emotion_secondary and user_emotion_secondary in meme_emotions:
-        score += 0.08
-    
-    # Popularity boost (0–10%)
-    score += popularity_score * 0.10
-    
-    # Format preference match (+5%)
-    if format_match:
-        score += 0.05
-    
-    return min(score, 1.0)  # Cap at 1.0
+    score = (
+        semantic_sim * COMPOSITE_WEIGHTS["semantic"] +
+        lexical_sim * COMPOSITE_WEIGHTS["lexical"] +
+        (1.0 if user_emotion_primary in meme_emotions else 0.0) * COMPOSITE_WEIGHTS["emotion_primary"] +
+        (1.0 if user_emotion_secondary in meme_emotions else 0.0) * COMPOSITE_WEIGHTS["emotion_secondary"] +
+        popularity_score * COMPOSITE_WEIGHTS["popularity"] +
+        recency_score * COMPOSITE_WEIGHTS["recency"] +
+        (1.0 if format_match else 0.0) * COMPOSITE_WEIGHTS["format"]
+    )
+    return max(0.0, min(score, 1.0))
 ```
 
 ---
@@ -82,12 +86,14 @@ def calculate_composite_score(
 
 | Component | Weight | Source | Purpose |
 |---|---|---|---|
-| **Cosine similarity** | Base (0.0–1.0) | Qdrant HNSW | Core semantic relevance |
-| **Primary emotion match** | +15% | DistilRoBERTa | Emotional accuracy |
-| **Secondary emotion match** | +8% | DistilRoBERTa | Emotional nuance |
-| **Popularity score** | +0%–10% | Feedback database | Surface well-known memes |
-| **Format preference match** | +5% | User setting | Convenience / usability |
-| **Maximum possible** | **1.0** (capped) | — | Prevents >100% display |
+| **Semantic Similarity** | 34% (0.34) | Qdrant / MiniLM | Deep semantic relevance |
+| **Lexical Overlap** | 30% (0.30) | Token Matching | Direct query keyword alignment |
+| **Primary Emotion Match** | 14% (0.14) | DistilRoBERTa | Primary emotional state accuracy |
+| **Secondary Emotion Match** | 6% (0.06) | DistilRoBERTa | Emotional nuance alignment |
+| **Popularity Score** | 8% (0.08) | Feedback Database | Viral engagement signal |
+| **Format Match** | 5% (0.05) | User Setting | Format convenience (GIF/video/image) |
+| **Recency Score** | 3% (0.03) | Timestamp | Freshness signal |
+| **Total Sum** | **100% (1.00)** | Convex Combination | Prevents score saturation |
 
 ---
 

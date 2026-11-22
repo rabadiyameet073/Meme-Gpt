@@ -1,9 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { MemeListItem } from '../../../lib/api';
-import { getDownloadUrl, submitFeedback } from '../../../lib/api';
+import type { MemeListItem, MemeResult } from '../../../lib/api';
+import { getDownloadUrl, submitFeedback, getRelatedMemes, toggleFavorite } from '../../../lib/api';
+import { getSessionId } from '../../../lib/hooks/useMemeSearch';
+
+async function convertToPngBlob(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/png') return blob;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(blob);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        resolve(pngBlob || blob);
+      }, 'image/png');
+    };
+    img.onerror = () => resolve(blob);
+    img.src = URL.createObjectURL(blob);
+  });
+}
 
 interface Props {
   meme: MemeListItem;
@@ -23,31 +48,103 @@ export function MemeDetailClient({ meme, slug }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<Format>('gif');
   const [copied, setCopied] = useState(false);
   const [voted, setVoted] = useState<'up' | 'down' | null>(null);
+  const [relatedMemes, setRelatedMemes] = useState<MemeResult[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('memegpt_saved_memes') || '[]');
+      setIsFavorite(saved.some((m: any) => m.id === meme.id || m.slug === slug));
+    } catch {}
+  }, [meme.id, slug]);
+
+  const handleToggleFavorite = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('memegpt_saved_memes') || '[]');
+      let updated;
+      if (isFavorite) {
+        updated = saved.filter((m: any) => m.id !== meme.id && m.slug !== slug);
+        setIsFavorite(false);
+      } else {
+        if (saved.length >= 200) {
+          alert('Favorites collection limit reached (200 memes). Please remove some before adding more.');
+          return;
+        }
+        const newEntry = {
+          id: meme.id,
+          name: meme.name,
+          slug,
+          preview_url: meme.gifRef || meme.imageRef || null,
+          formats: { gif: meme.gifRef || null, image: meme.imageRef || null },
+          collection_name: 'Favorites',
+          saved_at: new Date().toISOString(),
+        };
+        updated = [newEntry, ...saved];
+        setIsFavorite(true);
+      }
+      localStorage.setItem('memegpt_saved_memes', JSON.stringify(updated));
+      toggleFavorite(meme.id, getSessionId()).catch(() => {});
+    } catch {}
+  };
+
+  useEffect(() => {
+    let active = true;
+    setLoadingRelated(true);
+    getRelatedMemes(slug, 8)
+      .then((res) => {
+        if (active) setRelatedMemes(res);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingRelated(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
 
   const previewSrc = meme.gifRef || meme.imageRef || null;
   const downloadUrl = getDownloadUrl(slug, selectedFormat);
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://memegpt.com/meme/${slug}`;
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/meme/${slug}?ref=share_detail`
+    : `https://memegpt.com/meme/${slug}?ref=share_detail`;
 
   const handleCopy = async () => {
+    try {
+      if (previewSrc) {
+        const res = await fetch(previewSrc);
+        const rawBlob = await res.blob();
+        const pngBlob = await convertToPngBlob(rawBlob);
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        submitFeedback({ meme_id: meme.id, signal: 'copy', session_id: getSessionId() }).catch(() => {});
+        return;
+      }
+    } catch {
+      // Fall through to share URL
+    }
+
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      submitFeedback({ meme_id: meme.id, signal: 'copy', session_id: 'anonymous' }).catch(() => {});
+      submitFeedback({ meme_id: meme.id, signal: 'copy', session_id: getSessionId() }).catch(() => {});
     } catch { /* ignore */ }
   };
 
   const handleShare = async () => {
     if (navigator.share) {
       await navigator.share({ title: meme.name, url: shareUrl });
-      submitFeedback({ meme_id: meme.id, signal: 'share', session_id: 'anonymous' }).catch(() => {});
+      submitFeedback({ meme_id: meme.id, signal: 'share', session_id: getSessionId() }).catch(() => {});
     } else {
       handleCopy();
     }
   };
 
   const handleDownload = () => {
-    submitFeedback({ meme_id: meme.id, signal: 'download', session_id: 'anonymous' }).catch(() => {});
+    submitFeedback({ meme_id: meme.id, signal: 'download', session_id: getSessionId() }).catch(() => {});
   };
 
   const handleVote = (dir: 'up' | 'down') => {
@@ -56,7 +153,7 @@ export function MemeDetailClient({ meme, slug }: Props) {
     submitFeedback({
       meme_id: meme.id,
       signal: dir === 'up' ? 'thumbs_up' : 'thumbs_down',
-      session_id: 'anonymous',
+      session_id: getSessionId(),
     }).catch(() => {});
   };
 
@@ -138,6 +235,18 @@ export function MemeDetailClient({ meme, slug }: Props) {
                          rounded-2xl transition-all text-sm"
             >
               📤 Share
+            </button>
+            <button
+              onClick={handleToggleFavorite}
+              id="favorite-btn"
+              aria-label={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
+              className={`flex items-center gap-1.5 border font-semibold py-3 px-4 rounded-2xl transition-all text-sm ${
+                isFavorite
+                  ? 'bg-rose-950/40 border-rose-600/60 text-rose-300 hover:bg-rose-900/50'
+                  : 'bg-bg-surface hover:bg-bg-hover border-neutral-800 hover:border-neutral-700 text-neutral-300'
+              }`}
+            >
+              {isFavorite ? '❤️ Saved' : '🤍 Save'}
             </button>
           </div>
 
@@ -244,6 +353,73 @@ export function MemeDetailClient({ meme, slug }: Props) {
           </Link>
         </div>
       </div>
+
+      {/* ── Cultural Origin & Usage Guide ────────────────────────────────────── */}
+      <section className="mt-16 bg-bg-surface border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-2">
+          <span className="text-xl" aria-hidden="true">📖</span>
+          <h2 className="text-xl font-display font-bold text-neutral-100">Origin & Cultural Context</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-neutral-300 leading-relaxed">
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-400">Background & Evolution</h3>
+            <p className="text-neutral-400">
+              {meme.explanation || `The "${meme.name}" meme emerged as an internet staple expressing iconic shared emotions across social platforms and online communities.`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400">How & When to Use</h3>
+            <p className="text-neutral-400">
+              Best deployed when reacting to sudden surprises, ironic dilemmas, or relatable daily life situations in Discord, Slack, or social threads.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Related Memes Carousel ───────────────────────────────────────────── */}
+      {relatedMemes.length > 0 && (
+        <section className="mt-16 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-display font-bold text-neutral-100 flex items-center gap-2">
+                <span>⚡ Related Memes</span>
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">Memes sharing similar emotional undertones and comedic timing.</p>
+            </div>
+            <Link href="/app" className="text-xs text-violet-400 hover:text-violet-300 font-semibold">
+              Browse all →
+            </Link>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+            {relatedMemes.map((item) => (
+              <Link
+                key={item.id}
+                href={`/meme/${item.slug}`}
+                className="min-w-[200px] max-w-[220px] shrink-0 snap-start bg-bg-surface border border-neutral-800 hover:border-violet-600/60 rounded-2xl overflow-hidden transition-all hover:-translate-y-1 group"
+              >
+                <div className="w-full h-32 bg-neutral-900 overflow-hidden flex items-center justify-center">
+                  <img
+                    src={item.preview_url || item.formats?.image || item.formats?.gif || '/placeholder-meme.svg'}
+                    alt={item.name}
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="p-3">
+                  <h3 className="text-xs font-bold text-neutral-200 truncate group-hover:text-violet-300 transition-colors">
+                    {item.name}
+                  </h3>
+                  <div className="flex items-center justify-between mt-2 text-[10px] text-neutral-500">
+                    <span className="capitalize">{item.category}</span>
+                    {item.viralScore > 0 && <span className="text-amber-400">✨ {item.viralScore.toFixed(1)}</span>}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

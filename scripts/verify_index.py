@@ -40,6 +40,25 @@ def main() -> int:
         print("\n[FAIL] The collection is empty — nothing was indexed.", file=sys.stderr)
         return 1
 
+    # DATA-03: Assert 100% embedding coverage against SQLite database
+    try:
+        from app.database import SessionLocal, Meme
+        db = SessionLocal()
+        total_indexable = db.query(Meme).filter(~Meme.moderation_status.in_(["removed"])).count()
+        db.close()
+        if total_indexable > 0:
+            coverage = points / total_indexable
+            print(f"Index coverage: {points}/{total_indexable} ({coverage*100:.1f}%)")
+            if coverage < 1.0:
+                print(
+                    f"\n[FAIL] Incomplete vector embedding coverage: {points} indexed out of {total_indexable} indexable memes ({coverage*100:.1f}%).",
+                    file=sys.stderr,
+                )
+                return 1
+            print("✓ 100% vector embedding coverage verified.")
+    except Exception as e:
+        print(f"Coverage check notice: {e}")
+
     # Run a test search query
     test_query = "when the code finally works"
     print(f"\nRunning benchmark test query: '{test_query}'...")

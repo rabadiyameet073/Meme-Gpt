@@ -5,9 +5,11 @@ Specification: 13_Monitoring_Analytics.md
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
+from app.config import settings
+from app.core.auth import AuthContext, require_admin
 from app.services.email_service import (
     send_email,
     send_welcome_email,
@@ -17,7 +19,7 @@ from app.services.email_service import (
 )
 
 logger = logging.getLogger("memegpt.api.email")
-router = APIRouter(prefix="/email", tags=["Transactional Email"])
+router = APIRouter(prefix="/email", tags=["Transactional Email"], dependencies=[Depends(require_admin)])
 
 
 class WelcomeEmailRequest(BaseModel):
@@ -81,6 +83,8 @@ async def api_send_collection_share_email(req: ShareCollectionEmailRequest):
 @router.post("/magic-link", summary="Send magic login link email")
 async def api_send_magic_link_email(req: MagicLinkEmailRequest):
     """Sends passwordless magic authentication link email."""
+    if not (req.magic_link.startswith("https://") or req.magic_link.startswith("http://localhost")):
+        raise HTTPException(status_code=400, detail="Invalid magic link URL scheme. Must use HTTPS.")
     sent = await send_magic_link_email(req.to_email, req.magic_link)
     return {
         "success": True,

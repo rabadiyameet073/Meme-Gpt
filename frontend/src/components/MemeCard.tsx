@@ -14,6 +14,7 @@ import {
   trackMemeFavorite,
   trackEvent,
 } from "../lib/analytics";
+import { recordRecentView, recordRecentCopy } from "../lib/storage";
 
 const SESSION_ID = getSessionId();
 
@@ -45,6 +46,12 @@ export function MemeCard({
   useEffect(() => {
     setFav(!!isFav);
   }, [isFav]);
+
+  useEffect(() => {
+    if (meme?.id) {
+      recordRecentView(meme);
+    }
+  }, [meme.id]);
 
   const doVote = async (v: 1 | -1) => {
     if (vote === v) return;
@@ -121,6 +128,7 @@ export function MemeCard({
 
   const copyMeme = async () => {
     trackEvent("meme_copy", { meme_slug: meme.slug || meme.id });
+    recordRecentCopy(meme);
     const copyResult = await execCopyMeme(meme);
     confetti({
       particleCount: 18,

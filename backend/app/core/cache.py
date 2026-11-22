@@ -222,15 +222,20 @@ def cache_set(key: str, value: Any, ttl: int = 3600) -> bool:
             logger.warning(f"Redis SET failed: {e} — using fallback")
 
     # In-memory fallback
-    _fallback_cache[key] = (value, time.time() + ttl)
+    now = time.time()
+    _fallback_cache[key] = (value, now + ttl)
 
-    # Prevent unbounded growth — evict oldest if >500 keys
+    # Prevent unbounded growth — first prune expired, then evict oldest inserted if >500 keys
     if len(_fallback_cache) > 500:
-        try:
-            oldest = min(_fallback_cache, key=lambda k: _fallback_cache[k][1])
-            del _fallback_cache[oldest]
-        except Exception:
-            pass
+        expired_keys = [k for k, v in _fallback_cache.items() if now >= v[1]]
+        for k in expired_keys:
+            _fallback_cache.pop(k, None)
+        while len(_fallback_cache) > 500:
+            try:
+                oldest = next(iter(_fallback_cache))
+                _fallback_cache.pop(oldest, None)
+            except Exception:
+                break
 
     logger.debug(f"Cache SET (memory): {key[:30]}... TTL={ttl}s")
     return True
@@ -254,6 +259,13 @@ def cache_flush_pattern(pattern: str = "search:*") -> int:
     Delete all keys matching pattern.
     Useful for admin cache invalidation.
     """
+    if "search" in pattern:
+        try:
+            from app.api.v1.search import invalidate_memes_cache
+            invalidate_memes_cache()
+        except Exception:
+            pass
+
     client = get_redis_client()
     if client:
         try:
@@ -293,11 +305,17 @@ def rate_limit_check(identifier: str, limit: int, window_seconds: int = 60) -> T
 
     if client:
         try:
-            pipe = client.pipeline()
-            pipe.incr(key)
-            pipe.expire(key, window_seconds)
-            results = pipe.execute()
-            count = results[0]
+            if hasattr(client, "pipeline") and callable(client.pipeline):
+                pipe = client.pipeline()
+                pipe.incr(key)
+                results = pipe.execute()
+                count = results[0]
+                if count == 1:
+                    client.expire(key, window_seconds)
+            else:
+                count = client.incr(key)
+                if count == 1:
+                    client.expire(key, window_seconds)
             remaining = max(limit - count, 0)
             return count <= limit, remaining
         except Exception as e:
@@ -313,6 +331,16 @@ def rate_limit_check(identifier: str, limit: int, window_seconds: int = 60) -> T
 
     record["count"] += 1
     _rate_counts[key] = record
+
+    # Prevent unbounded growth of in-memory rate counters
+    if len(_rate_counts) > 1000:
+        expired = [k for k, v in _rate_counts.items() if now > v.get("reset_at", 0)]
+        for k in expired:
+            _rate_counts.pop(k, None)
+        if len(_rate_counts) > 1000:
+            oldest = sorted(_rate_counts.keys(), key=lambda k: _rate_counts[k].get("reset_at", 0))[:200]
+            for k in oldest:
+                _rate_counts.pop(k, None)
 
     # Store on function for compatibility if accessed
     cache_flush_pattern._counts = _rate_counts

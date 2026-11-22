@@ -92,8 +92,35 @@ const STATS = [
   { value: '7',        label: 'Emotions detected' },
   { value: '4',        label: 'Export formats' },
 ];
+async function getLiveStats() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/stats`, {
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return [
+        { value: data.total_memes ? `${Number(data.total_memes).toLocaleString()}+` : '5,000+', label: 'Memes indexed' },
+        { value: data.avg_latency_ms ? `${Math.round(data.avg_latency_ms)}ms` : '<200ms', label: 'Avg response time' },
+        { value: '7', label: 'Emotions detected' },
+        { value: '4', label: 'Export formats' },
+      ];
+    }
+  } catch {
+    // fallback gracefully
+  }
+  return [
+    { value: '5,000+', label: 'Memes indexed' },
+    { value: '<200ms', label: 'Avg response time' },
+    { value: '7', label: 'Emotions detected' },
+    { value: '4', label: 'Export formats' },
+  ];
+}
 
 export default function LandingPage() {
+export default async function LandingPage() {
+  const stats = await getLiveStats();
+
   return (
     <div className="min-h-screen bg-bg-base">
 
@@ -198,6 +225,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-8">
             {STATS.map(({ value, label }) => (
+            {stats.map(({ value, label }) => (
               <div key={label} className="text-center">
                 <dt className="text-3xl font-display font-bold text-gradient">{value}</dt>
                 <dd className="text-xs text-neutral-500 mt-1 font-medium uppercase tracking-wider">{label}</dd>

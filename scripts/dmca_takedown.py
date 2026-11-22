@@ -64,6 +64,16 @@ def process_takedown(slug: str, reason: str, dry_run: bool = False):
         # 3. Soft-delete or hard-delete in SQL database
         db.delete(meme)
         db.commit()
+
+        # 4. Flush search and trending caches (MOD-07)
+        try:
+            from app.core.cache import cache_flush_pattern
+            cache_flush_pattern("search:*")
+            cache_flush_pattern("trending:*")
+            logger.info("[OK] Cache keys flushed for search and trending")
+        except Exception as e:
+            logger.warning(f"Cache flush skipped: {e}")
+
         logger.info(f"[SUCCESS] Meme '{slug}' successfully wiped from all stores.")
         return True
 

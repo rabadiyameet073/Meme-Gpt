@@ -1,12 +1,14 @@
 """Content moderation — flagging, review queue, admin actions."""
-from typing import Optional
+import hashlib
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, require_admin
-from app.database import Meme, MemeFlag, get_db, utc_now
+from app.core.rate_limit import require_route_rate_limit
+from app.database import Meme, MemeFlag, DMCANotice, get_db, utc_now
 
 router = APIRouter(prefix="/moderation", tags=["Content Moderation"])
 
@@ -17,9 +19,21 @@ class FlagRequest(BaseModel):
     details: Optional[str] = ""
 
 
-@router.post("/flag", summary="Flag a meme as inappropriate")
+class DMCANoticeRequest(BaseModel):
+    claimant_name: str = Field(..., min_length=2, max_length=200)
+    claimant_email: str = Field(..., min_length=5, max_length=255)
+    copyrighted_work: str = Field(..., min_length=5)
+    infringing_url: str = Field(..., min_length=5)
+    meme_id: Optional[str] = None
+
+
+@router.post(
+    "/flag",
+    summary="Flag a meme as inappropriate",
+    dependencies=[Depends(require_route_rate_limit("moderation_flag"))],
+)
 async def flag_meme(body: FlagRequest, request: Request, db: Session = Depends(get_db)):
-    """Community flagging. Auto-queues meme for review after 5 flags."""
+    """Community flagging with abuse resistance and hashed IP reporter privacy (MOD-05, MOD-06)."""
     meme = db.query(Meme).filter(Meme.id == body.meme_id).first()
     if not meme:
         raise HTTPException(status_code=404, detail="Meme not found")
@@ -27,10 +41,26 @@ async def flag_meme(body: FlagRequest, request: Request, db: Session = Depends(g
     if body.reason not in ("nsfw", "offensive", "copyright", "spam", "other"):
         raise HTTPException(status_code=400, detail="Invalid reason. Allowed: nsfw, offensive, copyright, spam, other")
 
-    client_ip = request.client.host if request.client else None
+    client_ip = request.client.host if request.client else "unknown"
+    # MOD-06: Hash reporter IP for GDPR/privacy retention
+    reporter_hash = hashlib.sha256(f"reporter:{client_ip}".encode("utf-8")).hexdigest()[:32]
+
+    # MOD-05: Deduplicate flag per (meme_id, reporter_hash)
+    existing_flag = db.query(MemeFlag).filter(
+        MemeFlag.meme_id == body.meme_id,
+        MemeFlag.reporter_ip == reporter_hash,
+    ).first()
+    if existing_flag:
+        return {
+            "flagged": True,
+            "total_flags": meme.flag_count or 0,
+            "moderation_status": meme.moderation_status or "approved",
+            "message": "Flag already recorded for this device.",
+        }
+
     flag = MemeFlag(
         meme_id=body.meme_id,
-        reporter_ip=client_ip,
+        reporter_ip=reporter_hash,
         reason=body.reason,
         details=body.details or "",
     )
@@ -39,13 +69,60 @@ async def flag_meme(body: FlagRequest, request: Request, db: Session = Depends(g
     # Increment flag count
     meme.flag_count = (meme.flag_count or 0) + 1
 
-    # Auto-queue for review after 5 flags
+    # Auto-queue for review after 5 flags (hidden pending review)
     if meme.flag_count >= 5 and meme.moderation_status == "approved":
         meme.moderation_status = "pending_review"
+        from app.core.cache import cache_flush_pattern
+        cache_flush_pattern("search:*")
+        from app.services.trending_service import invalidate_trending_cache
+        invalidate_trending_cache()
 
     db.commit()
 
     return {"flagged": True, "total_flags": meme.flag_count, "moderation_status": meme.moderation_status}
+
+
+@router.post("/dmca", summary="Submit a DMCA copyright takedown notice (MOD-07)")
+async def submit_dmca_notice(body: DMCANoticeRequest, db: Session = Depends(get_db)):
+    """Receives DMCA notices, logs audit entry, immediately soft-deletes meme and flushes cache."""
+    target_meme = None
+    if body.meme_id:
+        target_meme = db.query(Meme).filter(Meme.id == body.meme_id).first()
+    if not target_meme and body.infringing_url:
+        slug = body.infringing_url.rstrip("/").split("/")[-1]
+        target_meme = db.query(Meme).filter((Meme.slug == slug) | (Meme.id == slug)).first()
+
+    notice = DMCANotice(
+        meme_id=target_meme.id if target_meme else body.meme_id,
+        claimant_name=body.claimant_name,
+        claimant_email=body.claimant_email,
+        copyrighted_work=body.copyrighted_work,
+        infringing_url=body.infringing_url,
+        action_taken="takedown" if target_meme else "pending_review",
+        status="processed" if target_meme else "pending",
+    )
+    db.add(notice)
+
+    if target_meme:
+        target_meme.moderation_status = "removed"
+        from app.core.cache import cache_flush_pattern
+        cache_flush_pattern("search:*")
+        from app.services.trending_service import invalidate_trending_cache
+        invalidate_trending_cache()
+
+    db.commit()
+    db.refresh(notice)
+    return {"success": True, "notice_id": notice.id, "action_taken": notice.action_taken}
+
+
+@router.get("/dmca/notices", summary="List DMCA takedown notices (admin)")
+async def list_dmca_notices(
+    db: Session = Depends(get_db),
+    auth: AuthContext = Depends(require_admin),
+):
+    """Retrieve logged DMCA notices for administrative review (MOD-07)."""
+    notices = db.query(DMCANotice).order_by(DMCANotice.created_at.desc()).limit(100).all()
+    return {"notices": [n.to_dict() for n in notices]}
 
 
 @router.get("/queue", summary="Get moderation review queue (admin)")
@@ -111,8 +188,10 @@ async def review_meme(
     # Trending filters on moderation_status, but the ranking is cached for an
     # hour in both tiers — a removed meme would keep being served until then.
     from app.services.trending_service import invalidate_trending_cache
-
     invalidate_trending_cache()
+
+    from app.core.cache import cache_flush_pattern
+    cache_flush_pattern("search:*")
 
     return {"meme_id": meme.id, "status": meme.moderation_status}
 

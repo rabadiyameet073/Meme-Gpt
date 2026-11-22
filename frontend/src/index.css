@@ -899,3 +899,29 @@ button, input, textarea, select {
   top: 16px;
 }
 
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Responsive: Mobile Bottom Navigation */
+@media (min-width: 769px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 60px;
+  }
+}
+
+
+

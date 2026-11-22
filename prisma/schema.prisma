@@ -13,6 +13,7 @@ model Meme {
   name            String
   slug            String   @unique
   category        String   @default("general")
+  categories      String   @default("[]")   // JSON array stored as string
   dialogue        String   @default("")
   explanation     String   @default("")
   keywords        String   @default("[]")   // JSON array stored as string
@@ -21,27 +22,37 @@ model Meme {
   gifUrl          String?  @map("gif_url")
   mp4Url          String?  @map("mp4_url")
   thumbUrl        String?  @map("thumb_url")
+  webpUrl         String?  @map("webp_url")
+  imageRef        String?  @map("image_ref")
   videoRef        String?  @map("video_ref")
   gifRef          String?  @map("gif_ref")
+  altText         String?  @map("alt_text")
   source          String   @default("manual")
   nsfw            Boolean  @default(false)
+  flagCount       Int      @default(0)      @map("flag_count")
+  moderationStatus String  @default("approved") @map("moderation_status")
   viralScore      Float    @default(0.0)    @map("viral_score")
   usageCount      Int      @default(0)      @map("usage_count")
   upvotes         Int      @default(0)
   downvotes       Int      @default(0)
+  viewCount       Int      @default(0)      @map("view_count")
   downloadCount   Int      @default(0)      @map("download_count")
   popularityScore Float    @default(0.0)    @map("popularity_score")
   createdAt       DateTime @default(now())  @map("created_at")
   updatedAt       DateTime @updatedAt       @map("updated_at")
+  indexedAt       DateTime? @map("indexed_at")
 
-  votes     MemeVote[]
-  usageLogs MemeUsage[]
-  feedback  Feedback[]
-  savedBy   SavedMeme[]
+  votes           MemeVote[]
+  usageLogs       MemeUsage[]
+  feedback        Feedback[]
+  savedBy         SavedMeme[]
+  flags           MemeFlag[]
+  favourites      FavouriteMeme[]
 
   @@index([category])
   @@index([name])
   @@index([slug])
+  @@index([nsfw])
   @@index([usageCount])
   @@index([viralScore])
   @@index([popularityScore])
@@ -68,7 +79,8 @@ model MemeUsage {
   memeId     String   @map("meme_id")
   meme       Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
   query      String
-  score      Float
+  score      Float?
+  confidence Float?
   sessionId  String   @default("anonymous") @map("session_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
@@ -77,28 +89,74 @@ model MemeUsage {
   @@map("meme_usage")
 }
 
-// ── Feedback ──────────────────────────────────────────────────────────────────
-// Valid actions: view | click | copy | download | share | thumbs_up | thumbs_down | skip
-model Feedback {
+// ── FavouriteMeme ─────────────────────────────────────────────────────────────
+model FavouriteMeme {
   id        String   @id @default(cuid())
-  sessionId String?  @map("session_id")
   memeId    String   @map("meme_id")
   meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
-  queryText String?  @map("query_text")
-  queryId   String?  @map("query_id")
-  action    String   // view | click | copy | download | share | thumbs_up | thumbs_down | skip
+  sessionId String   @map("session_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([memeId])
-  @@index([action])
-  @@index([createdAt])
-  @@map("feedback")
+  @@unique([memeId, sessionId])
+  @@index([sessionId])
+  @@map("favourite_memes")
+}
+
+// ── MemeFlag ──────────────────────────────────────────────────────────────────
+model MemeFlag {
+  id             String    @id @default(cuid())
+  memeId         String    @map("meme_id")
+  meme           Meme      @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  reporterIp     String?   @map("reporter_ip")
+  reporterUserId String?   @map("reporter_user_id")
+  reason         String    // 'nsfw' | 'offensive' | 'copyright' | 'spam' | 'other'
+  details        String?   @default("")
+  status         String    @default("pending") // 'pending' | 'reviewed' | 'removed' | 'dismissed'
+  reviewedBy     String?   @map("reviewed_by")
+  reviewedAt     DateTime? @map("reviewed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([memeId, status])
+  @@map("meme_flags")
+}
+
+// ── User ──────────────────────────────────────────────────────────────────────
+model User {
+  id                  String        @id @default(cuid())
+  email               String?       @unique
+  name                String?
+  username            String?
+  avatarUrl           String?       @map("avatar_url")
+  hashedPassword      String?       @map("hashed_password")
+  oauthProvider       String?       @map("oauth_provider")
+  oauthId             String?       @map("oauth_id")
+  plan                String        @default("free")
+  preferences         String        @default("{}") // JSON string
+  rateLimit           Int           @default(120) @map("rate_limit")
+  preferredFormat     String        @default("gif") @map("preferred_format")
+  theme               String        @default("dark")
+  nsfwEnabled         Boolean       @default(false) @map("nsfw_enabled")
+  favouriteCategories String        @default("[]") @map("favourite_categories") // JSON string
+  isActive            Boolean       @default(true) @map("is_active")
+  isAdmin             Boolean       @default(false) @map("is_admin")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  lastLogin           DateTime?     @map("last_login")
+
+  savedMemes          SavedMeme[]
+  feedbackEntries     Feedback[]
+  apiKeys             ApiKey[]
+  deviceTokens        DeviceToken[]
+
+  @@index([email])
+  @@index([oauthProvider, oauthId])
+  @@map("users")
 }
 
 // ── SavedMeme ─────────────────────────────────────────────────────────────────
 model SavedMeme {
   id             String   @id @default(cuid())
   userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   memeId         String   @map("meme_id")
   meme           Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
   collectionName String   @default("Favorites") @map("collection_name")
@@ -106,20 +164,85 @@ model SavedMeme {
 
   @@unique([userId, memeId])
   @@index([userId])
+  @@index([memeId])
   @@map("saved_memes")
+}
+
+// ── Feedback ──────────────────────────────────────────────────────────────────
+// Valid actions: view | click | copy | download | share | thumbs_up | thumbs_down | skip
+model Feedback {
+  id        String   @id @default(cuid())
+  sessionId String?  @default("anonymous") @map("session_id")
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  memeId    String   @map("meme_id")
+  meme      Meme     @relation(fields: [memeId], references: [id], onDelete: Cascade)
+  queryText String?  @map("query_text")
+  queryId   String?  @map("query_id")
+  action    String   // view | click | copy | download | share | thumbs_up | thumbs_down | skip
+  format    String?  @default("image")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([memeId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@index([userId])
+  @@map("feedback")
 }
 
 // ── SearchLog ─────────────────────────────────────────────────────────────────
 model SearchLog {
-  id          String   @id @default(cuid())
-  queryHash   String   @map("query_hash")   // MD5 of query — no raw PII
-  resultCount Int      @map("result_count")
-  topMemeId   String?  @map("top_meme_id")
-  latencyMs   Int      @map("latency_ms")
-  cacheHit    Boolean  @default(false) @map("cache_hit")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  queryHash       String?  @map("query_hash")   // MD5 of query — no raw PII
+  sessionId       String?  @map("session_id")
+  resultCount     Int      @default(0) @map("result_count")
+  topMemeId       String?  @map("top_meme_id")
+  latencyMs       Float    @default(0.0) @map("latency_ms")
+  cacheHit        Boolean  @default(false) @map("cache_hit")
+  modelUsed       String?  @map("model_used")
+  emotionDetected String?  @map("emotion_detected")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@index([queryHash])
+  @@index([sessionId])
   @@map("search_logs")
+}
+
+// ── ApiKey ────────────────────────────────────────────────────────────────────
+model ApiKey {
+  id        String    @id @default(cuid())
+  name      String    @default("Default API Key")
+  keyHash   String    @unique @map("key_hash")
+  prefix    String
+  tier      String    @default("free")
+  userId    String?   @map("user_id")
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
+  lastUsed  DateTime? @map("last_used")
+  rateLimit Int?      @map("rate_limit")
+
+  @@index([keyHash])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// ── DeviceToken ───────────────────────────────────────────────────────────────
+model DeviceToken {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  platform   String    @default("android") // ios | android | web
+  userId     String?   @map("user_id")
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  appVersion String?   @map("app_version")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastSeenAt DateTime? @default(now()) @map("last_seen_at")
+
+  @@index([token])
+  @@index([userId])
+  @@index([platform, active])
+  @@map("device_tokens")
 }

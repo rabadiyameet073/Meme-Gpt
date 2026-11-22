@@ -51,11 +51,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL,                        changeFrequency: 'daily',   priority: 1.0 },
     { url: `${BASE_URL}/download`,          changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${BASE_URL}/features`,          changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/about`,             changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/privacy`,           changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/app`,               changeFrequency: 'daily',   priority: 0.9 },
     { url: `${BASE_URL}/trending`,          changeFrequency: 'hourly',  priority: 0.8 },
     { url: `${BASE_URL}/library`,           changeFrequency: 'weekly',  priority: 0.6 },
     { url: `${BASE_URL}/blog`,              changeFrequency: 'daily',   priority: 0.8 },
   ];
+
+  const CATEGORIES = ['work', 'tech', 'coding', 'gaming', 'relationships', 'relationship', 'wholesome', 'tv', 'sports', 'funny', 'general'];
+  const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
+    url: `${BASE_URL}/memes/${cat}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.8,
+  }));
 
   // Blog posts — derived from the same list the routes are generated from, so the
   // sitemap can never advertise a slug that has no page.
@@ -68,5 +77,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const memePages = await fetchMemePages();
 
-  return [...staticPages, ...blogPages, ...memePages];
+  return [...staticPages, ...categoryPages, ...blogPages, ...memePages];
 }

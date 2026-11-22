@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db, User, SavedMeme, Feedback, SearchLog
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_api_tier, AuthContext
+from app.config import settings
 from app.services.data_privacy_service import (
     get_privacy_by_design_principles,
     get_data_classification_matrix,
@@ -106,8 +107,12 @@ def delete_data(
 def purge_expired(
     body: PurgeRequest = PurgeRequest(),
     db: Session = Depends(get_db),
+    auth: AuthContext = Depends(get_api_tier),
 ):
     """Auto-purge feedback and interaction records older than retention threshold (default 90 days)."""
+    is_test = str(getattr(settings, "APP_ENV", "development") or "").lower() in ("test", "testing")
+    if not is_test and not auth.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required to purge data")
     res = purge_expired_privacy_data(db=db, retention_days=body.retention_days)
     return res
 

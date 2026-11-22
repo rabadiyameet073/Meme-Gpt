@@ -14,6 +14,7 @@ from app.database import (
 from app.models.feedback import FeedbackRequest, VoteRequest, FavoriteRequest
 from app.models.meme import ExportRequest
 from app.meme_matcher import export_markdown, export_txt
+from app.core.rate_limit import require_route_rate_limit
 
 logger = logging.getLogger("memegpt.api.feedback")
 router = APIRouter(tags=["Feedback & Interactions"])
@@ -38,14 +39,25 @@ def _record_feedback_background(
     fmt: str = "image"
 ):
     """Background task for persisting feedback entry and updating meme viral score and usage counters."""
+    from app.core.cache import cache_get, cache_set, cache_flush_pattern
+
+    # FB-01: Deduplicate per (session, meme, action) within a 1-hour window to prevent viral score gaming
+    effective_session = session_id or "anonymous"
+    dedupe_key = f"feedback_dedupe:{effective_session}:{meme_id}:{action}"
+    if cache_get(dedupe_key):
+        logger.info(f"Feedback deduplicated (window active): {dedupe_key}")
+        return
+    cache_set(dedupe_key, 1, ttl=3600)
+
     db = SessionLocal()
     try:
-        # 1. Insert feedback record
+        # 1. Insert feedback record with format (FB-03)
         feedback_entry = Feedback(
             session_id=session_id,
             meme_id=meme_id,
             query_id=query_id,
             action=action,
+            format=fmt,
         )
         db.add(feedback_entry)
 
@@ -66,6 +78,8 @@ def _record_feedback_background(
             meme.viral_score = max(0.0, round(new_score, 2))
 
         db.commit()
+        cache_flush_pattern("trending:*")
+        cache_flush_pattern("search:*")
     except Exception as e:
         logger.error(f"Error in background feedback task: {e}")
         db.rollback()
@@ -73,7 +87,11 @@ def _record_feedback_background(
         db.close()
 
 
-@router.post("/feedback", summary="Record user interaction feedback signal")
+@router.post(
+    "/feedback",
+    summary="Record user interaction feedback signal",
+    dependencies=[Depends(require_route_rate_limit("feedback"))],
+)
 def record_feedback(
     body: FeedbackRequest,
     background_tasks: BackgroundTasks,
@@ -127,21 +145,24 @@ def vote_on_meme(body: VoteRequest, db: Session = Depends(get_db)):
     if existing:
         if existing.vote != body.vote:
             if existing.vote == 1:
-                meme.upvotes -= 1
-                meme.downvotes += 1
+                meme.upvotes = max(0, (meme.upvotes or 0) - 1)
+                meme.downvotes = (meme.downvotes or 0) + 1
             else:
-                meme.downvotes -= 1
-                meme.upvotes += 1
+                meme.downvotes = max(0, (meme.downvotes or 0) - 1)
+                meme.upvotes = (meme.upvotes or 0) + 1
             existing.vote = body.vote
     else:
         db.add(MemeVote(meme_id=body.memeId, vote=body.vote, session_id=body.sessionId))
         if body.vote == 1:
-            meme.upvotes += 1
+            meme.upvotes = (meme.upvotes or 0) + 1
         else:
-            meme.downvotes += 1
+            meme.downvotes = (meme.downvotes or 0) + 1
 
     db.commit()
-    return {"success": True, "upvotes": meme.upvotes, "downvotes": meme.downvotes}
+    from app.core.cache import cache_flush_pattern
+    cache_flush_pattern("trending:*")
+    cache_flush_pattern("search:*")
+    return {"success": True, "upvotes": meme.upvotes or 0, "downvotes": meme.downvotes or 0}
 
 
 @router.post("/export", summary="Export search results to file formats")

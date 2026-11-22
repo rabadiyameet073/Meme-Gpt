@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.cache import cache_flush_pattern, cache_get, cache_set
@@ -47,20 +48,29 @@ def validate_trending_params(category: str, period: str) -> None:
 def calculate_advanced_trending_score(
     meme: Meme,
     db: Optional[Session] = None,
-    period_hours: int = 24
+    period_hours: int = 24,
+    activity_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Calculate raw trending score and engagement counts from 07_APIs/Trending_API.md."""
+    """Calculate raw trending score and engagement counts from 07_APIs/Trending_API.md.
+    Derives decay and recency from real timestamps (TR-01), without synthetic metrics (TR-02).
+    """
     downloads = 0
     copies = 0
     shares = 0
     searches = 0
-    hours_since_peak = 2.0
-    last_activity_hours = 1.0
+    now_utc = datetime.now(timezone.utc)
+    latest_ts = None
 
-    if db:
+    if activity_data:
+        actions = activity_data.get("actions", {})
+        downloads = actions.get("download", 0)
+        copies = actions.get("copy", 0)
+        shares = actions.get("share", 0)
+        searches = activity_data.get("searches", 0)
+        latest_ts = activity_data.get("latest_ts")
+    elif db:
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=period_hours)
-            # Query feedback table
+            cutoff = now_utc - timedelta(hours=period_hours)
             feedback_rows = (
                 db.query(Feedback.action, Feedback.created_at)
                 .filter(Feedback.meme_id == meme.id, Feedback.created_at >= cutoff)
@@ -73,14 +83,11 @@ def calculate_advanced_trending_score(
                     copies += 1
                 elif act == "share":
                     shares += 1
+                if ts:
+                    ts_aware = ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+                    if latest_ts is None or ts_aware > latest_ts:
+                        latest_ts = ts_aware
 
-            # Query search appearances. `search_logs` stores an irreversible
-            # query_hash, not the query text (GDPR), so the usable signal is how
-            # often this meme was the top result of a search. The previous
-            # version filtered on `SearchLog.query`, a column that does not
-            # exist, and the bare `except` below hid the AttributeError — the
-            # searches term was always zero and silently fell back to
-            # `usage_count * 0.8`.
             searches = (
                 db.query(SearchLog.id)
                 .filter(
@@ -89,36 +96,37 @@ def calculate_advanced_trending_score(
                 )
                 .count()
             )
-        except Exception as exc:  # noqa: BLE001 - trending must degrade, not 500
+        except Exception as exc:
             logger.warning("trending_feedback_lookup_failed: meme=%s error=%s", meme.id, exc)
 
-    # Fallback to cumulative estimates if recent rows are sparse
-    if downloads == 0 and copies == 0 and shares == 0:
-        base_usage = meme.usage_count or 0
-        downloads = int(base_usage * 0.4)
-        copies = int(base_usage * 0.3)
-        shares = int(base_usage * 0.1)
-        searches = int(base_usage * 0.8)
+    has_recent = (downloads > 0 or copies > 0 or shares > 0 or searches > 0)
 
-    # Weighted engagement score
-    raw_score = (
-        downloads * 3.0 +
-        copies * 2.0 +
-        shares * 4.0 +
-        searches * 1.0
-    )
+    # TR-01 & TR-02: Derive time decay from real timestamps; never fabricate synthetic counts
+    if has_recent:
+        if latest_ts:
+            last_activity_hours = max(0.05, (now_utc - latest_ts).total_seconds() / 3600.0)
+        else:
+            last_activity_hours = 1.0
+        hours_since_peak = max(0.05, min(last_activity_hours, float(period_hours)))
 
-    # Time decay: newer activity matters more
-    time_decay = math.exp(-hours_since_peak / (period_hours * 0.5))
-
-    # Recency bonus: memes with recent activity get a boost
-    recency_bonus = max(0.0, 10.0 - last_activity_hours) * 0.5
-
-    # Novelty factor: boost memes that are new to trending
-    days_on_trending = 2.0
-    novelty_boost = max(0.0, 1.0 - days_on_trending * 0.05)
-
-    final_raw = (raw_score * time_decay + recency_bonus) * novelty_boost
+        raw_score = (
+            downloads * 3.0 +
+            copies * 2.0 +
+            shares * 4.0 +
+            searches * 1.0
+        )
+        time_decay = math.exp(-hours_since_peak / (period_hours * 0.5))
+        recency_bonus = max(0.0, 10.0 - min(last_activity_hours, 10.0)) * 0.5
+        days_on_trending = 1.0
+        novelty_boost = max(0.0, 1.0 - days_on_trending * 0.05)
+        final_raw = (raw_score * time_decay + recency_bonus) * novelty_boost
+    else:
+        # Fallback to cumulative viral score ordering without fabricating synthetic counts (TR-02)
+        downloads = 0
+        copies = 0
+        shares = 0
+        searches = 0
+        final_raw = max(0.0, float(meme.viral_score or 0.0) * 0.05)
 
     return {
         "raw_score": final_raw,
@@ -126,6 +134,7 @@ def calculate_advanced_trending_score(
         "copies_period": copies,
         "shares_period": shares,
         "searches_period": searches,
+        "has_recent_activity": has_recent,
     }
 
 
@@ -195,11 +204,60 @@ def get_trending_catalog(
     limit = min(max(limit, 1), 50)
     offset = max(0, offset)
 
-    # 1. Fetch all memes to establish overall trending rank (excluding removed memes)
+    # 1. Single aggregated queries for all memes over period window (TR-03)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=period_hours)
+    try:
+        feedback_agg = (
+            db.query(
+                Feedback.meme_id,
+                Feedback.action,
+                func.count(Feedback.id).label("count"),
+                func.max(Feedback.created_at).label("latest_ts"),
+            )
+            .filter(Feedback.created_at >= cutoff)
+            .group_by(Feedback.meme_id, Feedback.action)
+            .all()
+        )
+        meme_signals: Dict[str, Dict[str, Any]] = {}
+        for mid, action, count, latest_ts in feedback_agg:
+            d = meme_signals.setdefault(mid, {"actions": {}, "latest_ts": None, "searches": 0})
+            d["actions"][action] = count
+            if latest_ts:
+                ts_aware = latest_ts if latest_ts.tzinfo is not None else latest_ts.replace(tzinfo=timezone.utc)
+                if d["latest_ts"] is None or ts_aware > d["latest_ts"]:
+                    d["latest_ts"] = ts_aware
+
+        search_agg = (
+            db.query(
+                SearchLog.top_meme_id,
+                func.count(SearchLog.id).label("count"),
+                func.max(SearchLog.created_at).label("latest_ts"),
+            )
+            .filter(SearchLog.top_meme_id.isnot(None), SearchLog.created_at >= cutoff)
+            .group_by(SearchLog.top_meme_id)
+            .all()
+        )
+        for mid, count, latest_ts in search_agg:
+            d = meme_signals.setdefault(mid, {"actions": {}, "latest_ts": None, "searches": 0})
+            d["searches"] = count
+            if latest_ts:
+                ts_aware = latest_ts if latest_ts.tzinfo is not None else latest_ts.replace(tzinfo=timezone.utc)
+                if d["latest_ts"] is None or ts_aware > d["latest_ts"]:
+                    d["latest_ts"] = ts_aware
+    except Exception as exc:
+        logger.warning(f"Batch trending stats query error: {exc}")
+        meme_signals = {}
+
+    # 2. Score memes in a single O(N) in-memory pass
     all_memes = db.query(Meme).filter(Meme.moderation_status != "removed").all()
     overall_scored = []
     for m in all_memes:
-        score_info = calculate_advanced_trending_score(m, db=db, period_hours=period_hours)
+        score_info = calculate_advanced_trending_score(
+            m,
+            db=db,
+            period_hours=period_hours,
+            activity_data=meme_signals.get(m.id),
+        )
         overall_scored.append({
             "meme": m,
             **score_info,

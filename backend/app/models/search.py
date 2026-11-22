@@ -57,10 +57,21 @@ class AnalyzeRequest(BaseModel):
 class SearchResponse(BaseModel):
     success: bool = True
     query_id: str
-    results: List[Dict[str, Any]]
+    results: List[Dict[str, Any]] = Field(default_factory=list)
     intent_parsed: Optional[Dict[str, Any]] = None
     response_time_ms: int = 0
     cached: bool = False
+    total_results: Optional[int] = None
+    # Graceful degradation fields (API-07)
+    reason: Optional[str] = None
+    message: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
+    # Backward compatibility aliases
+    queryId: Optional[str] = None
+    query: Optional[str] = None
+    detected_emotion: Optional[str] = None
+    detectedEmotion: Optional[str] = None
+    latencyMs: Optional[int] = None
     primary: Optional[Dict[str, Any]] = None
     topFive: Optional[List[Dict[str, Any]]] = None
     bestMatch: Optional[Dict[str, Any]] = None

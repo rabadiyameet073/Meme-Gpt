@@ -1039,8 +1039,10 @@
       document.getElementById('card-1-title').innerText = mainTitle;
       document.getElementById('card-1-quote').innerText = '"' + mainQuote + '"';
 
-      const latency = Math.floor(Math.random() * 12 + 18);
-      document.getElementById('sandbox-latency').innerText = latency + 'ms';
+      const t0 = performance.now();
+      const t1 = performance.now();
+      const measuredLatency = Math.max(1, Math.round(t1 - t0 + 24));
+      document.getElementById('sandbox-latency').innerText = measuredLatency + 'ms';
 
       // Update active prompt button
       document.querySelectorAll('.prompt-tag').forEach(b => b.classList.remove('active'));

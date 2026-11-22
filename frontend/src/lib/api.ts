@@ -168,27 +168,37 @@ export const api = {
   // ── v1 API Specification Endpoints ──────────────────────────────────────────
   search: (
     query: string,
-    formatOrOptions: string | { format?: string; limit?: number } = "gif",
+    formatOrOptions: string | { format?: string; limit?: number; nsfw?: boolean; filters?: { categories?: string[]; exclude_ids?: string[] } } = "gif",
     limitParam: number = 5
   ) => {
     let format = "gif";
     let limit = limitParam;
+    let nsfw = false;
+    let filters: { categories?: string[]; exclude_ids?: string[] } | undefined = undefined;
 
     if (typeof formatOrOptions === "object" && formatOrOptions !== null) {
       format = formatOrOptions.format || "gif";
       limit = formatOrOptions.limit ?? limitParam;
+      nsfw = formatOrOptions.nsfw ?? false;
+      filters = formatOrOptions.filters;
     } else if (typeof formatOrOptions === "string") {
       format = formatOrOptions || "gif";
     }
 
+    const payload: Record<string, any> = {
+      query,
+      format_preference: format,
+      limit,
+      nsfw,
+      session_id: getSessionId(),
+    };
+    if (filters) {
+      payload.filters = filters;
+    }
+
     return apiRequest<SearchResponse>("/v1/search", {
       method: "POST",
-      body: JSON.stringify({
-        query,
-        format_preference: format,
-        limit,
-        session_id: getSessionId(),
-      }),
+      body: JSON.stringify(payload),
     });
   },
 
@@ -457,6 +467,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ image_url: imageUrl }),
       }
+    ),
+
+  getSuggestionChips: (limit = 8) =>
+    apiRequest<{ success: boolean; chips: { label: string; query: string; emotion?: string }[] }>(
+      `/api/v1/chips/suggestions?limit=${limit}`
     ),
 };
 

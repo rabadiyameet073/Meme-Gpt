@@ -102,6 +102,37 @@ def run_pipeline(limit: int = None):
         # 2. Run image processing (BLIP + OCR + CLIP)
         img_result = process_meme_image(image_path)
 
+        # DATA-06: Ingestion NSFW classification & moderation
+        is_nsfw = meme.get("nsfw", False)
+        mod_status = meme.get("moderation_status", "approved")
+        if image_path and Path(image_path).exists():
+            try:
+                from app.services.nsfw_service import classify_image
+                img_nsfw, nsfw_conf, nsfw_label = classify_image(image_path)
+                if img_nsfw:
+                    is_nsfw = True
+                    if nsfw_label in ("violent content", "hate speech imagery"):
+                        mod_status = "pending_review"
+            except Exception as e:
+                pass
+
+        # DATA-07: Ingestion Alt-text backfill from BLIP caption
+        alt_text = meme.get("alt_text") or img_result.get("caption") or f"Meme: {m_name}"
+
+        # DATA-05: Multi-format thumbnail generation
+        thumb_url = meme.get("thumb_url")
+        if image_path and Path(image_path).exists():
+            try:
+                from PIL import Image
+                t_path = IMAGES_DIR / f"{m_id}_thumb.webp"
+                if not t_path.exists():
+                    with Image.open(image_path) as im:
+                        im.thumbnail((320, 320))
+                        im.save(t_path, "WEBP", quality=80)
+                thumb_url = str(t_path)
+            except Exception:
+                pass
+
         # 3. Build rich text description
         parts = [
             f"Meme: {m_name}",
@@ -127,6 +158,13 @@ def run_pipeline(limit: int = None):
         processed.append({
             **meme,
             "id": m_id,
+            "source": meme.get("source", "master_catalog"),
+            "source_id": meme.get("source_id"),
+            "license": meme.get("license", "fair_use"),
+            "nsfw": is_nsfw,
+            "moderation_status": mod_status,
+            "alt_text": alt_text,
+            "thumb_url": thumb_url,
             "caption": img_result["caption"],
             "ocr_text": img_result["ocr_text"],
             "text_description": text_description,
@@ -152,6 +190,14 @@ def run_pipeline(limit: int = None):
         print("[SUCCESS] Qdrant indexing complete")
     except Exception as e:
         print(f"[INFO] Qdrant indexing skipped/deferred: {e}")
+
+    # DATA-09 & DATA-03: Post-pipeline index verification
+    try:
+        from scripts.verify_index import main as verify_index_main
+        print("\n[INFO] Running post-pipeline vector index verification...")
+        verify_index_main()
+    except Exception as e:
+        print(f"[INFO] Post-index verification note: {e}")
 
 
 if __name__ == "__main__":

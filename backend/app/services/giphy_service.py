@@ -6,13 +6,18 @@ Ensures any user query accesses millions of live memes & GIFs worldwide.
 
 import logging
 import os
+import time
+import concurrent.futures
 import requests
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("memegpt.giphy")
 
 GIPHY_API_KEY = os.getenv("GIPHY_API_KEY", "")
 TENOR_API_KEY = os.getenv("TENOR_API_KEY", "")
+
+_LIVE_CACHE: Dict[str, tuple[float, Dict[str, Any]]] = {}
+_CACHE_TTL_SECONDS = 600  # 10 minutes cache
 
 SUBREDDIT_MAP = {
     "coding": "ProgrammerHumor",
@@ -25,6 +30,22 @@ SUBREDDIT_MAP = {
     "money": "wallstreetbets",
     "funny": "dankmemes",
 }
+
+
+def _get_cached_live(key: str) -> Optional[Dict[str, Any]]:
+    entry = _LIVE_CACHE.get(key)
+    if entry:
+        ts, data = entry
+        if time.time() - ts < _CACHE_TTL_SECONDS:
+            return data
+        del _LIVE_CACHE[key]
+    return None
+
+
+def _set_cached_live(key: str, data: Dict[str, Any]) -> None:
+    if len(_LIVE_CACHE) > 1000:
+        _LIVE_CACHE.clear()
+    _LIVE_CACHE[key] = (time.time(), data)
 
 
 def search_giphy(query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -40,7 +61,7 @@ def search_giphy(query: str, limit: int = 10) -> List[Dict[str, Any]]:
         "rating": "g",
     }
     try:
-        resp = requests.get(url, params=params, timeout=5)
+        resp = requests.get(url, params=params, timeout=0.8)
         if resp.status_code == 200:
             data = resp.json().get("data", [])
             results = []
@@ -89,13 +110,13 @@ def search_live_memes(query: str, category: str = "funny", limit: int = 10) -> L
     url = f"https://meme-api.com/gimme/{sub}/{limit}"
 
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, timeout=0.8)
         if resp.status_code == 200:
             memes_data = resp.json().get("memes", [])
             results = []
             for item in memes_data:
                 img_url = item.get("url")
-                if img_url and not item.get("nsfw", False):
+                if img_url and not item.get("nsfw", False) and not item.get("spoiler", False):
                     post_id = item.get("postLink", "").split("/")[-1] or "live"
                     title = item.get("title", "Live Meme")
                     results.append({
@@ -134,14 +155,31 @@ def search_live_memes(query: str, category: str = "funny", limit: int = 10) -> L
 
 
 def get_global_gifs_and_memes(query: str, category: str = "funny", limit: int = 10) -> Dict[str, Any]:
-    """Retrieve combined live Giphy GIFs and Global Meme Stream."""
-    giphy_results = search_giphy(query, limit=limit // 2)
-    live_results = search_live_memes(query, category=category, limit=limit // 2)
+    """Retrieve combined live Giphy GIFs and Global Meme Stream concurrently with tight timeout."""
+    cache_key = f"{query.lower().strip()}:{category.lower().strip()}:{limit}"
+    cached = _get_cached_live(cache_key)
+    if cached is not None:
+        return cached
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        fut_giphy = executor.submit(search_giphy, query, limit // 2)
+        fut_live = executor.submit(search_live_memes, query, category, limit // 2)
+
+        try:
+            giphy_results = fut_giphy.result(timeout=1.0)
+        except Exception:
+            giphy_results = []
+
+        try:
+            live_results = fut_live.result(timeout=1.0)
+        except Exception:
+            live_results = []
 
     combined_memes = giphy_results + live_results
     gif_urls = [m["gifRef"] for m in combined_memes if m.get("gifRef")]
-
-    return {
+    res = {
         "memes": combined_memes,
         "gif_urls": gif_urls,
     }
+    _set_cached_live(cache_key, res)
+    return res

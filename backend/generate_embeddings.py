@@ -10,6 +10,7 @@ Run: python generate_embeddings.py [--limit 100] [--recreate] [--skip-images]
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -153,16 +154,9 @@ def embed_image(image, models: dict) -> list[float] | None:
 def embed_text(text: str, models: dict) -> list[float]:
     """Generate 384-dim MiniLM embedding for text."""
     if not models.get("text"):
-        # Fallback
-        from app.services.embedding_service import embed_text as fallback_embed
-        return fallback_embed(text)
-    try:
-        vector = models["text"].encode(text[:512], normalize_embeddings=True)
-        return vector.tolist()
-    except Exception as e:
-        logger.debug(f"Text embedding failed: {e}")
-        from app.services.embedding_service import embed_text as fallback_embed
-        return fallback_embed(text)
+        raise RuntimeError("MiniLM text embedding model is not loaded — aborted to prevent fake vector poisoning (AI-03).")
+    vector = models["text"].encode(text[:512], normalize_embeddings=True)
+    return vector.tolist()
 
 
 def _stamp_indexed(meme_ids: list[str]) -> int:
@@ -258,6 +252,10 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
     # 2. Load ML models
     logger.info("Loading ML models...")
     models = load_models(skip_images=skip_images)
+    if not models.get("text"):
+        raise RuntimeError(
+            "MiniLM text embedding model failed to load. Aborting indexing to prevent corpus poisoning (AI-03)."
+        )
 
     # 3. Fetch memes from DB
     db = SessionLocal()
@@ -273,6 +271,7 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
 
     # 4. Process each meme
     batch = []
+    all_embeddings = []
     processed = 0
     vector_upserts = 0
     indexed_stamped = 0
@@ -312,6 +311,11 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
             rich_text = build_rich_text(meme, ocr_text, caption)
             text_vector = embed_text(rich_text, models)
 
+            all_embeddings.append({
+                "id": str(meme.get("id")),
+                "vector": text_vector,
+            })
+
             batch.append({
                 "meme": meme,
                 "text_vector": text_vector,
@@ -335,6 +339,16 @@ def index_memes(limit: int = None, recreate: bool = False, skip_images: bool = F
     if batch:
         vector_upserts += _flush(batch)
         processed += len(batch)
+
+    is_test_env = os.getenv("APP_ENV", "").lower() in ("test", "testing", "ci")
+    if all_embeddings and not is_test_env and not limit:
+        try:
+            cache_path = Path(__file__).resolve().parent / "data" / "embeddings.json"
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(all_embeddings, indent=2), encoding="utf-8")
+            logger.info(f"Updated embeddings cache: {cache_path} ({len(all_embeddings)} items)")
+        except Exception as exc:
+            logger.warning(f"Failed to update embeddings cache: {exc}")
 
     logger.info("=" * 50)
     logger.info("✅ Embedding pass complete!")

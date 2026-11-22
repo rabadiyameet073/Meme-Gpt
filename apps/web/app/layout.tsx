@@ -34,6 +34,7 @@ export const metadata: Metadata = {
     'meme generator AI', 'best meme for situation', 'download meme GIF',
     'meme search engine', 'funny meme finder',
   ],
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     siteName: 'MemeGPT',
@@ -49,9 +50,9 @@ export const metadata: Metadata = {
     images: ['/og-image.jpg'],
   },
   robots: { index: true, follow: true },
-  verification: {
-    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || 'google-site-verification-token',
-  },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 
@@ -68,8 +69,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const umamiHostUrl = process.env.NEXT_PUBLIC_UMAMI_HOST_URL || 'https://analytics.umami.is/script.js';
 
   return (
-    <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var stored = localStorage.getItem('theme');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var theme = stored || (prefersDark ? 'dark' : 'light');
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                  document.documentElement.setAttribute('data-theme', theme);
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         {umamiWebsiteId && (
           <Script
             src={umamiHostUrl}

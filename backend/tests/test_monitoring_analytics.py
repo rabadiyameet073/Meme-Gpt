@@ -219,10 +219,16 @@ async def test_magic_link_and_alert_email_dispatch():
 # ── Transactional Email API Routes ───────────────────────────────────────────
 
 def test_email_api_routes():
-    """Verify all transactional email API routes respond properly."""
+    """Verify all transactional email API routes respond properly and require admin."""
+    # Anonymous call must be rejected with 401 or 403
+    r_anon = client.post("/api/v1/email/test", json={"to_email": "anon@example.com", "html_content": "<p>fail</p>"})
+    assert r_anon.status_code in (401, 403)
+
+    admin_headers = {"X-API-Key": "memegpt_admin_secret_key"}
+
     with patch("app.api.v1.email.send_welcome_email", new_callable=AsyncMock) as mock_welcome:
         mock_welcome.return_value = True
-        r = client.post("/api/v1/email/welcome", json={"email": "test@example.com", "username": "Tester"})
+        r = client.post("/api/v1/email/welcome", json={"email": "test@example.com", "username": "Tester"}, headers=admin_headers)
         assert r.status_code == 200
         assert r.json()["success"] is True
 
@@ -233,7 +239,7 @@ def test_email_api_routes():
             "sender_name": "Dev",
             "collection_name": "Favorites",
             "share_url": "https://memegpt.com/share/c/favs",
-        })
+        }, headers=admin_headers)
         assert r.status_code == 200
         assert r.json()["success"] is True
 
@@ -242,7 +248,7 @@ def test_email_api_routes():
         r = client.post("/api/v1/email/magic-link", json={
             "to_email": "user@example.com",
             "magic_link": "https://memegpt.com/magic?tok=abc",
-        })
+        }, headers=admin_headers)
         assert r.status_code == 200
         assert r.json()["success"] is True
 
@@ -252,7 +258,7 @@ def test_email_api_routes():
             "to_email": "user@example.com",
             "alert_title": "Password Changed",
             "alert_message": "Your password was recently changed.",
-        })
+        }, headers=admin_headers)
         assert r.status_code == 200
         assert r.json()["success"] is True
 
@@ -262,6 +268,6 @@ def test_email_api_routes():
             "to_email": "user@example.com",
             "subject": "Ping",
             "html_content": "<p>Pong</p>",
-        })
+        }, headers=admin_headers)
         assert r.status_code == 200
         assert r.json()["success"] is True

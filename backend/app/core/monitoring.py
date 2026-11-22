@@ -39,7 +39,7 @@ def init_monitoring():
         except Exception:
             pass
 
-        env = getattr(settings, "ENVIRONMENT", getattr(settings, "APP_ENV", "development"))
+        env = getattr(settings, "APP_ENV", "development")
         sentry_sdk.init(
             dsn=dsn,
             environment=env,

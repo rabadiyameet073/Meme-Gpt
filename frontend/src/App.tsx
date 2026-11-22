@@ -61,46 +61,63 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const { history, addToHistory, clearHistory, removeFromHistory } = useSearchHistory();
 
-  // Hash route parsing
+  // Clean URL & Hash route parsing
   useEffect(() => {
-    const parseHash = () => {
+    const parseRoute = () => {
       const hash = window.location.hash.replace(/^#\/?/, "");
-      if (hash.startsWith("meme/")) {
-        const slug = hash.replace("meme/", "");
+      const path = window.location.pathname.replace(/^\//, "");
+      const route = hash || path;
+
+      if (route.startsWith("meme/")) {
+        const slug = route.replace("meme/", "");
         if (slug) {
           setView({ type: "meme", slug });
           return;
         }
-      } else if (hash === "about") {
+      } else if (route === "about") {
         setView({ type: "about" });
         return;
-      } else if (hash === "privacy") {
+      } else if (route === "privacy") {
         setView({ type: "privacy" });
         return;
-      } else if (["chat", "search", "trending", "favorites", "stats", "admin"].includes(hash)) {
-        setView({ type: "tab", name: hash as any });
+      } else if (["chat", "search", "trending", "favorites", "stats", "admin"].includes(route)) {
+        setView({ type: "tab", name: route as any });
         return;
       }
       setView({ type: "tab", name: "chat" });
     };
 
-    parseHash();
-    window.addEventListener("hashchange", parseHash);
-    return () => window.removeEventListener("hashchange", parseHash);
+    parseRoute();
+    window.addEventListener("hashchange", parseRoute);
+    window.addEventListener("popstate", parseRoute);
+    return () => {
+      window.removeEventListener("hashchange", parseRoute);
+      window.removeEventListener("popstate", parseRoute);
+    };
   }, []);
 
   const navigateTo = (newView: ViewState) => {
     soundFx.playTap();
     setView(newView);
+    let targetPath = "/";
     if (newView.type === "tab") {
+      targetPath = `/${newView.name}`;
       window.location.hash = `#/${newView.name}`;
     } else if (newView.type === "meme") {
+      targetPath = `/meme/${newView.slug}`;
       window.location.hash = `#/meme/${newView.slug}`;
     } else if (newView.type === "about") {
+      targetPath = "/about";
       window.location.hash = `#/about`;
     } else if (newView.type === "privacy") {
+      targetPath = "/privacy";
       window.location.hash = `#/privacy`;
     }
+    try {
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, "", targetPath);
+      }
+    } catch {}
   };
 
   const toggleSound = () => {
@@ -173,15 +190,19 @@ export default function App() {
   };
 
   const currentTab = view.type === "tab" ? view.name : undefined;
+  const isAdmin = Boolean(currentUser?.is_admin || (currentUser?.plan && ["admin", "internal"].includes(currentUser.plan.toLowerCase())));
 
-  const topNavTabs: { id: "chat" | "search" | "trending" | "favorites" | "stats" | "admin"; label: string; icon: IconName }[] = [
+  const baseNavTabs: { id: "chat" | "search" | "trending" | "favorites" | "stats" | "admin"; label: string; icon: IconName }[] = [
     { id: "chat", label: "AI Matcher", icon: "chat" },
     { id: "search", label: "Browse Memes", icon: "search" },
     { id: "trending", label: "Trending", icon: "trending" },
     { id: "favorites", label: "Saved", icon: "heart" },
     { id: "stats", label: "Analytics", icon: "stats" },
-    { id: "admin", label: "Admin", icon: "settings" },
   ];
+
+  const topNavTabs = isAdmin
+    ? [...baseNavTabs, { id: "admin" as const, label: "Admin", icon: "settings" as IconName }]
+    : baseNavTabs;
 
   return (
     <div className="app-container">
@@ -416,7 +437,7 @@ export default function App() {
                 </motion.div>
               )}
 
-              {view.type === "tab" && view.name === "admin" && (
+              {view.type === "tab" && view.name === "admin" && isAdmin && (
                 <motion.div
                   key="admin"
                   initial={{ opacity: 0, y: 8 }}
@@ -559,6 +580,62 @@ export default function App() {
           addToast("Logged out successfully");
         }}
       />
+
+      {/* Mobile Bottom Navigation Bar (RWD-01) */}
+      <nav
+        className="mobile-bottom-nav"
+        role="navigation"
+        aria-label="Mobile Navigation"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "56px",
+          backgroundColor: "var(--bg-card)",
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          zIndex: 1000,
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        {[
+          { tab: "chat" as const, label: "Chat", icon: "sparkles" as const },
+          { tab: "search" as const, label: "Search", icon: "search" as const },
+          { tab: "trending" as const, label: "Trending", icon: "trending" as const },
+          { tab: "favorites" as const, label: "Library", icon: "bookmark" as const },
+        ].map(({ tab, label, icon }) => {
+          const isActive = view.type === "tab" && view.name === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => navigateTo({ type: "tab", name: tab })}
+              aria-label={label}
+              style={{
+                flex: 1,
+                height: "100%",
+                background: "transparent",
+                border: "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "2px",
+                color: isActive ? "var(--brand-primary)" : "var(--text-muted)",
+                fontSize: "0.7rem",
+                fontWeight: isActive ? 700 : 500,
+                cursor: "pointer",
+              }}
+            >
+              <Icon name={icon} size={18} color={isActive ? "var(--brand-primary)" : "var(--text-muted)"} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

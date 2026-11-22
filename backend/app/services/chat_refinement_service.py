@@ -2,6 +2,7 @@
 Specification: 08_Features/Chat_Refinement.md
 """
 
+import json
 import logging
 import re
 import time
@@ -9,16 +10,16 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, Meme
+from app.core.cache import get_redis_client
 
 logger = logging.getLogger("memegpt.services.chat_refinement")
 
-# In-memory session store for conversation histories (session_id -> dict)
-# Structure: {session_id: {"turns": [{"query": ..., "results": [...], "intent": {...}}], "last_active": float}}
+# Session store: Redis in production for stateless horizontal scaling,
+# with in-memory fallback when Redis is unavailable.
 _CHAT_SESSIONS: Dict[str, Dict[str, Any]] = {}
 SESSION_TTL_SECONDS = 3600  # 1 hour
 MAX_SESSIONS = 500  # hard bound so anonymous traffic cannot exhaust memory
 MAX_STORED_RESULTS = 5  # per turn; also bounds the referencable range
-
 
 WORD_TO_INDEX = {
     "first": 1,
@@ -43,17 +44,32 @@ WORD_TO_INDEX = {
     "5": 5,
 }
 
-# Matches an explicit pointer at a previous result. The first alternative needs a
-# marker word so an incidental number ("3 AM", "5 minutes") is never mistaken
-# for a selection.
 _REFERENCE_PATTERN = re.compile(
     r"(?:(?:the|number|result|option)\s+|#)\s*(first|second|third|fourth|fifth|[1-5])\b"
     r"|\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b"
 )
 
 
+def _get_redis():
+    try:
+        return get_redis_client()
+    except Exception:
+        return None
+
+
 def get_session_history(session_id: str) -> List[Dict[str, Any]]:
-    """Retrieve turn history for a session."""
+    """Retrieve turn history for a session (checking Redis first, then in-memory fallback)."""
+    r = _get_redis()
+    if r:
+        try:
+            raw = r.get(f"chat_session:{session_id}")
+            if raw:
+                data = json.loads(raw if isinstance(raw, str) else raw.decode("utf-8"))
+                if isinstance(data, dict):
+                    return data.get("turns", [])
+        except Exception as e:
+            logger.debug(f"Redis get chat session error: {e}")
+
     session = _CHAT_SESSIONS.get(session_id)
     if not session:
         return []
@@ -72,28 +88,43 @@ def add_session_turn(
 ) -> None:
     """Append a turn to the session history, capping at the last 10 turns."""
     now = time.time()
-    if session_id not in _CHAT_SESSIONS:
-        _CHAT_SESSIONS[session_id] = {"turns": [], "last_active": now}
-    
-    session = _CHAT_SESSIONS[session_id]
-    session["last_active"] = now
-    session["turns"].append({
+    turns = list(get_session_history(session_id))
+    turns.append({
         "query": query,
         "results": list(results or [])[:MAX_STORED_RESULTS],
         "intent": intent or {},
         "timestamp": now,
     })
-    # Keep only the last 10 turns
-    if len(session["turns"]) > 10:
-        session["turns"] = session["turns"][-10:]
+    if len(turns) > 10:
+        turns = turns[-10:]
+
+    session_payload = {"turns": turns, "last_active": now}
+    _CHAT_SESSIONS[session_id] = session_payload
+    if len(_CHAT_SESSIONS) > MAX_SESSIONS:
+        _prune_sessions()
+
+    r = _get_redis()
+    if r:
+        try:
+            r.set(f"chat_session:{session_id}", json.dumps(session_payload), ex=SESSION_TTL_SECONDS)
+        except Exception as e:
+            logger.debug(f"Redis set chat session error: {e}")
 
 
 def clear_session_history(session_id: str) -> bool:
     """Clear conversation history for a given session."""
+    cleared = False
+    r = _get_redis()
+    if r:
+        try:
+            cleared = bool(r.delete(f"chat_session:{session_id}"))
+        except Exception as e:
+            logger.debug(f"Redis delete chat session error: {e}")
+
     if session_id in _CHAT_SESSIONS:
         del _CHAT_SESSIONS[session_id]
-        return True
-    return False
+        cleared = True
+    return cleared
 
 
 def _prune_sessions() -> None:

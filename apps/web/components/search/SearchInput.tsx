@@ -62,7 +62,7 @@ export function SearchInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={3}
-          disabled={loading}
+          readOnly={loading}
           aria-label="Meme search input"
           className="w-full bg-transparent px-4 pt-4 pb-12 text-neutral-100 placeholder-neutral-500
                      resize-none focus:outline-none text-base leading-relaxed"

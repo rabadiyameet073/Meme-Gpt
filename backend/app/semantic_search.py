@@ -15,16 +15,30 @@ _model_attempted = False
 
 
 def _get_transformer_model():
-    global _st_model, _model_attempted
-    if not USE_TRANSFORMER_MODEL or _model_attempted:
+    """Reuse shared singleton SentenceTransformer model from embedding_service (AI-04)."""
+    global _st_model
+    if _st_model is not None:
         return _st_model
 
-    _model_attempted = True
+    try:
+        from app.services.embedding_service import _text_model, is_text_model_loaded, load_models
+        if not is_text_model_loaded():
+            load_models()
+        from app.services.embedding_service import _text_model
+        _st_model = _text_model
+        if _st_model is not None:
+            return _st_model
+    except Exception as e:
+        logger.debug(f"Could not reuse embedding_service model: {e}")
+
+    # Fallback to direct load if embedding_service unavailable
+    if not USE_TRANSFORMER_MODEL:
+        return None
+
     try:
         from sentence_transformers import SentenceTransformer
         logger.info("Loading sentence-transformers model (all-MiniLM-L6-v2)...")
         _st_model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("SentenceTransformer model loaded successfully.")
     except Exception as e:
         logger.warning(f"Could not load SentenceTransformer ({e}). Falling back to TF-IDF semantic search.")
         _st_model = None

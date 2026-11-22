@@ -177,14 +177,16 @@ def isolate_committed_rows(seed_shared_corpus):
 
 @pytest.fixture(autouse=True)
 def reset_rate_limits_auto():
-    """Auto-reset rate limiters between all test executions."""
+    """Auto-reset rate limiters and caches between all test executions."""
     from app.core.rate_limit import rate_limiter
     from app.core.cache import _rate_counts, _fallback_cache
     rate_limiter.reset()
     _rate_counts.clear()
+    _fallback_cache.clear()
     yield
     rate_limiter.reset()
     _rate_counts.clear()
+    _fallback_cache.clear()
 
 
 @pytest.fixture

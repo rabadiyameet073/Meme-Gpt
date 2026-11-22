@@ -207,6 +207,9 @@ export function SearchTab({ onToast, initialCategory = "" }: SearchTabProps) {
 
       {/* Results Header Count */}
       <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -240,7 +243,7 @@ export function SearchTab({ onToast, initialCategory = "" }: SearchTabProps) {
 
       {/* Loading Skeletons */}
       {loading ? (
-        <div className="card-grid">
+        <div className="card-grid" aria-busy="true" aria-label="Loading memes">
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div
               key={n}

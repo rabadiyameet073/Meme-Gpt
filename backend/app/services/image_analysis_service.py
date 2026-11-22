@@ -135,6 +135,37 @@ def embed_image(image_path: str) -> list[float]:
         return (vec / norm).tolist()
 
 
+def embed_text_clip(text: str) -> list[float]:
+    """Generate 512-dim CLIP text embedding using CLIP's text encoder.
+    Enables cross-modal text-to-image similarity search (AI-01).
+    """
+    if not text or not text.strip():
+        return [0.0] * 512
+    try:
+        import clip
+        import torch
+
+        model, _ = _get_clip()
+        if model is None:
+            # Deterministic fallback pseudo-vector for testing
+            rng = np.random.RandomState(abs(hash(text[:50])) % (2**31))
+            vec = rng.randn(512).astype(np.float32)
+            norm = np.linalg.norm(vec)
+            return (vec / norm).tolist()
+
+        tokens = clip.tokenize([text[:77]], truncate=True)
+        with torch.no_grad():
+            text_emb = model.encode_text(tokens)
+            text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
+        return text_emb.squeeze().tolist()
+    except Exception as e:
+        logger.debug(f"CLIP text embedding error: {e}")
+        rng = np.random.RandomState(abs(hash(text[:50])) % (2**31))
+        vec = rng.randn(512).astype(np.float32)
+        norm = np.linalg.norm(vec)
+        return (vec / norm).tolist()
+
+
 def create_combined_embedding(text_emb: list[float], image_emb: list[float]) -> list[float]:
     """Weighted concatenation: 65% text + 35% image.
 

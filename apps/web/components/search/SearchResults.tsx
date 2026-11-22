@@ -40,7 +40,22 @@ export function SearchResults({
     );
   }
 
-  if (!results.length) return null;
+  if (!results.length) {
+    if (queryId) {
+      return (
+        <div className="text-center py-12 px-4 space-y-3 bg-neutral-900/40 border border-neutral-800 rounded-3xl" role="status">
+          <span className="text-5xl select-none" aria-hidden="true">🫠</span>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-neutral-200">No memes matched this exact vibe</h3>
+            <p className="text-xs text-neutral-500 max-w-md mx-auto">
+              Our AI couldn't locate an indexed meme for that phrasing. Try simpler feelings like <em>"frustrated at code"</em>, <em>"monday exhaustion"</em>, or pick a suggestion chip above!
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="space-y-3">

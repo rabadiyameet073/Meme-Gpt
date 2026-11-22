@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { api, Meme } from "../api";
 import { Icon } from "./Icon";
 import { soundFx } from "../lib/audio";
+import { recordRecentView, recordRecentCopy } from "../lib/storage";
 
 export interface MemeDetailProps {
   slug: string;
@@ -26,6 +27,7 @@ export function MemeDetail({ slug, onBack, onToast }: MemeDetailProps) {
       .then((data) => {
         if (isMounted) {
           setMeme(data);
+          recordRecentView(data);
           document.title = `${data.name} — MemeGPT`;
         }
       })

@@ -187,6 +187,26 @@ def recalculate_persisted_popularity(db: Session, window_days: int = 30) -> Dict
         meme.viral_score = velocity
 
     db.commit()
+
+    # Sync updated popularity & viral scores into Qdrant vector payloads (AI-09)
+    try:
+        from app.services.search_service import get_qdrant_client, COLLECTION_NAME, _meme_id_to_int
+        q_client = get_qdrant_client()
+        if q_client:
+            for meme in memes:
+                point_id = _meme_id_to_int(meme.id)
+                q_client.set_payload(
+                    collection_name=COLLECTION_NAME,
+                    payload={
+                        "popularity_score": float(meme.popularity_score or 0.0),
+                        "viral_score": float(meme.viral_score or 0.0),
+                    },
+                    points=[point_id],
+                )
+            logger.info(f"Synced {len(memes)} popularity scores to Qdrant payloads.")
+    except Exception as exc:
+        logger.debug(f"Could not sync popularity to Qdrant payloads ({exc})")
+
     logger.info(
         f"popularity_recalculated: total_memes={len(memes)} updated={updated} "
         f"with_recent_feedback={with_recent} window_days={window_days}"

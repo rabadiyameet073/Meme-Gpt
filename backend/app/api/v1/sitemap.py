@@ -164,3 +164,21 @@ def get_meme_og_html(slug: str, db: Session = Depends(get_db)):
         media_type="text/html",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@router.get("/sitemap/slugs", summary="Paginated slug listing for static site generation and sitemaps")
+def get_sitemap_slugs(limit: int = 1000, offset: int = 0, db: Session = Depends(get_db)):
+    """Returns list of meme slugs for SSG and Next.js static generation (API-09 / SEO-01)."""
+    limit = min(max(limit, 1), 50000)
+    offset = max(offset, 0)
+    query = db.query(Meme.slug, Meme.updated_at).filter(Meme.moderation_status != "removed")
+    total = query.count()
+    rows = query.offset(offset).limit(limit).all()
+    return {
+        "success": True,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "slugs": [r[0] for r in rows if r[0]],
+        "items": [{"slug": r[0], "updated_at": r[1].isoformat() if r[1] else None} for r in rows if r[0]],
+    }

@@ -67,6 +67,14 @@ def run_trending_refresh() -> int:
                     counts,
                 )
 
+        # FB-05 & AI-09: Recalculate popularity scores and sync vector payloads hourly
+        try:
+            from app.core.jobs import recalculate_popularity_scores
+            recalc_count = recalculate_popularity_scores(db)
+            logger.info("popularity_scores_updated: count=%s", recalc_count)
+        except Exception as e:
+            logger.warning("popularity_scores_update_deferred: %s", e)
+
         logger.info("trending_refresh_completed: warmed_keys=%s", warmed)
         print(
             f"[OK] trending cache warmed: {warmed} category/period keys "

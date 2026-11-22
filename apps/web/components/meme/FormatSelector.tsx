@@ -9,10 +9,11 @@ import React, { useEffect } from 'react';
 import type { FormatPref } from '../../lib/hooks/useMemeSearch';
 
 const STORAGE_KEY = 'memegpt_format_pref';
-const FORMATS: { value: FormatPref; label: string; emoji: string }[] = [
-  { value: 'gif', label: 'GIF', emoji: '🎞' },
-  { value: 'image', label: 'Image', emoji: '🖼' },
-  { value: 'video', label: 'Video', emoji: '🎬' },
+const FORMATS: { value: FormatPref; label: string; emoji: string; hint: string }[] = [
+  { value: 'gif', label: 'GIF', emoji: '🎞', hint: 'Slack, Discord, X' },
+  { value: 'image', label: 'PNG', emoji: '🖼', hint: 'Stickers, iMessage' },
+  { value: 'video', label: 'MP4', emoji: '🎬', hint: 'WhatsApp, Telegram' },
+  { value: 'webp', label: 'WebP', emoji: '🌐', hint: 'Ultra-fast web loading' },
 ];
 
 interface FormatSelectorProps {
@@ -46,15 +47,17 @@ export function FormatSelector({ value, onChange }: FormatSelectorProps) {
           key={f.value}
           role="radio"
           aria-checked={value === f.value}
+          title={`${f.label} — recommended for ${f.hint}`}
           onClick={() => handleChange(f.value)}
-          className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
             value === f.value
-              ? 'bg-violet-600 text-white'
+              ? 'bg-violet-600 text-white shadow-sm'
               : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
           }`}
         >
           <span aria-hidden="true">{f.emoji}</span>
-          {f.label}
+          <span>{f.label}</span>
+          <span className="hidden sm:inline text-[10px] opacity-70 font-normal">({f.hint.split(',')[0]})</span>
           {value === f.value && <span className="sr-only">(selected)</span>}
         </button>
       ))}

@@ -52,7 +52,8 @@ def classify_image(image_path: str) -> Tuple[bool, float, str]:
     """
     _load_clip()
     if _clip_model is None or _clip_processor is None:
-        return False, 0.0, "safe content"
+        # MOD-01: Fail closed when model unavailable
+        return True, 0.0, "unknown_needs_review"
 
     try:
         import torch
@@ -76,14 +77,21 @@ def classify_image(image_path: str) -> Tuple[bool, float, str]:
 
     except Exception as e:
         logger.warning(f"NSFW classification failed for {image_path}: {e}")
-        return False, 0.0, "safe content"
+        # MOD-01: Fail closed on error
+        return True, 0.0, "unknown_needs_review"
 
 
 def classify_image_from_url(url: str) -> Tuple[bool, float, str]:
-    """Download image from URL and classify."""
+    """Download image from URL and classify, protected against SSRF (SEC-12)."""
     import requests
+    from app.services.webhook_service import _is_safe_webhook_url
+
+    if not _is_safe_webhook_url(url):
+        logger.warning(f"Blocked SSRF attempt in classify_image_from_url: {url}")
+        return False, 0.0, "blocked unsafe url"
+
     try:
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, timeout=10, allow_redirects=False)
         if resp.status_code == 200:
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
                 f.write(resp.content)
@@ -93,7 +101,7 @@ def classify_image_from_url(url: str) -> Tuple[bool, float, str]:
             finally:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
-        return False, 0.0, "safe content"
+        return True, 0.0, "unknown_needs_review"
     except Exception as e:
         logger.warning(f"Failed to classify image from URL {url}: {e}")
-        return False, 0.0, "safe content"
+        return True, 0.0, "unknown_needs_review"

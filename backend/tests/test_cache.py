@@ -93,14 +93,18 @@ def test_cache_ttl_expiration():
 
 def test_cache_bounded_growth_eviction():
     """Verify that in-memory cache evicts oldest entries when exceeding 500 items."""
-    for i in range(505):
-        key = f"search:item_{i}"
-        cache_set(key, {"index": i}, ttl=100 + i)
+    _fallback_cache.clear()
+    try:
+        for i in range(505):
+            key = f"search:item_{i}"
+            cache_set(key, {"index": i}, ttl=100 + i)
 
-    assert len(_fallback_cache) <= 501
-    # Oldest key should have been evicted
-    assert cache_get("search:item_0") is None
-    assert cache_get("search:item_504") is not None
+        assert len(_fallback_cache) <= 501
+        # Oldest key should have been evicted
+        assert cache_get("search:item_0") is None
+        assert cache_get("search:item_504") is not None
+    finally:
+        _fallback_cache.clear()
 
 
 def test_rate_limit_check_allow_and_block():

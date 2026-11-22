@@ -31,15 +31,32 @@ def main():
     parser.add_argument("--backup", action="store_true", help="Create a database backup")
     parser.add_argument("--restore", type=str, help="Restore database from specified backup file")
     parser.add_argument("--snapshot-qdrant", action="store_true", help="Create a Qdrant collection snapshot")
+    parser.add_argument("--upload-r2", action="store_true", help="Upload created backup to Cloudflare R2 off-site bucket")
     parser.add_argument("--verify-dr", action="store_true", help="Verify Disaster Recovery readiness and RTO/RPO SLAs")
     parser.add_argument("--recover-scenario", type=int, choices=[1, 2, 3, 4], help="Execute recovery procedure dry-run for scenario 1-4")
     parser.add_argument("--checklist", action="store_true", help="Show recovery verification checklist")
     args = parser.parse_args()
 
-    if args.backup:
+    if args.backup or (not any([args.restore, args.snapshot_qdrant, args.verify_dr, args.recover_scenario, args.checklist])):
         print("Creating database backup...")
         res = create_database_backup()
         print(json.dumps(res, indent=2))
+        if args.upload_r2 and res.get("path") and Path(res["path"]).exists():
+            print(f"Uploading backup {res['path']} to offsite R2 bucket...")
+            from app.config import settings, R2_BUCKET, R2_ENDPOINT
+            try:
+                import boto3
+                s3 = boto3.client(
+                    "s3",
+                    endpoint_url=R2_ENDPOINT or getattr(settings, "R2_ENDPOINT", None),
+                    aws_access_key_id=getattr(settings, "R2_ACCESS_KEY_ID", "mock_key"),
+                    aws_secret_access_key=getattr(settings, "R2_SECRET_ACCESS_KEY", "mock_secret"),
+                )
+                bucket = R2_BUCKET or getattr(settings, "R2_BUCKET", "memegpt-backups")
+                s3.upload_file(res["path"], bucket, f"backups/{Path(res['path']).name}")
+                print(f"✅ Successfully uploaded offsite: r2://{bucket}/backups/{Path(res['path']).name}")
+            except Exception as e:
+                print(f"ℹ️ Offsite upload status: {e}")
 
     elif args.restore:
         print(f"Restoring database from {args.restore}...")

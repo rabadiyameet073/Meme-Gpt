@@ -11,6 +11,7 @@ import {
 } from "../lib/auth";
 import type { User } from "@/types";
 import { soundFx } from "../lib/audio";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function AuthModal({
   onAuthSuccess,
   onLogout,
 }: AuthModalProps) {
+  const trapRef = useFocusTrap(isOpen);
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -137,6 +139,7 @@ export function AuthModal({
         }}
       >
         <motion.div
+          ref={trapRef as any}
           className="auth-modal-card"
           role="dialog"
           aria-modal="true"

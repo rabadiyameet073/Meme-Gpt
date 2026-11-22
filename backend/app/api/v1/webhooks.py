@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field, HttpUrl
 
+from app.config import settings
 from app.core.auth import require_auth, AuthContext, optional_auth
 from app.services.webhook_service import (
     register_webhook,
@@ -18,6 +19,20 @@ from app.services.webhook_service import (
 
 logger = logging.getLogger("memegpt.api.webhooks")
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+
+
+def require_webhook_auth(auth: AuthContext = Depends(optional_auth)) -> AuthContext:
+    """Ensure webhook endpoints require authentication in production."""
+    if auth.is_authenticated:
+        return auth
+    app_env = str(getattr(settings, "APP_ENV", "development") or "development").lower()
+    if app_env in ("development", "test", "testing"):
+        return auth
+    raise HTTPException(
+        status_code=401,
+        detail="Authentication required to manage webhooks",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 class WebhookRegistrationRequest(BaseModel):
@@ -43,7 +58,7 @@ def list_events():
 @router.post("", summary="Register developer webhook endpoint")
 def create_webhook(
     body: WebhookRegistrationRequest,
-    auth: AuthContext = Depends(optional_auth),
+    auth: AuthContext = Depends(require_webhook_auth),
 ):
     """Register a new webhook endpoint for developer API subscriptions."""
     owner_id = auth.user_id if (auth and auth.user_id) else ((auth.key_id[:12] if auth.key_id else "anonymous") if auth else "anonymous")
@@ -64,7 +79,7 @@ def create_webhook(
 
 @router.get("", summary="List registered webhooks")
 def get_webhooks(
-    auth: AuthContext = Depends(optional_auth),
+    auth: AuthContext = Depends(require_webhook_auth),
 ):
     """List all active webhooks registered by this developer/session."""
     owner_id = auth.user_id if (auth and auth.user_id) else (auth.key_id if (auth and auth.key_id) else None)
@@ -79,7 +94,7 @@ def get_webhooks(
 @router.delete("/{webhook_id}", summary="Delete registered webhook")
 def remove_webhook(
     webhook_id: str,
-    auth: AuthContext = Depends(optional_auth),
+    auth: AuthContext = Depends(require_webhook_auth),
 ):
     """Unsubscribe and delete a registered webhook."""
     owner_id = auth.user_id if (auth and auth.user_id) else (auth.key_id if (auth and auth.key_id) else None)
@@ -95,7 +110,7 @@ def remove_webhook(
 @router.post("/test-dispatch", summary="Simulate webhook event dispatch")
 def test_dispatch(
     body: WebhookTestDispatchRequest,
-    auth: AuthContext = Depends(optional_auth),
+    auth: AuthContext = Depends(require_webhook_auth),
 ):
     """Simulate dispatching a webhook event to all subscribed endpoints."""
     owner_id = auth.user_id if auth and auth.user_id else None
